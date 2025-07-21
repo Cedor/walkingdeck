@@ -67,6 +67,15 @@
     }
 */
 
+.playertablecard {
+    display: inline-block;
+    position: relative;
+    margin-top: 5px;
+    width: 63px;
+    height: 88px;
+    /*background-image: url('img/Prota.png'); /* temp hack to see it */
+    /*border: 2px solid red;*/
+}
 
 
 
