@@ -34,25 +34,31 @@ class Game extends \Table
      * NOTE: afterward, you can get/set the global variables with `getGameStateValue`, `setGameStateInitialValue` or
      * `setGameStateValue` functions.
      */
+
+    protected $cards;
+
     public function __construct()
     {
         parent::__construct();
 
         $this->initGameStateLabels([
-            "my_first_global_variable" => 10,
-            "my_second_global_variable" => 11,
-            "my_first_game_variant" => 100,
-            "my_second_game_variant" => 101,
-        ]);        
+            "difficultyLevel" => 10, // example of game option
+        ]);
+
+        $this->cards = $this->getNew( "module.common.deck" );
+        $this->cards->init( "card" );
 
         self::$CARD_TYPES = [
             1 => [
-                "card_name" => clienttranslate('Troll'), // ...
+                "card_name" => clienttranslate('Protagonist'),
             ],
             2 => [
-                "card_name" => clienttranslate('Goblin'), // ...
+                "card_name" => clienttranslate('Rural'),
             ],
-            // ...
+            3 => [
+                "card_name" => clienttranslate('Urban'),
+            ],
+
         ];
 
         /* example of notification decorator.
@@ -278,9 +284,9 @@ class Game extends \Table
         $this->reloadPlayersBasicInfos();
 
         // Init global values with their initial values.
-
-        // Dummy content.
-        $this->setGameStateInitialValue("my_first_global_variable", 0);
+        
+        // Difficulty level is define by protagonist picked at game start. Default is 1.
+        $this->setGameStateInitialValue("difficultyLevel", 1);
 
         // Init game statistics.
         //

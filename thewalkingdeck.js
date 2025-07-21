@@ -18,19 +18,17 @@
 define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
-    "ebg/counter"
+    "ebg/counter", 
+    "ebg/stock"
 ],
 function (dojo, declare) {
     return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
-        constructor: function(){
-            console.log('thewalkingdeck constructor');
-              
-            // Here, you can init the global variables of your user interface
-            // Example:
-            // this.myGlobalValue = 0;
+      constructor: function () {
+        console.log("thewalkingdeck constructor");
+        this.cardwidth = 744;
+        this.cardheight = 1029;
+      },
 
-        },
-        
         /*
             setup:
             
@@ -48,30 +46,23 @@ function (dojo, declare) {
         {
             console.log( "Starting game setup" );
 
-            // Example to add a div on the game area
-            document.getElementById('game_play_area').insertAdjacentHTML('beforeend', `
-                <div id="player-tables"></div>
-            `);
-            
-            // Setting up player boards
-            Object.values(gamedatas.players).forEach(player => {
-                // example of setting up players boards
-                this.getPlayerPanelElement(player.id).insertAdjacentHTML('beforeend', `
-                    <div id="player-counter-${player.id}">A player counter</div>
-                `);
-
                 // example of adding a div for each player
                 document.getElementById('player-tables').insertAdjacentHTML('beforeend', `
-                    <div id="player-table-${player.id}">
-                        <strong>${player.name}</strong>
-                        <div>Player zone content goes here</div>
+                  <div id="player-table">
+                    <strong>${player.name}</strong>
+                    <div>Player zone content goes here</div>
+                  </div>
+              `);
+                document.getElementById("game_play_area").insertAdjacentHTML( "beforeend",`
+                  <div id="playerHand_wrap" class="whiteblock">
+                    <b id="playerHand_label">${_("My hand")}</b>
+                    <div id="playerHand">
+                        <div class="playertablecard"></div>
                     </div>
+                  </div>
                 `);
-            });
-            
+       
             // TODO: Set up your game interface here, according to "gamedatas"
-            
- 
             // Setup game notifications to handle (see "setupNotifications" method below)
             this.setupNotifications();
 
@@ -168,7 +159,6 @@ function (dojo, declare) {
             script.
         
         */
-
 
         ///////////////////////////////////////////////////
         //// Player's action
