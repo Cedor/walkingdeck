@@ -19,7 +19,8 @@ define([
     "dojo","dojo/_base/declare",
     "ebg/core/gamegui",
     "ebg/counter", 
-    "ebg/stock"
+    "ebg/stock",
+    g_gamethemeurl + "modules/bga-cards.js"
 ],
 function (dojo, declare) {
     return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
