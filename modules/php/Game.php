@@ -22,8 +22,6 @@ require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
 
 class Game extends \Table
 {
-    private static array $CARD_TYPES;
-
     /**
      * Your global variables labels:
      *
@@ -36,6 +34,8 @@ class Game extends \Table
      */
 
     protected $cards;
+    
+    private static array $CARD_TYPES;
 
     public function __construct()
     {
@@ -224,7 +224,7 @@ class Game extends \Table
         $result = [];
 
         // WARNING: We must only return information visible by the current player.
-        $current_player_id = (int) $this->getCurrentPlayerId();
+        //$current_player_id = (int) $this->getCurrentPlayerId();
 
         // Get information about players.
         // NOTE: you can retrieve some extra field you added for "player" table in `dbmodel.sql` if you need it.
@@ -233,6 +233,16 @@ class Game extends \Table
         );
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
+        // Cards in player hand
+        $result['hand'] = $this->cards->getCardsInLocation( 'hand');
+        
+        // Cards played on the table
+        $result['protagonist'] = $this->cards->getCardsInLocation( 'protagonist');
+        // $result['memory'] = $this->cards->getCardsInLocation( 'memory');
+        // $result['escaped'] = $this->cards->getCardsInLocation( 'escaped');
+        // $result['graveyard'] = $this->cards->getCardsInLocation( 'graveyard');
+        // $result['rural'] = $this->cards->getCardsInLocation( 'rural');
+        // $result['urban'] = $this->cards->getCardsInLocation( 'urban');
 
         return $result;
     }
