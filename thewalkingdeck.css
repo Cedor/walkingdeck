@@ -42,12 +42,9 @@
            Consequently, don't hesitate to put as many comments as necessary.
 */
 
-
 /* Note: you must not use any @import directive */
 
-
 /********* You can start writing your CSS below this line: **********/
-
 
 /*
     Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
@@ -67,15 +64,37 @@
     }
 */
 
-.playertablecard {
-    display: inline-block;
-    position: relative;
-    margin-top: 5px;
-    width: 63px;
-    height: 88px;
-    /*background-image: url('img/Prota.png'); /* temp hack to see it */
-    /*border: 2px solid red;*/
+.protagonist-slot {
+  position: absolute;
+  width: 127px;
+  height: 179px;
 }
 
+.twd-deck {
+  position: relative;
+  width: 127px;
+  height: 179px;
+  border: 2px solid red;
+}
 
+.twd-card {
+  display: inline-block;
+  position: relative;
+  width: 127px;
+  height: 179px;
+  border: 2px solid red;
+}
 
+.twd-card-back {
+  background: url("img/cards.png");
+  background-position: -1016px -179px;
+}
+
+.twd-card-back-urban {
+  background: url("img/cards.png");
+  background-position: -1016px -358px;
+}
+.twd-card-back-rural {
+  background: url("img/cards.png");
+  background-position: -1016px 0px;
+}

@@ -16,18 +16,19 @@
  */
 
 define([
-    "dojo","dojo/_base/declare",
-    "ebg/core/gamegui",
-    "ebg/counter", 
-    "ebg/stock"
-],
-function (dojo, declare) {
-    return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
-      constructor: function () {
-        console.log("thewalkingdeck constructor");
-        this.cardwidth = 744;
-        this.cardheight = 1029;
-      },
+  "dojo",
+  "dojo/_base/declare",
+  "ebg/core/gamegui",
+  "ebg/counter",
+  getLibUrl('bga-animations', '1.x'),
+  getLibUrl('bga-cards', '1.x')
+], function (dojo, declare, gamegui, counter, BgaAnimations, BgaCards) {
+  return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
+    constructor: function () {
+      console.log("thewalkingdeck constructor");
+      this.cardwidth = 127;
+      this.cardheight = 179;
+    },
 
         /*
             setup:
