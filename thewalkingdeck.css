@@ -67,6 +67,8 @@
     }
 */
 
+@import url(modules/bga-cards.css);
+
 .playertablecard {
     display: inline-block;
     position: relative;
