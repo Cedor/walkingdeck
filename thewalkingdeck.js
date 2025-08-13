@@ -69,17 +69,27 @@ define([
                 <div id="protagonist-slot">
                 </div>
               </div>
+              <div id="memory-wrap">
+                <b>${_("Memory")}</b>
+                <div id="memory"></div>
+              </div>
+              <div id="graveyard-wrap">
+                <b>${_("Graveyard")}</b>
+                <div id="graveyard"></div>
+              </div>
+              <div id="escaped-wrap">
+                <b>${_("Escaped")}</b>
+                <div id="escaped"></div>
+              </div>
             </div>
           `
       );
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
-        `
-            <div id="hand_wrap" class="whiteblock">
-              <b id="hand_label">${_("My hand")}</b>
-              <div id="hand"></div>
-            </div>
-          `
+        `<div id="hand_wrap" class="whiteblock">
+            <b id="hand_label">${_("My hand")}</b>
+            <div id="hand"></div>
+          </div>`
       );
 
       // create the animation manager, and bind it to the `game.bgaAnimationsActive()` function
@@ -94,8 +104,8 @@ define([
         getId: (card) => `card-${card.id}`,
         setupDiv: (card, div) => {
           div.classList.add("twd-card");
-          div.style.width = "127px";
-          div.style.height = "179px";
+          //div.style.width = "127px";
+          //div.style.height = "179px";
           div.style.position = "relative";
         },
         setupFrontDiv: (card, div) => {
@@ -104,20 +114,20 @@ define([
           div.classList.remove("twd-card-back-rural");
           div.classList.add("twd-card-front");*/
           //div.id = `card-${card.id}-front`;
-          div.style.backgroundPositionX = `${(card.type_arg - 1) * 100 / 18}%`;
+          div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`;
           if (card.type == 1)
-            div.style.backgroundPositionY = `${(2) * 100 / 3}%`;  
+            div.style.backgroundPositionY = `100%`;  
           else
-            div.style.backgroundPositionY = `${(card.type - 2) * 100 / 3}%`;
-          this.addTooltipHtml(div.id, `tooltip de ${card.type}`);
+            div.style.backgroundPositionY = `${(card.type - 2) * 100 / 2}%`;
+          this.addTooltipHtml(div.id, `tooltip de ${card.type}, ${card.type_arg}`);
         },
         setupBackDiv: (card, div) => {
          // div.classList.remove("twd-card-front");
           switch (card.type) {
-            case "urban":
+            case "2": // urban
               div.classList.add("twd-card-back-urban");
               break;
-            case "rural":
+            case "3": // rural
               div.classList.add("twd-card-back-rural");
               break;
             default:
@@ -133,7 +143,7 @@ define([
       this.urbanDeck = new BgaCards.Deck(
         this.cardsManager,
         document.getElementById("urban-deck"), {
-          cardNumber: 5,
+          cardNumber: 0,
           counter: {
             position: 'center',
             extraClasses: 'text-shadow',
@@ -143,7 +153,7 @@ define([
       this.ruralDeck = new BgaCards.Deck(
         this.cardsManager,
         document.getElementById("rural-deck"), {
-          cardNumber: 6,
+          cardNumber: 0,
           counter: {
             position: 'center',
             extraClasses: 'text-shadow',
@@ -163,12 +173,84 @@ define([
       this.hand = new BgaCards.HandStock(
         this.cardsManager,
         document.getElementById('hand')
-      )
+      );
+      //create memory pile
+      this.memory = new BgaCards.DiscardDeck(
+        this.cardsManager,
+        document.getElementById('memory'),
+        {
+          cardNumber: 0,
+          counter: {
+            hideWhenEmpty: true,
+          },
+        }
+      );
+      //create graveyard pile
+      this.graveyard = new BgaCards.Deck(
+        this.cardsManager,
+        document.getElementById('graveyard'),
+        {
+          cardNumber: 0,
+          counter: {
+            hideWhenEmpty: true,
+          },
+        }
+      );
+      //create escaped pile
+      this.escaped = new BgaCards.AllVisibleDeck(
+        this.cardsManager,
+        document.getElementById('escaped'),{
+          cardNumber: 0,
+          counter: {
+            hideWhenEmpty: true,
+          },
+        }
+      );
       // TODO: Set up your game interface here, according to "gamedatas"
+      // Hand gamedatas
       for (var i in this.gamedatas.hand) {
         var card = this.gamedatas.hand[i];
-        //this.cardsManager.addCard(card);
+        this.hand.addCard({
+          id: card.id,
+          type: card.type,
+          type_arg: card.type_arg,
+          location: card.location,
+          location_arg: card.location_arg,
+        });
       }
+      // Protagonist slot gamedatas
+      if (this.gamedatas.protagonistSlot.length > 1) 
+        console.log("Protagonist slot contains multiple cards");
+      if (this.gamedatas.protagonistSlot.length > 0){
+        var prota = this.gamedatas.protagonistSlot[0];
+        this.protagonistSlot.addCard({
+          id: prota.id,
+          type: prota.type,
+          type_arg: prota.type_arg,
+          location: prota.location,
+          location_arg: prota.location_arg,
+        });
+      }
+      // Urban Deck gamedatas
+      this.urbanDeck.setCardNumber(this.gamedatas.urbanDeckNb);
+      // Rural Deck gamedatas
+      this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
+      // Memory gamedatas
+      if (this.gamedatas.memoryTop) {
+        this.memory.setCardNumber(this.gamedatas.memory-1);
+        var memoryTopCard = this.gamedatas.memoryTop;
+        this.memory.addCard({
+          id: memoryTopCard.id,
+          type: memoryTopCard.type,
+          type_arg: memoryTopCard.type_arg,
+          location: memoryTopCard.location,
+          location_arg: memoryTopCard.location_arg,
+        });
+      }
+      //graveyard gamedatas
+      this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
+      //escaped gamedatas
+      
       // Setup game notifications to handle (see "setupNotifications" method below)
       this.setupNotifications();
 

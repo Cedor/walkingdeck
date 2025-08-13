@@ -369,12 +369,13 @@ class Game extends \Table
         $result['hand'] = $this->cards->getCardsInLocation( 'hand');
         
         // Cards played on the table
-        $result['protagonist'] = $this->cards->getCardsInLocation( 'protagonist');
-        // $result['memory'] = $this->cards->getCardsInLocation( 'memory');
-        // $result['escaped'] = $this->cards->getCardsInLocation( 'escaped');
-        // $result['graveyard'] = $this->cards->getCardsInLocation( 'graveyard');
-        $result['rural'] = $this->cards->getCardsInLocation( 'deck-rural');
-        $result['urban'] = $this->cards->getCardsInLocation( 'deck-urban');
+        $result['protagonistSlot'] = $this->cards->getCardsInLocation( 'protagonist');
+        $result['memoryTop'] = $this->cards->getCardOnTop( 'memory');
+        $result['memoryNb'] = $this->cards->countCardInLocation( 'memory');
+        $result['escaped'] = $this->cards->getCardsInLocation( 'escaped', null, 'card_location_arg');
+        $result['graveyardNb'] = $this->cards->countCardInLocation( 'graveyard');
+        $result['ruralDeckNb'] = $this->cards->countCardInLocation( 'deck-rural');
+        $result['urbanDeckNb'] = $this->cards->countCardInLocation( 'deck-urban');
 
         return $result;
     }
@@ -450,10 +451,12 @@ class Game extends \Table
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
                 $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
         $this->cards->createCards($cards, 'deck-rural');
+        $this->cards->shuffle('deck-rural');
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
                 $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
         $this->cards->createCards($cards, 'deck-urban');
+        $this->cards->shuffle('deck-urban');
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
