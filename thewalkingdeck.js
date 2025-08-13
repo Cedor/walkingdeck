@@ -99,16 +99,20 @@ define([
           div.style.position = "relative";
         },
         setupFrontDiv: (card, div) => {
-          div.style.background = "blue";
-          div.classList.remove("twd-card-back");
+         /* div.classList.remove("twd-card-back");
           div.classList.remove("twd-card-back-urban");
           div.classList.remove("twd-card-back-rural");
-          div.classList.add("twd-card-front");
-          div.id = `card-${card.id}-front`;
+          div.classList.add("twd-card-front");*/
+          //div.id = `card-${card.id}-front`;
+          div.style.backgroundPositionX = `${(card.type_arg - 1) * 100 / 18}%`;
+          if (card.type == 1)
+            div.style.backgroundPositionY = `${(2) * 100 / 3}%`;  
+          else
+            div.style.backgroundPositionY = `${(card.type - 2) * 100 / 3}%`;
           this.addTooltipHtml(div.id, `tooltip de ${card.type}`);
         },
         setupBackDiv: (card, div) => {
-          div.classList.remove("twd-card-front");
+         // div.classList.remove("twd-card-front");
           switch (card.type) {
             case "urban":
               div.classList.add("twd-card-back-urban");

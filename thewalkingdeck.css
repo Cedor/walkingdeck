@@ -86,15 +86,17 @@
 }
 
 .twd-card-back {
-  background: url("img/cards.png");
-  background-position: -1016px -179px;
-}
-
-.twd-card-back-urban {
-  background: url("img/cards.png");
-  background-position: -1016px -358px;
+  background: url("img/sprite_sheet.png");
+  background-position: -508px -358px;
 }
 .twd-card-back-rural {
-  background: url("img/cards.png");
-  background-position: -1016px 0px;
+  background: url("img/sprite_sheet.png");
+  background-position: -635px -358px;
+}
+.twd-card-back-urban {
+  background: url("img/sprite_sheet.png");
+  background-position: -762px -358px;
+}
+.twd-card-front {
+  background: url("img/sprite_sheet.png");
 }
