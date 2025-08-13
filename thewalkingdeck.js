@@ -75,11 +75,9 @@ define([
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
         `
-            <div id="playerHand_wrap" class="whiteblock">
-              <b id="playerHand_label">${_("My hand")}</b>
-              <div id="playerHand">
-                  <div class="twd-card twd-card-back"></div>
-              </div>
+            <div id="hand_wrap" class="whiteblock">
+              <b id="hand_label">${_("My hand")}</b>
+              <div id="hand"></div>
             </div>
           `
       );
@@ -92,7 +90,7 @@ define([
       // create the card manager
       this.cardsManager = new BgaCards.Manager({
         animationManager: this.animationManager,
-        type: 'mygame-card',
+        type: 'twd-card',
         getId: (card) => `card-${card.id}`,
         setupDiv: (card, div) => {
           div.classList.add("twd-card");
@@ -102,11 +100,15 @@ define([
         },
         setupFrontDiv: (card, div) => {
           div.style.background = "blue";
+          div.classList.remove("twd-card-back");
+          div.classList.remove("twd-card-back-urban");
+          div.classList.remove("twd-card-back-rural");
           div.classList.add("twd-card-front");
           div.id = `card-${card.id}-front`;
           this.addTooltipHtml(div.id, `tooltip de ${card.type}`);
         },
         setupBackDiv: (card, div) => {
+          div.classList.remove("twd-card-front");
           switch (card.type) {
             case "urban":
               div.classList.add("twd-card-back-urban");
@@ -153,7 +155,16 @@ define([
           mapCardToSlot: (card) => card.location,
         }
       );
+      // create hand
+      this.hand = new BgaCards.HandStock(
+        this.cardsManager,
+        document.getElementById('hand')
+      )
       // TODO: Set up your game interface here, according to "gamedatas"
+      for (var i in this.gamedatas.hand) {
+        var card = this.gamedatas.hand[i];
+        //this.cardsManager.addCard(card);
+      }
       // Setup game notifications to handle (see "setupNotifications" method below)
       this.setupNotifications();
 

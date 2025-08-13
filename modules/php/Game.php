@@ -35,7 +35,13 @@ class Game extends \Table
 
     protected $cards;
     
-    private static array $CARD_TYPES;
+    private static array $CARD_TYPE;
+    private static array $CARD_PROTA;
+    private static array $CARD_RURAL;
+    private static array $CARD_URBAN;
+    private static int $PROTA_COUNT = 4; // number of protagonists
+    private static int $RURAL_COUNT = 18; // number of rural cards
+    private static int $URBAN_COUNT = 18; // number of urban cards
 
     public function __construct()
     {
@@ -48,17 +54,143 @@ class Game extends \Table
         $this->cards = $this->getNew( "module.common.deck" );
         $this->cards->init( "card" );
 
-        self::$CARD_TYPES = [
+        self::$CARD_TYPE = [
             1 => [
-                "card_name" => clienttranslate('Protagonist'),
+                "type_name" => clienttranslate('Protagonist'),
             ],
             2 => [
-                "card_name" => clienttranslate('Rural'),
+                "type_name" => clienttranslate('Rural'),
             ],
             3 => [
-                "card_name" => clienttranslate('Urban'),
+                "type_name" => clienttranslate('Urban'),
             ],
 
+        ];
+        self::$CARD_PROTA = [
+            1 => [
+                "card_name" => clienttranslate('Aenor'),
+            ],
+            2 => [
+                "card_name" => clienttranslate('Boris'),
+            ],
+            3 => [
+                "card_name" => clienttranslate('Adrien'),
+            ],
+            4 => [
+                "card_name" => clienttranslate('Eleonore'),
+            ],
+        ];
+        self::$CARD_RURAL = [
+            1 => [
+                "card_name" => clienttranslate('Clown'),
+            ],
+            2 => [
+                "card_name" => clienttranslate('Kieren'),
+            ],
+            3 => [
+                "card_name" => clienttranslate('Punk'),
+            ],
+            4 => [
+                "card_name" => clienttranslate('Gretchen'),
+            ],
+            5 => [
+                "card_name" => clienttranslate('Brigade'),
+            ],
+            6 => [
+                "card_name" => clienttranslate('Cabot'),
+            ],
+            7 => [
+                "card_name" => clienttranslate('Alcool Medical'),
+            ],
+            8 => [
+                "card_name" => clienttranslate('Entrepot'),
+            ],
+            9 => [
+                "card_name" => clienttranslate('Piege a loup'),
+            ],
+            10 => [
+                "card_name" => clienttranslate('Tallahassee'),
+            ],
+            11 => [
+                "card_name" => clienttranslate('Elie et Joel'),
+            ],
+            12 => [
+                "card_name" => clienttranslate('Robert'),
+            ],
+            13 => [
+                "card_name" => clienttranslate('Feu de camp'),
+            ],
+            14 => [
+                "card_name" => clienttranslate('Vaudou'),
+            ],
+            15 => [
+                "card_name" => clienttranslate('Conserve'),
+            ],
+            16 => [
+                "card_name" => clienttranslate('Domitille'),
+            ],
+            17 => [
+                "card_name" => clienttranslate('Cheval'),
+            ],
+            18 => [
+                "card_name" => clienttranslate('Camping-Car'),
+            ],
+        ];
+        self::$CARD_URBAN = [
+            1 => [
+                "card_name" => clienttranslate('Peluche'),
+            ],
+            2 => [
+                "card_name" => clienttranslate('Cave'),
+            ],
+            3 => [
+                "card_name" => clienttranslate('Grenade'),
+            ],
+            4 => [
+                "card_name" => clienttranslate('Wild Zero'),
+            ],
+            5 => [
+                "card_name" => clienttranslate('Carte'),
+            ],
+            6 => [
+                "card_name" => clienttranslate('Controleur'),
+            ],
+            7 => [
+                "card_name" => clienttranslate('Chef de chantier'),
+            ],
+            8 => [
+                "card_name" => clienttranslate('Glenn'),
+            ],
+            9 => [
+                "card_name" => clienttranslate('Musiciens'),
+            ],
+            10 => [
+                "card_name" => clienttranslate('Murphy'),
+            ],
+            11 => [
+                "card_name" => clienttranslate('Horde'),
+            ],
+            12 => [
+                "card_name" => clienttranslate('Majordome'),
+            ],
+            13 => [
+                "card_name" => clienttranslate('La Faucheuse'),
+            ],
+            14 => [
+                "card_name" => clienttranslate('Zoey'),
+            ],
+            15 => [
+                "card_name" => clienttranslate('Jill'),
+            ],
+            16 => [
+                "card_name" => clienttranslate('Café Jeux'),
+            ],
+            17 => [
+                "card_name" => clienttranslate('Shaun'),
+            ],
+            18 => [
+                "card_name" => clienttranslate('Enseignante'),
+            ],
         ];
 
         /* example of notification decorator.
@@ -69,7 +201,7 @@ class Game extends \Table
             }
         
             if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPES[$args['card_id']]['card_name'];
+                $args['card_name'] = self::$CARD_TYPE[$args['card_id']]['card_name'];
                 $args['i18n'][] = ['card_name'];
             }
             
@@ -98,7 +230,7 @@ class Game extends \Table
         }
 
         // Add your game logic to play a card here.
-        $card_name = self::$CARD_TYPES[$card_id]['card_name'];
+        $card_name = self::$CARD_TYPE[$card_id]['card_name'];
 
         // Notify all players about the card played.
         $this->notify->all("cardPlayed", clienttranslate('${player_name} plays ${card_name}'), [
@@ -241,8 +373,8 @@ class Game extends \Table
         // $result['memory'] = $this->cards->getCardsInLocation( 'memory');
         // $result['escaped'] = $this->cards->getCardsInLocation( 'escaped');
         // $result['graveyard'] = $this->cards->getCardsInLocation( 'graveyard');
-        // $result['rural'] = $this->cards->getCardsInLocation( 'rural');
-        // $result['urban'] = $this->cards->getCardsInLocation( 'urban');
+        $result['rural'] = $this->cards->getCardsInLocation( 'deck-rural');
+        $result['urban'] = $this->cards->getCardsInLocation( 'deck-urban');
 
         return $result;
     }
@@ -307,6 +439,21 @@ class Game extends \Table
         // $this->initStat("player", "player_teststat1", 0);
 
         // TODO: Setup the initial game situation here.
+
+        //create protoganist cards
+        $cards = [];
+        //$pcards[] = ['type' => ];
+        for ($i = 1; $i <= 4; $i++) // 4 protagonists
+            $cards[] = ['type' => 1, 'type_arg' => $i, 'nbr' => 1];
+        $this->cards->createCards($cards, 'hand');
+        $cards = [];
+        for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
+                $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
+        $this->cards->createCards($cards, 'deck-rural');
+        $cards = [];
+        for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
+                $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
+        $this->cards->createCards($cards, 'deck-urban');
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();
