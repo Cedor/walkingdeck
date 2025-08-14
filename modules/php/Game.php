@@ -210,54 +210,89 @@ class Game extends \Table
     }
 
     /**
-     * Player action, example content.
-     *
-     * In this scenario, each time a player plays a card, this method will be called. This method is called directly
-     * by the action trigger on the front side with `bgaPerformAction`.
+     * Player action, play a card from hand
      *
      * @throws BgaUserException
      */
     public function actPlayCard(int $card_id): void
     {
-        // Retrieve the active player ID.
-        $player_id = (int)$this->getActivePlayerId();
-
-        // check input values
-        $args = $this->argPlayerTurn();
-        $playableCardsIds = $args['playableCardsIds'];
-        if (!in_array($card_id, $playableCardsIds)) {
-            throw new \BgaUserException('Invalid card choice');
-        }
-
-        // Add your game logic to play a card here.
-        $card_name = self::$CARD_TYPE[$card_id]['card_name'];
-
-        // Notify all players about the card played.
-        $this->notify->all("cardPlayed", clienttranslate('${player_name} plays ${card_name}'), [
-            "player_id" => $player_id,
-            "player_name" => $this->getActivePlayerName(), // remove this line if you uncomment notification decorator
-            "card_name" => $card_name, // remove this line if you uncomment notification decorator
-            "card_id" => $card_id,
-            "i18n" => ['card_name'], // remove this line if you uncomment notification decorator
-        ]);
-
-        // at the end of the action, move to the next state
-        $this->gamestate->nextState("playCard");
+       if ($this->cards->countCardInLocation("hand") === 0)
+        $this->actPass();
     }
 
+    /**
+     * Player action, pass turn (only allowed if cards in decks), auto call when hand is empty
+     *
+     * @throws BgaUserException
+     */
     public function actPass(): void
     {
-        // Retrieve the active player ID.
-        $player_id = (int)$this->getActivePlayerId();
+        /* Check board state 
+            if both decks empty
+            then if hand = 0 then start story check else stay in same state
+            else start new turn
+        */
+        if ($this->cards->countCardInLocation("deck-rural") === 0 && $this->cards->countCardInLocation("deck-urban") === 0) {
+            if ($this->cards->countCardInLocation("hand") === 0) {
+                // start story check
+                $this->gamestate->nextState("storyCheck");
+            } else {
+                // stay in same state
+            }
+        } else {
+            // start new turn
+            $this->gamestate->nextState("nextTurn");
+        }
+    }
 
-        // Notify all players about the choice to pass.
-        $this->notify->all("pass", clienttranslate('${player_name} passes'), [
-            "player_id" => $player_id,
-            "player_name" => $this->getActivePlayerName(), // remove this line if you uncomment notification decorator
-        ]);
-
+    /**
+     * Player action, pick a protagonist. Defines game difficulty.
+     *
+     * @throws BgaUserException
+     */
+    public function actPlayProtagonistCard(int $card_id): void
+    {
+       
         // at the end of the action, move to the next state
-        $this->gamestate->nextState("pass");
+        $this->gamestate->nextState("");
+    }
+
+    /**
+     * Player action : drawing a card from Urban deck
+     *
+     * @throws BgaUserException
+     */
+    public function actDrawUrbanCard(int $card_id): void
+    {
+        
+        $this->checkHand();
+    }
+    /**
+     * Player action : drawing a card from Rural deck
+     *
+     * @throws BgaUserException
+     */
+    public function actDrawRuralCard(int $card_id): void
+    {
+        
+        $this->checkHand();
+    }
+    private function checkHand(): void
+    {
+        if ($this->cards->countCardInLocation("hand") === 3) {
+            $this->gamestate->nextState("");
+        }
+    }
+
+    /**
+     * Player action : resolve effects during a story check step
+     *
+     * @throws BgaUserException
+     */
+    public function actStoryCheckPlayerChoice(int $card_id): void
+    {
+        
+        $this->gamestate->nextState("");
     }
 
     /**
@@ -295,23 +330,45 @@ class Game extends \Table
     }
 
     /**
-     * Game state action, example content.
-     *
-     * The action method of state `nextPlayer` is called everytime the current game state is set to `nextPlayer`.
+     * Game state action, start the second phase of the game
      */
-    public function stNextPlayer(): void {
-        // Retrieve the active player ID.
-        $player_id = (int)$this->getActivePlayerId();
-
-        // Give some extra time to the active player when he completed an action
-        $this->giveExtraTime($player_id);
-        
-        $this->activeNextPlayer();
-
-        // Go to another gamestate
-        // Here, we would detect if the game is over, and in this case use "endGame" transition instead 
-        $this->gamestate->nextState("nextPlayer");
+    public function stStoryCheck(): void {
+ 
+        // Go to following game state
+        $this->gamestate->nextState("");
     }
+
+    /**
+     * Game state action, step of story check : apply card effect, ask for player input if needed
+     */
+    public function stStoryCheckStep(): void {
+
+        $needPlayerInput = false;
+
+        // Go to following game state
+        if ($needPlayerInput)
+            $this->gamestate->nextState("playerChoice");
+        else
+            $this->gamestate->nextState("gameCheck");
+    }
+
+    /**
+     * Game state action, check win or loss condition
+     */
+    public function stStoryCheckGameWinLoss(): void {
+        $win = false; // TODO: check win condition
+        $loss = false; // TODO: check loss condition
+        // Go to following game state
+        if ($loss) {
+            $this->gamestate->nextState("gameEnd");
+        } else if ($win) {
+            $this->gamestate->nextState("gameEnd");
+        } else {
+            $this->gamestate->nextState("nextStep");
+        }
+    }
+
+    
 
     /**
      * Migrate database.

@@ -206,31 +206,16 @@ define([
           },
         }
       );
-      // TODO: Set up your game interface here, according to "gamedatas"
+      
+      // Set up game interface, according to "gamedatas"
       // Hand gamedatas
-      for (var i in this.gamedatas.hand) {
-        var card = this.gamedatas.hand[i];
-        this.hand.addCard({
-          id: card.id,
-          type: card.type,
-          type_arg: card.type_arg,
-          location: card.location,
-          location_arg: card.location_arg,
-        });
-      }
+      for (var i in this.gamedatas.hand)
+        this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
       if (this.gamedatas.protagonistSlot.length > 1) 
         console.log("Protagonist slot contains multiple cards");
-      if (this.gamedatas.protagonistSlot.length > 0){
-        var prota = this.gamedatas.protagonistSlot[0];
-        this.protagonistSlot.addCard({
-          id: prota.id,
-          type: prota.type,
-          type_arg: prota.type_arg,
-          location: prota.location,
-          location_arg: prota.location_arg,
-        });
-      }
+      if (this.gamedatas.protagonistSlot.length > 0)
+        this.protagonistSlot.addCard(this.gamedatas.protagonistSlot[0]);
       // Urban Deck gamedatas
       this.urbanDeck.setCardNumber(this.gamedatas.urbanDeckNb);
       // Rural Deck gamedatas
@@ -238,19 +223,17 @@ define([
       // Memory gamedatas
       if (this.gamedatas.memoryTop) {
         this.memory.setCardNumber(this.gamedatas.memory-1);
-        var memoryTopCard = this.gamedatas.memoryTop;
-        this.memory.addCard({
-          id: memoryTopCard.id,
-          type: memoryTopCard.type,
-          type_arg: memoryTopCard.type_arg,
-          location: memoryTopCard.location,
-          location_arg: memoryTopCard.location_arg,
-        });
+        this.memory.addCard(this.gamedatas.memoryTop);
       }
-      //graveyard gamedatas
+      // Graveyard gamedatas
       this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
-      //escaped gamedatas
-      
+      // Escaped gamedatas
+      for (var i in this.gamedatas.escaped)
+        this.escaped.addCard(this.gamedatas.escaped[i])
+
+      // Setup hand action
+      dojo.connect(this.hand, "onCardClick", this, "onCardClick");
+
       // Setup game notifications to handle (see "setupNotifications" method below)
       this.setupNotifications();
 
@@ -357,10 +340,16 @@ define([
         
         */
 
-    // Example:
-
-    onCardClick: function (card_id) {
+    onCardClick: function (card) {
+      var card_id = card.id;
       console.log("onCardClick", card_id);
+
+      this.bgaPerformAction("actPlayProtagonistCard", {
+        card_id,
+      }).then(() => {
+        // What to do after the server call if it succeeded
+        // (most of the time, nothing, as the game will react to notifs / change of state instead)
+      });
 
       this.bgaPerformAction("actPlayCard", {
         card_id,

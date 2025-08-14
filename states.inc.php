@@ -65,26 +65,73 @@ $machinestates = [
     // Note: ID=2 => your first state
 
     2 => [
-        "name" => "playerTurn",
-        "description" => clienttranslate('${actplayer} must play a card or pass'),
-        "descriptionmyturn" => clienttranslate('${you} must play a card or pass'),
-        "type" => "activeplayer",
+        "name" => "protagonistChoice",
+        "description" => clienttranslate('You must pick a protagonist'),
+        "descriptionmyturn" => clienttranslate('You must pick a protagonist'),
+        "type" => "activePlayer",
         "args" => "argPlayerTurn",
         "possibleactions" => [
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actPlayCard", 
-            "actPass",
+            "actPlayProtagonistCard", 
         ],
-        "transitions" => ["playCard" => 3, "pass" => 3]
+        "transitions" => ["" => 3]
     ],
 
     3 => [
-        "name" => "nextPlayer",
-        "description" => '',
-        "type" => "game",
-        "action" => "stNextPlayer",
+        "name" => "drawCards",
+        "description" => clienttranslate('You must draw cards'),
+        "descriptionmyturn" => clienttranslate('You must draw cards'),
+        "type" => "activePlayer",
+        "possibleactions" => [
+            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+            "actDrawUrbanCard",
+            "actDrawRuralCard",
+        ],
         "updateGameProgression" => true,
-        "transitions" => ["endGame" => 99, "nextPlayer" => 2]
+        "transitions" => ["" => 4]
+    ],
+    4 => [
+        "name" => "playCards",
+        "description" => clienttranslate('You must play cards'),
+        "descriptionmyturn" => clienttranslate('You must play cards'),
+        "type" => "activePlayer",
+        "possibleactions" => [
+            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+            "actPlayCard",
+            "actPass"
+        ],
+        "transitions" => ["nextTurn" => 3, "storyCheck" => 5]
+    ],
+    5 => [
+        "name" => "storyCheck",
+        "description" => clienttranslate('Story will be checked'),
+        "type" => "game",
+        "action" => "stStoryCheck",
+        "transitions" => ["" => 6]
+    ],
+    6 => [
+        "name" => "storyCheckStep",
+        "description" => clienttranslate('Story check step'),
+        "type" => "game",
+        "action" => "stStoryCheckStep",
+        "transitions" => ["playerChoice" => 7, "gameCheck" => 8]
+    ],
+    7 => [
+        "name" => "storyCheckPlayerChoice",
+        "description" => clienttranslate('Story check player choice'),
+        "type" => "activePlayer",
+        "possibleactions" => [
+            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
+            "actStoryCheckPlayerChoice",
+        ],
+        "transitions" => ["" => 8]
+    ],
+    8 => [
+        "name" => "storyCheckGame",
+        "description" => clienttranslate('Story check game win/loss'),
+        "type" => "game",
+        "action" => "stStoryCheckGameWinLoss",
+        "transitions" => ["nextStep" => 6, "gameEnd" => 99]
     ],
 
     // Final state.
