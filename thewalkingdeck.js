@@ -55,32 +55,33 @@ define([
         "beforeend",
         `
             <div id="player-table" class="whiteblock">
-              <div class="playertablename" style="color:p0;">${player.name}</div>
-              <div id="urban-deck-wrap">
-                <b>${_("Urban Deck")}</b>
-                <div id="urban-deck"></div>
-              </div>
-              <div id="rural-deck-wrap">
+            <div id="table-organiser">
+              <div id="rural-deck-wrap" class="location-wrap">
                 <b>${_("Rural Deck")}</b>
                 <div id="rural-deck"></div>
               </div>
-              <div id="protagonist-wrap" >
+              <div id="urban-deck-wrap" class="location-wrap">
+                <b>${_("Urban Deck")}</b>
+                <div id="urban-deck"></div>
+              </div>
+                <div id="escaped-wrap" class="location-wrap">
+                <b>${_("Escaped")}</b>
+                <div id="escaped"></div>
+              </div>
+              <div id="memory-wrap" class="location-wrap">
+                <b>${_("Memory")}</b>
+                <div id="memory"></div>
+              </div>
+              <div id="protagonist-wrap" class="location-wrap">
                 <b>${_("Protagonist")}</b>
                 <div id="protagonist-slot">
                 </div>
               </div>
-              <div id="memory-wrap">
-                <b>${_("Memory")}</b>
-                <div id="memory"></div>
-              </div>
-              <div id="graveyard-wrap">
+              <div id="graveyard-wrap" class="location-wrap">
                 <b>${_("Graveyard")}</b>
                 <div id="graveyard"></div>
               </div>
-              <div id="escaped-wrap">
-                <b>${_("Escaped")}</b>
-                <div id="escaped"></div>
-              </div>
+
             </div>
           `
       );
@@ -104,60 +105,72 @@ define([
         getId: (card) => `card-${card.id}`,
         setupDiv: (card, div) => {
           div.classList.add("twd-card");
-          //div.style.width = "127px";
-          //div.style.height = "179px";
-          div.style.position = "relative";
         },
         setupFrontDiv: (card, div) => {
-         /* div.classList.remove("twd-card-back");
-          div.classList.remove("twd-card-back-urban");
-          div.classList.remove("twd-card-back-rural");
-          div.classList.add("twd-card-front");*/
-          //div.id = `card-${card.id}-front`;
-          div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`;
-          if (card.type == 1)
-            div.style.backgroundPositionY = `100%`;  
-          else
-            div.style.backgroundPositionY = `${(card.type - 2) * 100 / 2}%`;
+          div.classList.add("twd-card-front");
+          switch (card.type) {
+            case '1':
+              div.style.backgroundPositionY = `100%`; 
+              div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`; 
+              break;
+            case '2':
+            case '3':
+              div.style.backgroundPositionY = `${(card.type - 2) * 100 / 2}%`;
+              div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`;
+              break;
+            default:
+              div.style.backgroundPosition = "-508px -358px";
+          }
           this.addTooltipHtml(div.id, `tooltip de ${card.type}, ${card.type_arg}`);
         },
         setupBackDiv: (card, div) => {
-         // div.classList.remove("twd-card-front");
           switch (card.type) {
-            case "2": // urban
-              div.classList.add("twd-card-back-urban");
-              break;
-            case "3": // rural
+            case "2": // rural
+            case "4": // fake rural
               div.classList.add("twd-card-back-rural");
+              break;
+            case "3": // urban
+            case "5": // fake urban
+              div.classList.add("twd-card-back-urban");
               break;
             default:
               div.classList.add("twd-card-back");
           }
         },
-        isCardVisible: (card) => Boolean(card.type),
+        isCardVisible: (card) => {
+          return (card.type === "1" || card.type === "2" || card.type === "3");
+        },
         cardWidth: 127,
         cardHeight: 179,
       });
 
       // create decks
-      this.urbanDeck = new BgaCards.Deck(
-        this.cardsManager,
-        document.getElementById("urban-deck"), {
-          cardNumber: 0,
-          counter: {
-            position: 'center',
-            extraClasses: 'text-shadow',
-          }
-        }
-      );
       this.ruralDeck = new BgaCards.Deck(
         this.cardsManager,
         document.getElementById("rural-deck"), {
           cardNumber: 0,
-          counter: {
-            position: 'center',
-            extraClasses: 'text-shadow',
-          }
+          counter: {},
+          fakeCardGenerator: (deckId) => {
+            // Generate a fake card based on the original card
+            return {
+              id: `${deckId}-top-card`,
+              type: `4`, // fake rural
+            };
+          },
+        }
+      );
+      this.urbanDeck = new BgaCards.Deck(
+        this.cardsManager,
+        document.getElementById("urban-deck"), {
+          cardNumber: 0,
+          counter: {},
+          fakeCardGenerator: (deckId) => {
+            // Generate a fake card based on the original card
+            return {
+              id: `${deckId}-top-card`,
+              type: `5`, // fake urban
+            };
+          },
         }
       );
       // create protagonist slot
@@ -172,8 +185,9 @@ define([
       // create hand
       this.hand = new BgaCards.HandStock(
         this.cardsManager,
-        document.getElementById('hand')
+        document.getElementById('hand'),
       );
+      this.hand.setSelectionMode('multiple');
       //create memory pile
       this.memory = new BgaCards.DiscardDeck(
         this.cardsManager,
@@ -229,8 +243,7 @@ define([
       this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped)
-        this.escaped.addCard(this.gamedatas.escaped[i])
-
+        this.escaped.addCard(this.gamedatas.escaped[i]);
       // Setup hand action
       dojo.connect(this.hand, "onCardClick", this, "onCardClick");
 

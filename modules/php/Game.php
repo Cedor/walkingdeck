@@ -82,99 +82,99 @@ class Game extends \Table
         ];
         self::$CARD_RURAL = [
             1 => [
-                "card_name" => clienttranslate('Clown'),
-            ],
-            2 => [
-                "card_name" => clienttranslate('Kieren'),
-            ],
-            3 => [
                 "card_name" => clienttranslate('Punk'),
             ],
+            2 => [
+                "card_name" => clienttranslate('Piege a loup'),
+            ],
+            3 => [
+                "card_name" => clienttranslate('Clown'),
+            ],
             4 => [
-                "card_name" => clienttranslate('Gretchen'),
+                "card_name" => clienttranslate('Ellie et Joel'),
             ],
             5 => [
-                "card_name" => clienttranslate('Brigade'),
+                "card_name" => clienttranslate('Kieren'),
             ],
             6 => [
-                "card_name" => clienttranslate('Cabot'),
+                "card_name" => clienttranslate('Tallahassee'),
             ],
             7 => [
-                "card_name" => clienttranslate('Alcool Medical'),
+                "card_name" => clienttranslate('Gretchen'),
+            ],
+            8 => [
+                "card_name" => clienttranslate('Robert'),
+            ],
+            9 => [
+                "card_name" => clienttranslate('Brigade'),
+            ],
+            10 => [
+                "card_name" => clienttranslate('Feu de camp'),
+            ],
+            11 => [
+                "card_name" => clienttranslate('Cheval'),
+            ],
+            12 => [
+                "card_name" => clienttranslate('Camping-Car'),
+            ],
+            13 => [
+                "card_name" => clienttranslate('Cave'),
+            ],
+            14 => [
+                "card_name" => clienttranslate('Peluche'),
+            ],
+            15 => [
+                "card_name" => clienttranslate('Wild Zero'),
+            ],
+            16 => [
+                "card_name" => clienttranslate('Vaudou'),
+            ],
+            17 => [
+                "card_name" => clienttranslate('Cabot'),
+            ],
+            18 => [
+                "card_name" => clienttranslate('Grenade'),
+            ],
+        ];
+        self::$CARD_URBAN = [
+            1 => [
+                "card_name" => clienttranslate('Musiciens'),
+            ],
+            2 => [
+                "card_name" => clienttranslate('Chef de chantier'),
+            ],
+            3 => [
+                "card_name" => clienttranslate('Glenn'),
+            ],
+            4 => [
+                "card_name" => clienttranslate('Murphy'),
+            ],
+            5 => [
+                "card_name" => clienttranslate('Horde'),
+            ],
+            6 => [
+                "card_name" => clienttranslate('Majordome'),
+            ],
+            7 => [
+                "card_name" => clienttranslate('Conserve'),
             ],
             8 => [
                 "card_name" => clienttranslate('Entrepot'),
             ],
             9 => [
-                "card_name" => clienttranslate('Piege a loup'),
+                "card_name" => clienttranslate('Alcool medical'),
             ],
             10 => [
-                "card_name" => clienttranslate('Tallahassee'),
-            ],
-            11 => [
-                "card_name" => clienttranslate('Elie et Joel'),
-            ],
-            12 => [
-                "card_name" => clienttranslate('Robert'),
-            ],
-            13 => [
-                "card_name" => clienttranslate('Feu de camp'),
-            ],
-            14 => [
-                "card_name" => clienttranslate('Vaudou'),
-            ],
-            15 => [
-                "card_name" => clienttranslate('Conserve'),
-            ],
-            16 => [
-                "card_name" => clienttranslate('Domitille'),
-            ],
-            17 => [
-                "card_name" => clienttranslate('Cheval'),
-            ],
-            18 => [
-                "card_name" => clienttranslate('Camping-Car'),
-            ],
-        ];
-        self::$CARD_URBAN = [
-            1 => [
-                "card_name" => clienttranslate('Peluche'),
-            ],
-            2 => [
-                "card_name" => clienttranslate('Cave'),
-            ],
-            3 => [
-                "card_name" => clienttranslate('Grenade'),
-            ],
-            4 => [
-                "card_name" => clienttranslate('Wild Zero'),
-            ],
-            5 => [
                 "card_name" => clienttranslate('Carte'),
             ],
-            6 => [
-                "card_name" => clienttranslate('Controleur'),
-            ],
-            7 => [
-                "card_name" => clienttranslate('Chef de chantier'),
-            ],
-            8 => [
-                "card_name" => clienttranslate('Glenn'),
-            ],
-            9 => [
-                "card_name" => clienttranslate('Musiciens'),
-            ],
-            10 => [
-                "card_name" => clienttranslate('Murphy'),
-            ],
             11 => [
-                "card_name" => clienttranslate('Horde'),
+                "card_name" => clienttranslate('Domitille'),
             ],
             12 => [
-                "card_name" => clienttranslate('Majordome'),
+                "card_name" => clienttranslate('La Faucheuse'),
             ],
             13 => [
-                "card_name" => clienttranslate('La Faucheuse'),
+                "card_name" => clienttranslate('Controlleur'),
             ],
             14 => [
                 "card_name" => clienttranslate('Zoey'),
@@ -183,10 +183,10 @@ class Game extends \Table
                 "card_name" => clienttranslate('Jill'),
             ],
             16 => [
-                "card_name" => clienttranslate('Café Jeux'),
+                "card_name" => clienttranslate('Shaun'),
             ],
             17 => [
-                "card_name" => clienttranslate('Shaun'),
+                "card_name" => clienttranslate('Cafe Jeux'),
             ],
             18 => [
                 "card_name" => clienttranslate('Enseignante'),
