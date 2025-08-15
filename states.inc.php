@@ -48,102 +48,107 @@
 */
 
 //    !! It is not a good idea to modify this file when a game is running !!
-
+use Bga\GameFramework\GameStateBuilder;
+use Bga\GameFramework\StateType;
 
 $machinestates = [
 
-    // The initial state. Please do not modify.
-
-    1 => array(
-        "name" => "gameSetup",
-        "description" => "",
-        "type" => "manager",
-        "action" => "stGameSetup",
-        "transitions" => ["" => 2]
-    ),
-
-    // Note: ID=2 => your first state
-
-    2 => [
-        "name" => "protagonistChoice",
-        "description" => clienttranslate('You must pick a protagonist'),
-        "descriptionmyturn" => clienttranslate('You must pick a protagonist'),
-        "type" => "activePlayer",
-        "args" => "argPlayerTurn",
-        "possibleactions" => [
+    // ID=2 => your first state
+    2 => GameStateBuilder::create()
+        ->name('protagonistChoice')
+        ->description(clienttranslate('You must pick a protagonist'))
+        ->descriptionmyturn(clienttranslate('You must pick a protagonist'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actPlayProtagonistCard", 
-        ],
-        "transitions" => ["" => 3]
-    ],
-
-    3 => [
-        "name" => "drawCards",
-        "description" => clienttranslate('You must draw cards'),
-        "descriptionmyturn" => clienttranslate('You must draw cards'),
-        "type" => "activePlayer",
-        "possibleactions" => [
+            "actPlayProtagonistCard",
+        ])
+        ->transitions([
+            "" => 3
+        ])
+        ->build(),
+    3 => GameStateBuilder::create()
+        ->name('drawCards')
+        ->description(clienttranslate('You must draw cards'))
+        ->descriptionmyturn(clienttranslate('You must draw cards'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actDrawUrbanCard",
             "actDrawRuralCard",
-        ],
-        "updateGameProgression" => true,
-        "transitions" => ["" => 4]
-    ],
-    4 => [
-        "name" => "playCards",
-        "description" => clienttranslate('You must play cards'),
-        "descriptionmyturn" => clienttranslate('You must play cards'),
-        "type" => "activePlayer",
-        "possibleactions" => [
+        ])
+        ->transitions([
+            "drawAnotherCard" => 3,
+            "ready" => 4
+        ])
+        ->build(),
+    4 => GameStateBuilder::create()
+        ->name('playCards')
+        ->description(clienttranslate('You must play cards'))
+        ->descriptionmyturn(clienttranslate('You must play cards'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlayCard",
             "actPass"
-        ],
-        "transitions" => ["nextTurn" => 3, "storyCheck" => 5]
-    ],
-    5 => [
-        "name" => "storyCheck",
-        "description" => clienttranslate('Story will be checked'),
-        "type" => "game",
-        "action" => "stStoryCheck",
-        "transitions" => ["" => 6]
-    ],
-    6 => [
-        "name" => "storyCheckStep",
-        "description" => clienttranslate('Story check step'),
-        "type" => "game",
-        "action" => "stStoryCheckStep",
-        "transitions" => ["playerChoice" => 7, "gameCheck" => 8]
-    ],
-    7 => [
-        "name" => "storyCheckPlayerChoice",
-        "description" => clienttranslate('Story check player choice'),
-        "type" => "activePlayer",
-        "possibleactions" => [
+        ])
+        ->transitions([
+            "nextTurn" => 3,
+            "storyCheck" => 5
+        ])
+        ->build(),
+    5 => GameStateBuilder::create()
+        ->name('storyCheck')
+        ->description(clienttranslate('Story will be checked'))
+        ->type(StateType::GAME)
+        ->action('stStoryCheck')
+        ->transitions([
+            "" => 6
+        ])
+        ->build(),
+    6 => GameStateBuilder::create()
+        ->name('storyCheckStep')
+        ->description(clienttranslate('Story check step'))
+        ->type(StateType::GAME)
+        ->action('stStoryCheckStep')
+        ->transitions([
+            "playerChoice" => 7,
+            "gameCheck" => 8
+        ])
+        ->build(),
+    7 => GameStateBuilder::create()
+        ->name('storyCheckPlayerChoice')
+        ->description(clienttranslate('Story check player choice'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actStoryCheckPlayerChoice",
-        ],
-        "transitions" => ["" => 8]
-    ],
-    8 => [
-        "name" => "storyCheckGame",
-        "description" => clienttranslate('Story check game win/loss'),
-        "type" => "game",
-        "action" => "stStoryCheckGameWinLoss",
-        "transitions" => ["nextStep" => 6, "gameEnd" => 99]
-    ],
+        ])
+        ->transitions([
+            "" => 8
+        ])
+        ->build(),
+    8 => GameStateBuilder::create()
+        ->name('storyCheckGame')
+        ->description(clienttranslate('Story check game win/loss'))
+        ->type(StateType::GAME)
+        ->action('stStoryCheckGameWinLoss')
+
+        ->transitions([
+            "nextStep" => 6,
+            "gameEnd" => 99
+        ])
+        ->build(),
 
     // Final state.
     // Please do not modify (and do not overload action/args methods).
-    99 => [
-        "name" => "gameEnd",
-        "description" => clienttranslate("End of game"),
-        "type" => "manager",
-        "action" => "stGameEnd",
-        "args" => "argGameEnd"
-    ],
-
+    99 => GameStateBuilder::create()
+        ->name('gameEnd')
+        ->description(clienttranslate('End of game'))
+        ->type(StateType::MANAGER)
+        ->action('stGameEnd')
+        ->args('argGameEnd')
+        ->build()
 ];
 
 

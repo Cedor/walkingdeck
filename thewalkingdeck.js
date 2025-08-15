@@ -138,7 +138,7 @@ define([
           }
         },
         isCardVisible: (card) => {
-          return (card.type === "1" || card.type === "2" || card.type === "3");
+          return (card.type === '1' || card.type === '2' || card.type === '3');
         },
         cardWidth: 127,
         cardHeight: 179,
@@ -179,15 +179,18 @@ define([
         document.getElementById('protagonist-slot'), {
           slotsIds: ['A'],
           slotClasses: ['twd-slot'],
-          mapCardToSlot: (card) => card.location,
+          mapCardToSlot: (card) => 'A',
         }
       );
+      this.protagonistSlot.onCardAdded = (card) => {
+        console.log("Card added to protagonist slot", card);
+      };
       // create hand
       this.hand = new BgaCards.HandStock(
         this.cardsManager,
         document.getElementById('hand'),
       );
-      this.hand.setSelectionMode('multiple');
+      this.hand.setSelectionMode('single');
       //create memory pile
       this.memory = new BgaCards.DiscardDeck(
         this.cardsManager,
@@ -222,14 +225,19 @@ define([
       );
       
       // Set up game interface, according to "gamedatas"
+      console.log("gamedatas", this.gamedatas);
       // Hand gamedatas
       for (var i in this.gamedatas.hand)
         this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
-      if (this.gamedatas.protagonistSlot.length > 1) 
+      let protagonistDatas = this.gamedatas.protagonistSlot;
+      if (Object.keys(protagonistDatas).length > 1) 
         console.log("Protagonist slot contains multiple cards");
-      if (this.gamedatas.protagonistSlot.length > 0)
-        this.protagonistSlot.addCard(this.gamedatas.protagonistSlot[0]);
+      if (Object.keys(protagonistDatas).length > 0){
+        this.protagonistSlot.addCard(protagonistDatas[Object.keys(protagonistDatas)[0]]);
+      } else {
+        console.log("Protagonist slot is empty");
+      }
       // Urban Deck gamedatas
       this.urbanDeck.setCardNumber(this.gamedatas.urbanDeckNb);
       // Rural Deck gamedatas
@@ -245,8 +253,8 @@ define([
       for (var i in this.gamedatas.escaped)
         this.escaped.addCard(this.gamedatas.escaped[i]);
       // Setup hand action
-      dojo.connect(this.hand, "onCardClick", this, "onCardClick");
-
+      //dojo.connect(this.hand, "onCardClick", this, "onCardClick");
+      dojo.connect(this.hand, "onSelectionChange", this, "onHandSelectionChange");
       // Setup game notifications to handle (see "setupNotifications" method below)
       this.setupNotifications();
 
@@ -261,7 +269,7 @@ define([
     //
     onEnteringState: function (stateName, args) {
       console.log("Entering state: " + stateName, args);
-
+      console.log("Current active player is: " + this.getActivePlayerId());
       switch (stateName) {
         /* Example:
             
@@ -305,28 +313,15 @@ define([
     //
     onUpdateActionButtons: function (stateName, args) {
       console.log("onUpdateActionButtons: " + stateName, args);
-
+      var player = this.getActivePlayerId(); 
       if (this.isCurrentPlayerActive()) {
+        console.log("Current player is active");
         switch (stateName) {
           case "playerTurn":
-            const playableCardsIds = args.playableCardsIds; // returned by the argPlayerTurn
-
-            // Add test action buttons in the action status bar, simulating a card click:
-            playableCardsIds.forEach((cardId) =>
-              this.statusBar.addActionButton(
-                _("Play card with id ${card_id}").replace("${card_id}", cardId),
-                () => this.onCardClick(cardId)
-              )
-            );
-
-            this.statusBar.addActionButton(
-              _("Pass"),
-              () => this.bgaPerformAction("actPass"),
-              { color: "secondary" }
-            );
             break;
         }
       }
+      else console.log("Current player is not active, active is " + player);
     },
 
     ///////////////////////////////////////////////////
@@ -353,23 +348,21 @@ define([
         
         */
 
-    onCardClick: function (card) {
-      var card_id = card.id;
-      console.log("onCardClick", card_id);
-
-      this.bgaPerformAction("actPlayProtagonistCard", {
-        card_id,
-      }).then(() => {
-        // What to do after the server call if it succeeded
-        // (most of the time, nothing, as the game will react to notifs / change of state instead)
-      });
-
-      this.bgaPerformAction("actPlayCard", {
-        card_id,
-      }).then(() => {
-        // What to do after the server call if it succeeded
-        // (most of the time, nothing, as the game will react to notifs / change of state instead)
-      });
+      onHandSelectionChange: function (selectedCards, lastChange) {
+      console.log("onHandSelectionChange", selectedCards);
+      if (selectedCards.length === 0) {
+        console.log("No card selected");
+        return;
+      } else {
+        card = selectedCards[0];
+        switch (card.type) {
+          case '1': //protagonist => it's a protagonist pick
+            this.bgaPerformAction('actPlayProtagonistCard', {card_id : card.id,});
+            break;
+          default:
+            console.log("Unknown card type");
+        }
+      }
     },
 
     ///////////////////////////////////////////////////
@@ -398,6 +391,17 @@ define([
       // dojo.subscribe( 'cardPlayed', this, "notif_cardPlayed" );
       // this.notifqueue.setSynchronous( 'cardPlayed', 3000 );
       //
+      // table of notif type to delay in milliseconds
+      const notifs = [
+          ['protagonistCardPlayed', 100],
+          //['playCard', 100],
+      ];
+
+      notifs.forEach((notif) => {
+          dojo.subscribe(notif[0], this, `notif_${notif[0]}`);
+          this.notifqueue.setSynchronous(notif[0], notif[1]);
+          console.log(`Subscribed to notification ${notif[0]} with delay ${notif[1]}ms`);
+      });
     },
 
     // TODO: from this point and below, you can write your game notifications handling methods
@@ -416,5 +420,15 @@ define([
         },    
         
         */
+    notif_protagonistCardPlayed: function( notif )
+    {
+      console.log( 'notif_protagonistCardPlayed' );
+      console.log( notif );
+      let card = notif.args.card;
+      if (card) {
+        this.protagonistSlot.addCard(card, {fromStock: this.hand });
+        this.hand.removeAll();
+      }
+    },
   });
 });
