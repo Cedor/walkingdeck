@@ -69,7 +69,6 @@ $machinestates = [
         "description" => clienttranslate('You must pick a protagonist'),
         "descriptionmyturn" => clienttranslate('You must pick a protagonist'),
         "type" => "activePlayer",
-        "args" => "argPlayerTurn",
         "possibleactions" => [
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlayProtagonistCard", 
@@ -88,7 +87,7 @@ $machinestates = [
             "actDrawRuralCard",
         ],
         "updateGameProgression" => true,
-        "transitions" => ["" => 4]
+        "transitions" => ["drawAnotherCard" => 3, "ready" => 4]
     ],
     4 => [
         "name" => "playCards",

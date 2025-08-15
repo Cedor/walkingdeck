@@ -27,7 +27,6 @@ define([
       console.log("thewalkingdeck constructor");
       this.cardwidth = 127;
       this.cardheight = 179;
-      this.
     },
 
         /*
@@ -188,7 +187,7 @@ define([
         this.cardsManager,
         document.getElementById('hand'),
       );
-      this.hand.setSelectionMode('multiple');
+      this.hand.setSelectionMode('single');
       //create memory pile
       this.memory = new BgaCards.DiscardDeck(
         this.cardsManager,
@@ -262,7 +261,7 @@ define([
     //
     onEnteringState: function (stateName, args) {
       console.log("Entering state: " + stateName, args);
-
+      console.log("Current active player is: " + this.getActivePlayerId());
       switch (stateName) {
         /* Example:
             
@@ -306,28 +305,15 @@ define([
     //
     onUpdateActionButtons: function (stateName, args) {
       console.log("onUpdateActionButtons: " + stateName, args);
-
+      var player = this.getActivePlayerId(); 
       if (this.isCurrentPlayerActive()) {
+        console.log("Current player is active");
         switch (stateName) {
           case "playerTurn":
-            const playableCardsIds = args.playableCardsIds; // returned by the argPlayerTurn
-
-            // Add test action buttons in the action status bar, simulating a card click:
-            playableCardsIds.forEach((cardId) =>
-              this.statusBar.addActionButton(
-                _("Play card with id ${card_id}").replace("${card_id}", cardId),
-                () => this.onCardClick(cardId)
-              )
-            );
-
-            this.statusBar.addActionButton(
-              _("Pass"),
-              () => this.bgaPerformAction("actPass"),
-              { color: "secondary" }
-            );
             break;
         }
       }
+      else console.log("Current player is not active, active is " + player);
     },
 
     ///////////////////////////////////////////////////
@@ -376,22 +362,19 @@ define([
     },
 
     onCardClick: function (card) {
+    
       var card_id = card.id;
-      console.log("onCardClick", card_id);
-
-      this.bgaPerformAction("actPlayProtagonistCard", {
-        card_id,
-      }).then(() => {
-        // What to do after the server call if it succeeded
-        // (most of the time, nothing, as the game will react to notifs / change of state instead)
-      });
-
-      this.bgaPerformAction("actPlayCard", {
-        card_id,
-      }).then(() => {
-        // What to do after the server call if it succeeded
-        // (most of the time, nothing, as the game will react to notifs / change of state instead)
-      });
+      console.log("actPlayProtagonistCard", card_id);
+      var action = 'actPlayProtagonistCard';
+      //this.bgaPerformAction(action, {card_id : card_id,});
+      if (this.checkAction(action, true)) {
+        // Can play a card
+        var card_id = items[0].id;                    
+        this.bgaPerformAction(action, {card_id : card_id,});
+      }
+      else {
+        console.log("Cannot play card", card_id);
+      }
     },
 
     ///////////////////////////////////////////////////

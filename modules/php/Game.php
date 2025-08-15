@@ -221,8 +221,8 @@ class Game extends \Table
      */
     public function actPlayCard(int $card_id): void
     {
-       if ($this->cards->countCardInLocation("hand") === 0)
-        $this->actPass();
+        $player_id = $this->getActivePlayerId();
+        throw new \BgaUserException($this->_("Not implemented: ") . "$player_id plays $card_id");
     }
 
     /**
@@ -257,9 +257,11 @@ class Game extends \Table
      */
     public function actPlayProtagonistCard(int $card_id): void
     {
-        $this->cards->moveCard($card_id, "protagonist");
+        $player_id = $this->getActivePlayerId();
+        throw new \BgaUserException($this->_("Not implemented: ") . "$player_id plays $card_id");
+        /*$this->cards->moveCard($card_id, "protagonist");
         $card = $this->cards->getCard($card_id);
-        $this->setDifficulty($card["type_arg"]);
+        $this->setDifficulty($card["type_arg"]);*/
         // at the end of the action, move to the next state
         $this->gamestate->nextState("");
     }
@@ -436,7 +438,7 @@ class Game extends \Table
         $result['protagonistSlot'] = $this->cards->getCardsInLocation( 'protagonist');
         $result['memoryTop'] = $this->cards->getCardOnTop( 'memory');
         $result['memoryNb'] = $this->cards->countCardInLocation( 'memory');
-        $result['escaped'] = $this->cards->getCardsInLocation( 'escaped', null, 'card_location_arg');
+        $result['escaped'] = $this->cards->getCardsInLocation( 'escaped', null, 'location_arg');
         $result['graveyardNb'] = $this->cards->countCardInLocation( 'graveyard');
         $result['ruralDeckNb'] = $this->cards->countCardInLocation( 'deck-rural');
         $result['urbanDeckNb'] = $this->cards->countCardInLocation( 'deck-urban');
