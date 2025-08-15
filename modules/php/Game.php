@@ -209,6 +209,11 @@ class Game extends \Table
         });*/
     }
 
+    private function setDifficulty(int $difficulty): void
+    {
+        $this->setGameStateValue('difficulty', $difficulty);
+    }
+
     /**
      * Player action, play a card from hand
      *
@@ -252,7 +257,9 @@ class Game extends \Table
      */
     public function actPlayProtagonistCard(int $card_id): void
     {
-       
+        $this->cards->moveCard($card_id, "protagonist");
+        $card = $this->cards->getCard($card_id);
+        $this->setDifficulty($card["type_arg"]);
         // at the end of the action, move to the next state
         $this->gamestate->nextState("");
     }

@@ -27,6 +27,7 @@ define([
       console.log("thewalkingdeck constructor");
       this.cardwidth = 127;
       this.cardheight = 179;
+      this.
     },
 
         /*
@@ -352,6 +353,27 @@ define([
             _ make a call to the game server
         
         */
+    onCardSelected: function(card) {
+      console.log("onCardSelected", card.id);
+
+      switch (card.type){
+        case 1: //protagonist
+          this.selectProtagonistCard(card);
+          break;
+        default:
+      }
+    },
+
+    selectProtagonistCard: function(card) {
+      console.log("selectProtagonistCard", card.id);
+
+      this.bgaPerformAction("actPlayProtagonistCard", {
+        card_id: card.id,
+      }).then(() => {
+        // What to do after the server call if it succeeded
+        // (most of the time, nothing, as the game will react to notifs / change of state instead)
+      });
+    },
 
     onCardClick: function (card) {
       var card_id = card.id;
