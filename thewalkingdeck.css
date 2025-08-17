@@ -63,7 +63,7 @@
         background-repeat: none;
     }
 */
-#table-organiser{
+#table-organiser {
   position: relative;
   width: max-content;
   display: grid;
@@ -75,7 +75,8 @@
   height: 230px;
   /*border: 2px solid red;*/
 }
-#escaped .twd-card{
+
+#escaped .twd-card {
   transform: rotate(-90deg);
 }
 
@@ -91,19 +92,22 @@
   width: 127px;
   height: 179px;
 }
+
 .twd-card-front {
   background: url("img/sprite_sheet.png");
 }
+
 .twd-card-back {
   background: url("img/sprite_sheet.png");
   background-position: -508px -358px;
 }
+
 .twd-card-back-rural {
   background: url("img/sprite_sheet.png");
   background-position: -635px -358px;
 }
+
 .twd-card-back-urban {
   background: url("img/sprite_sheet.png");
   background-position: -762px -358px;
 }
-

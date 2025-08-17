@@ -1,4 +1,5 @@
 <?php
+
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
@@ -14,6 +15,7 @@
  *
  * In this PHP file, you are going to defines the rules of the game.
  */
+
 declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
@@ -34,7 +36,7 @@ class Game extends \Table
      */
 
     protected $cards;
-    
+
     private static array $CARD_TYPE;
     private static array $CARD_PROTA;
     private static array $CARD_RURAL;
@@ -51,8 +53,8 @@ class Game extends \Table
             "difficultyLevel" => 10, // example of game option
         ]);
 
-        $this->cards = $this->getNew( "module.common.deck" );
-        $this->cards->init( "card" );
+        $this->cards = $this->getNew("module.common.deck");
+        $this->cards->init("card");
 
         self::$CARD_TYPE = [
             1 => [
@@ -225,8 +227,8 @@ class Game extends \Table
         if ($card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
             $this->cards->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->cards->getCard($card_id);
-            $cardname="";
-            switch ($card["type"]){
+            $cardname = "";
+            switch ($card["type"]) {
                 case 2:
                     $cardname = self::$CARD_RURAL[$card["type_arg"]]["card_name"];
                     break;
@@ -266,13 +268,13 @@ class Game extends \Table
             else start new turn
         */
         if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0 && $this->cards->countCardInLocation("hand") == 0) {
-                // start story check
-                $this->gamestate->nextState("storyCheck");
+            // start story check
+            $this->gamestate->nextState("storyCheck");
         } else {
-            if ($this->cards->countCardInLocation("hand") == 0 ||$force) {
+            if ($this->cards->countCardInLocation("hand") == 0 || $force) {
                 // start new turn
                 $this->gamestate->nextState("nextTurn");
-            }else {
+            } else {
                 // stay in same state
                 $this->gamestate->nextState("keepPlaying");
             }
@@ -294,14 +296,14 @@ class Game extends \Table
             $difficulty = intval($card["type_arg"]);
             $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
             $this->setDifficulty($difficulty);
-            $this->cards->moveAllCardsInLocation( "hand", "discard");
+            $this->cards->moveAllCardsInLocation("hand", "discard");
             $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, difficulty set to $difficulty"), array(
                 "player_id" => $player_id,
                 "card" => $card,
                 "difficulty" => $difficulty
             ));
         } else throw new \BgaUserException($this->_("Illegal Move: ") . "$player_id plays $card_id from Hand to protagonist slot");
-    
+
         // at the end of the action, move to the next state
         $this->gamestate->nextState("");
     }
@@ -320,7 +322,6 @@ class Game extends \Table
             "card" => $cardPicked
         ));
         $this->checkHand();
-
     }
     /**
      * Player action : drawing a card from Urban deck
@@ -353,7 +354,7 @@ class Game extends \Table
      */
     public function actStoryCheckPlayerChoice(int $card_id): void
     {
-        
+
         $this->gamestate->nextState("");
     }
 
@@ -394,8 +395,9 @@ class Game extends \Table
     /**
      * Game state action, start the second phase of the game
      */
-    public function stStoryCheck(): void {
- 
+    public function stStoryCheck(): void
+    {
+
         // Go to following game state
         $this->gamestate->nextState("");
     }
@@ -403,7 +405,8 @@ class Game extends \Table
     /**
      * Game state action, step of story check : apply card effect, ask for player input if needed
      */
-    public function stStoryCheckStep(): void {
+    public function stStoryCheckStep(): void
+    {
 
         $needPlayerInput = false;
 
@@ -417,7 +420,8 @@ class Game extends \Table
     /**
      * Game state action, check win or loss condition
      */
-    public function stStoryCheckGameWinLoss(): void {
+    public function stStoryCheckGameWinLoss(): void
+    {
         $win = false; // TODO: check win condition
         $loss = false; // TODO: check loss condition
         // Go to following game state
@@ -430,7 +434,7 @@ class Game extends \Table
         }
     }
 
-    
+
 
     /**
      * Migrate database.
@@ -445,21 +449,21 @@ class Game extends \Table
      */
     public function upgradeTableDb($from_version)
     {
-//       if ($from_version <= 1404301345)
-//       {
-//            // ! important ! Use DBPREFIX_<table_name> for all tables
-//
-//            $sql = "ALTER TABLE DBPREFIX_xxxxxxx ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
-//
-//       if ($from_version <= 1405061421)
-//       {
-//            // ! important ! Use DBPREFIX_<table_name> for all tables
-//
-//            $sql = "CREATE TABLE DBPREFIX_xxxxxxx ....";
-//            $this->applyDbUpgradeToAllDB( $sql );
-//       }
+        //       if ($from_version <= 1404301345)
+        //       {
+        //            // ! important ! Use DBPREFIX_<table_name> for all tables
+        //
+        //            $sql = "ALTER TABLE DBPREFIX_xxxxxxx ....";
+        //            $this->applyDbUpgradeToAllDB( $sql );
+        //       }
+        //
+        //       if ($from_version <= 1405061421)
+        //       {
+        //            // ! important ! Use DBPREFIX_<table_name> for all tables
+        //
+        //            $sql = "CREATE TABLE DBPREFIX_xxxxxxx ....";
+        //            $this->applyDbUpgradeToAllDB( $sql );
+        //       }
     }
 
     private function generateFakeCard($card): array
@@ -507,17 +511,17 @@ class Game extends \Table
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Cards in player hand
-        $result['hand'] = $this->cards->getCardsInLocation( 'hand');
-        
+        $result['hand'] = $this->cards->getCardsInLocation('hand');
+
         // Cards played on the table
-        $result['protagonistSlot'] = $this->cards->getCardsInLocation( 'protagonist');
-        $result['memoryTop'] = $this->cards->getCardOnTop( 'memory');
-        $result['memoryNb'] = $this->cards->countCardInLocation( 'memory');
-        $result['escaped'] = $this->cards->getCardsInLocation( 'escaped', null, 'location_arg');
-        $result['graveyardNb'] = $this->cards->countCardInLocation( 'graveyard');
-        $result['graveyardTop'] = $this->cards->getCardOnTop( 'graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop( 'graveyard')) : null;
-        $result['ruralDeckNb'] = $this->cards->countCardInLocation( 'deck-rural');
-        $result['urbanDeckNb'] = $this->cards->countCardInLocation( 'deck-urban');
+        $result['protagonistSlot'] = $this->cards->getCardsInLocation('protagonist');
+        $result['memoryTop'] = $this->cards->getCardOnTop('memory');
+        $result['memoryNb'] = $this->cards->countCardInLocation('memory');
+        $result['escaped'] = $this->cards->getCardsInLocation('escaped', null, 'location_arg');
+        $result['graveyardNb'] = $this->cards->countCardInLocation('graveyard');
+        $result['graveyardTop'] = $this->cards->getCardOnTop('graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop('graveyard')) : null;
+        $result['ruralDeckNb'] = $this->cards->countCardInLocation('deck-rural');
+        $result['urbanDeckNb'] = $this->cards->countCardInLocation('deck-urban');
 
         return $result;
     }
@@ -569,7 +573,7 @@ class Game extends \Table
         $this->reloadPlayersBasicInfos();
 
         // Init global values with their initial values.
-        
+
         // Difficulty level is define by protagonist picked at game start. Default is 1.
         $this->setGameStateInitialValue("difficultyLevel", 1);
 
@@ -591,12 +595,12 @@ class Game extends \Table
         $this->cards->createCards($cards, 'hand');
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
-                $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
+            $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
         $this->cards->createCards($cards, 'deck-rural');
         //$this->cards->shuffle('deck-rural');
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
-                $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
+            $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
         $this->cards->createCards($cards, 'deck-urban');
         $this->cards->shuffle('deck-urban');
 
@@ -626,11 +630,10 @@ class Game extends \Table
 
         if ($state["type"] === "activeplayer") {
             switch ($state_name) {
-                default:
-                {
-                    $this->gamestate->nextState("zombiePass");
-                    break;
-                }
+                default: {
+                        $this->gamestate->nextState("zombiePass");
+                        break;
+                    }
             }
 
             return;

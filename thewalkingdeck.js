@@ -19,8 +19,8 @@ define([
   "dojo/_base/declare",
   "ebg/core/gamegui",
   "ebg/counter",
-  getLibUrl('bga-animations', '1.x'),
-  getLibUrl('bga-cards', '1.x')
+  getLibUrl("bga-animations", "1.x"),
+  getLibUrl("bga-cards", "1.x"),
 ], function (dojo, declare, gamegui, counter, BgaAnimations, BgaCards) {
   return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
     constructor: function () {
@@ -154,7 +154,7 @@ define([
           return {
             id: `rural-top-card`,
             type: `4`, // fake rural
-            location: `deck-rural`
+            location: `deck-rural`,
           };
         },
       });
@@ -167,7 +167,7 @@ define([
           return {
             id: `urban-top-card`,
             type: `5`, // fake urban
-            location: `deck-urban`
+            location: `deck-urban`,
           };
         },
       });
@@ -207,7 +207,7 @@ define([
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
-          position: "bottom"
+          position: "bottom",
         },
         direction: "horizontal",
       });
@@ -339,27 +339,26 @@ define([
       }
     },
 
-    generateFakeCard:function (card){
-          // Generate a fake card based on the original card
-          let fakeType;
-          switch (card.type) {
-            case "2": // rural
-              fakeType = `4`; // fake rural
-              break;
-            case "3": // urban
-              fakeType = `5`; // fake urban
-              break;
-            default:
-              fakeType = `6`;
-          }
-          return {
-            id: `fake-top-card`,
-            type: fakeType,
-            type_arg: `20`,
-            location: card.location,
-            location_arg: card.location_arg,
-
-          };
+    generateFakeCard: function (card) {
+      // Generate a fake card based on the original card
+      let fakeType;
+      switch (card.type) {
+        case "2": // rural
+          fakeType = `4`; // fake rural
+          break;
+        case "3": // urban
+          fakeType = `5`; // fake urban
+          break;
+        default:
+          fakeType = `6`;
+      }
+      return {
+        id: `fake-top-card`,
+        type: fakeType,
+        type_arg: `20`,
+        location: card.location,
+        location_arg: card.location_arg,
+      };
     },
     ///////////////////////////////////////////////////
     //// Player's action
@@ -413,7 +412,7 @@ define([
     playingCardCheck: function () {
       console.log("playingCardCheck");
       let card = this.hand.getSelection()[0];
-      if (card){
+      if (card) {
         if (this.memory.getSelection().length > 0) {
           console.log("Memory selected, playing card");
         } else if (this.graveyard.getSelection().length > 0) {
@@ -440,32 +439,32 @@ define([
     onEscapedClick: function () {
       console.log("onEscapedClick");
       let card = this.hand.getSelection()[0];
-      if (card){
+      if (card) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
-          location: "escaped"
+          location: "escaped",
         });
-      }else console.log("No card selected");
+      } else console.log("No card selected");
     },
     onMemoryClick: function () {
       console.log("onMemoryClick");
       let card = this.hand.getSelection()[0];
-      if (card){
+      if (card) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
-          location: "memory"
+          location: "memory",
         });
-      }else console.log("No card selected");
+      } else console.log("No card selected");
     },
     onGraveyardClick: function () {
       console.log("onGraveyardClick");
       let card = this.hand.getSelection()[0];
-      if (card){
+      if (card) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
-          location: "graveyard"
+          location: "graveyard",
         });
-      }else console.log("No card selected");
+      } else console.log("No card selected");
     },
 
     ///////////////////////////////////////////////////
@@ -497,9 +496,9 @@ define([
       // table of notif type to delay in milliseconds
       const notifs = [
         ["protagonistCardPlayed", 100],
-        ['cardDrawnFromRuralDeck', 100],
-        ['cardDrawnFromUrbanDeck', 100],
-        ['cardPlayed', 100]
+        ["cardDrawnFromRuralDeck", 100],
+        ["cardDrawnFromUrbanDeck", 100],
+        ["cardPlayed", 100],
       ];
 
       notifs.forEach((notif) => {
@@ -553,30 +552,30 @@ define([
     },
     notif_cardPlayed: function (notif) {
       console.log("notif_cardPlayed");
-     // console.log(notif);
+      // console.log(notif);
       let card = notif.args.card;
       let destination = this.getLocation(notif.args.location);
       console.log("Card played", card, "to location", notif.args.location);
       if (card && destination) {
-        switch (notif.args.location){
-          case 'memory':
+        switch (notif.args.location) {
+          case "memory":
             this.memory.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
             break;
-          case 'graveyard':
+          case "graveyard":
             this.hand.removeCard(card);
             let fakeCard = this.generateFakeCard(card);
             console.log("Fake card generated for graveyard", fakeCard);
-            card.type= fakeCard.type;
+            card.type = fakeCard.type;
             console.log("Card to be added to graveyard", card);
             this.graveyard.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
             break;
-          case 'escaped':
+          case "escaped":
             this.escaped.addCard(card, { fromStock: this.hand });
             break;
           default:
             console.log("Unknown location for card played", notif.args.location);
         }
       }
-    }
+    },
   });
 });

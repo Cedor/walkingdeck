@@ -1,4 +1,5 @@
 <?php
+
 /**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
@@ -80,7 +81,7 @@ $machinestates = [
         ->transitions([
             "drawAnotherCard" => 3,
             "ready" => 4
-    ])
+        ])
         ->build(),
     4 => GameStateBuilder::create()
         ->name('playCards')
@@ -151,6 +152,3 @@ $machinestates = [
         ->args('argGameEnd')
         ->build()
 ];
-
-
-
