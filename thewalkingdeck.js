@@ -29,7 +29,7 @@ define([
       this.cardheight = 179;
     },
 
-        /*
+    /*
             setup:
             
             This method must set up the game user interface according to current game situation specified
@@ -56,13 +56,13 @@ define([
         `
             <div id="player-table" class="whiteblock">
             <div id="table-organiser">
-              <div id="rural-deck-wrap" class="location-wrap">
+              <div id="deck-rural-wrap" class="location-wrap">
                 <b>${_("Rural Deck")}</b>
-                <div id="rural-deck"></div>
+                <div id="deck-rural"></div>
               </div>
-              <div id="urban-deck-wrap" class="location-wrap">
+              <div id="deck-urban-wrap" class="location-wrap">
                 <b>${_("Urban Deck")}</b>
-                <div id="urban-deck"></div>
+                <div id="deck-urban"></div>
               </div>
                 <div id="escaped-wrap" class="location-wrap">
                 <b>${_("Escaped")}</b>
@@ -95,13 +95,13 @@ define([
 
       // create the animation manager, and bind it to the `game.bgaAnimationsActive()` function
       this.animationManager = new BgaAnimations.Manager({
-          animationsActive: () => this.bgaAnimationsActive(),
+        animationsActive: () => this.bgaAnimationsActive(),
       });
 
       // create the card manager
       this.cardsManager = new BgaCards.Manager({
         animationManager: this.animationManager,
-        type: 'twd-card',
+        type: "twd-card",
         getId: (card) => `card-${card.id}`,
         setupDiv: (card, div) => {
           div.classList.add("twd-card");
@@ -109,14 +109,14 @@ define([
         setupFrontDiv: (card, div) => {
           div.classList.add("twd-card-front");
           switch (card.type) {
-            case '1':
-              div.style.backgroundPositionY = `100%`; 
-              div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`; 
+            case "1":
+              div.style.backgroundPositionY = `100%`;
+              div.style.backgroundPositionX = `${((card.type_arg - 1) * 100) / 17}%`;
               break;
-            case '2':
-            case '3':
-              div.style.backgroundPositionY = `${(card.type - 2) * 100 / 2}%`;
-              div.style.backgroundPositionX = `${(card.type_arg-1) * 100 / 17}%`;
+            case "2":
+            case "3":
+              div.style.backgroundPositionY = `${((card.type - 2) * 100) / 2}%`;
+              div.style.backgroundPositionX = `${((card.type_arg - 1) * 100) / 17}%`;
               break;
             default:
               div.style.backgroundPosition = "-508px -358px";
@@ -138,102 +138,79 @@ define([
           }
         },
         isCardVisible: (card) => {
-          return (card.type === '1' || card.type === '2' || card.type === '3');
+          return card.type === "1" || card.type === "2" || card.type === "3";
         },
         cardWidth: 127,
         cardHeight: 179,
       });
 
       // create decks
-      this.ruralDeck = new BgaCards.Deck(
-        this.cardsManager,
-        document.getElementById("rural-deck"), {
-          cardNumber: 0,
-          counter: {},
-          fakeCardGenerator: (deckId) => {
-            // Generate a fake card based on the original card
-            return {
-              id: `${deckId}-top-card`,
-              type: `4`, // fake rural
-            };
-          },
-        }
-      );
-      this.urbanDeck = new BgaCards.Deck(
-        this.cardsManager,
-        document.getElementById("urban-deck"), {
-          cardNumber: 0,
-          counter: {},
-          fakeCardGenerator: (deckId) => {
-            // Generate a fake card based on the original card
-            return {
-              id: `${deckId}-top-card`,
-              type: `5`, // fake urban
-            };
-          },
-        }
-      );
+      this.ruralDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck-rural"), {
+        cardClickEventFilter: "all",
+        cardNumber: 0,
+        counter: {},
+        fakeCardGenerator: (deckId) => {
+          // Generate a fake card based on the original card
+          return {
+            id: `${deckId}-top-card`,
+            type: `4`, // fake rural
+          };
+        },
+      });
+      this.urbanDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck-urban"), {
+        cardClickEventFilter: "all",
+        cardNumber: 0,
+        counter: {},
+        fakeCardGenerator: (deckId) => {
+          // Generate a fake card based on the original card
+          return {
+            id: `${deckId}-top-card`,
+            type: `5`, // fake urban
+          };
+        },
+      });
       // create protagonist slot
-      this.protagonistSlot = new BgaCards.SlotStock(
-        this.cardsManager,
-        document.getElementById('protagonist-slot'), {
-          slotsIds: ['A'],
-          slotClasses: ['twd-slot'],
-          mapCardToSlot: (card) => 'A',
-        }
-      );
+      this.protagonistSlot = new BgaCards.SlotStock(this.cardsManager, document.getElementById("protagonist-slot"), {
+        slotsIds: ["A"],
+        slotClasses: ["twd-slot"],
+        mapCardToSlot: (card) => "A",
+      });
       this.protagonistSlot.onCardAdded = (card) => {
         console.log("Card added to protagonist slot", card);
       };
       // create hand
-      this.hand = new BgaCards.HandStock(
-        this.cardsManager,
-        document.getElementById('hand'),
-      );
-      this.hand.setSelectionMode('single');
+      this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"));
+      this.hand.setSelectionMode("single");
       //create memory pile
-      this.memory = new BgaCards.DiscardDeck(
-        this.cardsManager,
-        document.getElementById('memory'),
-        {
-          cardNumber: 0,
-          counter: {
-            hideWhenEmpty: true,
-          },
-        }
-      );
+      this.memory = new BgaCards.DiscardDeck(this.cardsManager, document.getElementById("memory"), {
+        cardNumber: 0,
+        counter: {
+          hideWhenEmpty: true,
+        },
+      });
       //create graveyard pile
-      this.graveyard = new BgaCards.Deck(
-        this.cardsManager,
-        document.getElementById('graveyard'),
-        {
-          cardNumber: 0,
-          counter: {
-            hideWhenEmpty: true,
-          },
-        }
-      );
+      this.graveyard = new BgaCards.Deck(this.cardsManager, document.getElementById("graveyard"), {
+        cardNumber: 0,
+        counter: {
+          hideWhenEmpty: true,
+        },
+      });
       //create escaped pile
-      this.escaped = new BgaCards.AllVisibleDeck(
-        this.cardsManager,
-        document.getElementById('escaped'),{
-          cardNumber: 0,
-          counter: {
-            hideWhenEmpty: true,
-          },
-        }
-      );
-      
+      this.escaped = new BgaCards.AllVisibleDeck(this.cardsManager, document.getElementById("escaped"), {
+        cardNumber: 0,
+        counter: {
+          hideWhenEmpty: true,
+        },
+      });
+
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
       // Hand gamedatas
-      for (var i in this.gamedatas.hand)
-        this.hand.addCard(this.gamedatas.hand[i]);
+      for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
       let protagonistDatas = this.gamedatas.protagonistSlot;
-      if (Object.keys(protagonistDatas).length > 1) 
-        console.log("Protagonist slot contains multiple cards");
-      if (Object.keys(protagonistDatas).length > 0){
+      if (Object.keys(protagonistDatas).length > 1) console.log("Protagonist slot contains multiple cards");
+      if (Object.keys(protagonistDatas).length > 0) {
         this.protagonistSlot.addCard(protagonistDatas[Object.keys(protagonistDatas)[0]]);
       } else {
         console.log("Protagonist slot is empty");
@@ -244,17 +221,15 @@ define([
       this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
       // Memory gamedatas
       if (this.gamedatas.memoryTop) {
-        this.memory.setCardNumber(this.gamedatas.memory-1);
+        this.memory.setCardNumber(this.gamedatas.memory - 1);
         this.memory.addCard(this.gamedatas.memoryTop);
       }
       // Graveyard gamedatas
       this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
       // Escaped gamedatas
-      for (var i in this.gamedatas.escaped)
-        this.escaped.addCard(this.gamedatas.escaped[i]);
-      // Setup hand action
-      //dojo.connect(this.hand, "onCardClick", this, "onCardClick");
-      dojo.connect(this.hand, "onSelectionChange", this, "onHandSelectionChange");
+      for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
+      // Setup connections
+      this.setupConnections();
       // Setup game notifications to handle (see "setupNotifications" method below)
       this.setupNotifications();
 
@@ -313,15 +288,14 @@ define([
     //
     onUpdateActionButtons: function (stateName, args) {
       console.log("onUpdateActionButtons: " + stateName, args);
-      var player = this.getActivePlayerId(); 
+      var player = this.getActivePlayerId();
       if (this.isCurrentPlayerActive()) {
         console.log("Current player is active");
         switch (stateName) {
           case "playerTurn":
             break;
         }
-      }
-      else console.log("Current player is not active, active is " + player);
+      } else console.log("Current player is not active, active is " + player);
     },
 
     ///////////////////////////////////////////////////
@@ -347,8 +321,14 @@ define([
             _ make a call to the game server
         
         */
+    setupConnections: function () {
+      console.log("Setting up connections");
+      dojo.connect(this.hand, "onSelectionChange", this, "onHandSelectionChange");
+      dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick");
+      dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick");
+    },
 
-      onHandSelectionChange: function (selectedCards, lastChange) {
+    onHandSelectionChange: function (selectedCards, lastChange) {
       console.log("onHandSelectionChange", selectedCards);
       if (selectedCards.length === 0) {
         console.log("No card selected");
@@ -356,13 +336,23 @@ define([
       } else {
         card = selectedCards[0];
         switch (card.type) {
-          case '1': //protagonist => it's a protagonist pick
-            this.bgaPerformAction('actPlayProtagonistCard', {card_id : card.id,});
+          case "1": //protagonist => it's a protagonist pick
+            this.bgaPerformAction("actPlayProtagonistCard", {
+              card_id: card.id,
+            });
             break;
           default:
             console.log("Unknown card type");
         }
       }
+    },
+    onRuralDeckCardClick: function (card) {
+      console.log("onRuralDeckCardClick");
+      this.bgaPerformAction("actDrawFromRuralDeck");
+    },
+    onUrbanDeckCardClick: function (card) {
+      console.log("onUrbanDeckCardClick");
+      this.bgaPerformAction("actDrawFromUrbanDeck");
     },
 
     ///////////////////////////////////////////////////
@@ -393,14 +383,15 @@ define([
       //
       // table of notif type to delay in milliseconds
       const notifs = [
-          ['protagonistCardPlayed', 100],
-          //['playCard', 100],
+        ["protagonistCardPlayed", 100],
+        ['cardDrawnFromRuralDeck', 100],
+        ['cardDrawnFromUrbanDeck', 100],
       ];
 
       notifs.forEach((notif) => {
-          dojo.subscribe(notif[0], this, `notif_${notif[0]}`);
-          this.notifqueue.setSynchronous(notif[0], notif[1]);
-          console.log(`Subscribed to notification ${notif[0]} with delay ${notif[1]}ms`);
+        dojo.subscribe(notif[0], this, `notif_${notif[0]}`);
+        this.notifqueue.setSynchronous(notif[0], notif[1]);
+        console.log(`Subscribed to notification ${notif[0]} with delay ${notif[1]}ms`);
       });
     },
 
@@ -420,15 +411,32 @@ define([
         },    
         
         */
-    notif_protagonistCardPlayed: function( notif )
-    {
-      console.log( 'notif_protagonistCardPlayed' );
-      console.log( notif );
+    notif_protagonistCardPlayed: function (notif) {
+      console.log("notif_protagonistCardPlayed");
+      console.log(notif);
       let card = notif.args.card;
       if (card) {
-        this.protagonistSlot.addCard(card, {fromStock: this.hand });
+        this.protagonistSlot.addCard(card, { fromStock: this.hand });
         this.hand.removeAll();
       }
     },
+    notif_cardDrawnFromRuralDeck: function (notif) {
+      console.log("notif_cardDrawnFromRuralDeck");
+      console.log(notif);
+      let card = notif.args.card;
+      console.log("Card drawn from rural deck", card);
+      if (card) {
+        this.hand.addCard(card, { fromStock: this.ruralDeck });
+      }
+    },
+    notif_cardDrawnFromUrbanDeck: function (notif) {
+      console.log("notif_cardDrawnFromUrbanDeck");
+      console.log(notif);
+      let card = notif.args.card;
+      if (card) {
+        this.hand.addCard(card, { fromStock: this.urbanDeck });
+      }
+    },
+
   });
 });
