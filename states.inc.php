@@ -74,13 +74,13 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actDrawUrbanCard",
-            "actDrawRuralCard",
+            "actDrawFromRuralDeck",
+            "actDrawFromUrbanDeck",
         ])
         ->transitions([
             "drawAnotherCard" => 3,
             "ready" => 4
-        ])
+    ])
         ->build(),
     4 => GameStateBuilder::create()
         ->name('playCards')
@@ -93,6 +93,7 @@ $machinestates = [
             "actPass"
         ])
         ->transitions([
+            "keepPlaying" => 4,
             "nextTurn" => 3,
             "storyCheck" => 5
         ])

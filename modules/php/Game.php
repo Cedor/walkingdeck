@@ -234,15 +234,16 @@ class Game extends \Table
     {
         /* Check board state 
             if both decks empty
-            then if hand = 0 then start story check else stay in same state
+            then if hand = 0 then start story check else return to same state et play a card
             else start new turn
         */
-        if ($this->cards->countCardInLocation("deck-rural") === 0 && $this->cards->countCardInLocation("deck-urban") === 0) {
-            if ($this->cards->countCardInLocation("hand") === 0) {
+        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0) {
+            if ($this->cards->countCardInLocation("hand") == 0) {
                 // start story check
                 $this->gamestate->nextState("storyCheck");
             } else {
                 // stay in same state
+                $this->gamestate->nextState("keepPlaying");
             }
         } else {
             // start new turn
@@ -275,29 +276,42 @@ class Game extends \Table
     }
 
     /**
-     * Player action : drawing a card from Urban deck
-     *
-     * @throws BgaUserException
-     */
-    public function actDrawUrbanCard(int $card_id): void
-    {
-        
-        $this->checkHand();
-    }
-    /**
      * Player action : drawing a card from Rural deck
      *
      * @throws BgaUserException
      */
-    public function actDrawRuralCard(int $card_id): void
+    public function actDrawFromRuralDeck(): void
     {
-        
+        $player_id = $this->getActivePlayerId();
+        $cardPicked = $this->cards->pickCard("deck-rural", $player_id);
+        $this->notify->all("cardDrawnFromRuralDeck", \clienttranslate("Card drawn from rural deck"), array(
+            "player_id" => $player_id,
+            "card" => $cardPicked
+        ));
+        $this->checkHand();
+
+    }
+    /**
+     * Player action : drawing a card from Urban deck
+     *
+     * @throws BgaUserException
+     */
+    public function actDrawFromUrbanDeck(): void
+    {
+        $player_id = $this->getActivePlayerId();
+        $cardPicked = $this->cards->pickCard("deck-urban", $player_id);
+        $this->notify->all("cardDrawnFromUrbanDeck", \clienttranslate("Card drawn from urban deck"), array(
+            "player_id" => $player_id,
+            "card" => $cardPicked
+        ));
         $this->checkHand();
     }
     private function checkHand(): void
     {
-        if ($this->cards->countCardInLocation("hand") === 3) {
-            $this->gamestate->nextState("");
+        if ($this->cards->countCardInLocation('hand') > 2) {
+            $this->gamestate->nextState("ready");
+        } else {
+            $this->gamestate->nextState("drawAnotherCard");
         }
     }
 
