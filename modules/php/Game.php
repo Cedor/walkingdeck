@@ -219,10 +219,38 @@ class Game extends \Table
      *
      * @throws BgaUserException
      */
-    public function actPlayCard(int $card_id): void
+    public function actPlayCard(int $card_id, string $location): void
     {
-        $player_id = $this->getActivePlayerId();
-        throw new \BgaUserException($this->_("Not implemented: ") . "$player_id plays $card_id");
+        $card = $this->cards->getCard($card_id);
+        if ($card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
+            $this->cards->insertCardOnExtremePosition($card_id, $location, true);
+            $card = $this->cards->getCard($card_id);
+            $cardname="";
+            switch ($card["type"]){
+                case 2:
+                    $cardname = self::$CARD_RURAL[$card["type_arg"]]["card_name"];
+                    break;
+                case 3:
+                    $cardname = self::$CARD_URBAN[$card["type_arg"]]["card_name"];
+                    break;
+            }
+            $this->notify->all("cardPlayed", \clienttranslate("Card $cardname played from hand to $location"), array(
+                "player_id" => $this->getActivePlayerId(),
+                "card" => $card,
+                "location" => $location
+            ));
+        } else {
+            throw new \BgaUserException($this->_("Illegal Move: ") . "$card_id cannot be played from hand to location $location");
+        }
+        $this->actPass();
+    }
+
+    private function cardCanBePlayedInLocation(array $card, string $location): bool
+    {
+        // Check if the card can be played in the specified location
+        // For example, you might want to check if the location is valid for the card type
+        // Here we assume that all cards can be played in any location for simplicity
+        return true;
     }
 
     /**
@@ -230,24 +258,24 @@ class Game extends \Table
      *
      * @throws BgaUserException
      */
-    public function actPass(): void
+    public function actPass($force = false): void
     {
         /* Check board state 
             if both decks empty
             then if hand = 0 then start story check else return to same state et play a card
             else start new turn
         */
-        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0) {
-            if ($this->cards->countCardInLocation("hand") == 0) {
+        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0 && $this->cards->countCardInLocation("hand") == 0) {
                 // start story check
                 $this->gamestate->nextState("storyCheck");
-            } else {
+        } else {
+            if ($this->cards->countCardInLocation("hand") == 0 ||$force) {
+                // start new turn
+                $this->gamestate->nextState("nextTurn");
+            }else {
                 // stay in same state
                 $this->gamestate->nextState("keepPlaying");
             }
-        } else {
-            // start new turn
-            $this->gamestate->nextState("nextTurn");
         }
     }
 
@@ -259,18 +287,21 @@ class Game extends \Table
     public function actPlayProtagonistCard(int $card_id): void
     {
         $player_id = $this->getActivePlayerId();
-        $this->cards->moveCard($card_id, "protagonist");
         $card = $this->cards->getCard($card_id);
-        $difficulty = intval($card["type_arg"]);
-        $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
-        $this->setDifficulty($difficulty);
-        $this->cards->moveAllCardsInLocation( "hand", "discard");
-        $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, difficulty set to $difficulty"), array(
-            "player_id" => $player_id,
-            "card" => $card,
-            "difficulty" => $difficulty
-        ));
-        
+        if ($card["location"] == "hand" && $this->cards->countCardInLocation("protagonist") == 0) {
+            $this->cards->moveCard($card_id, "protagonist");
+            $card = $this->cards->getCard($card_id);
+            $difficulty = intval($card["type_arg"]);
+            $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
+            $this->setDifficulty($difficulty);
+            $this->cards->moveAllCardsInLocation( "hand", "discard");
+            $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, difficulty set to $difficulty"), array(
+                "player_id" => $player_id,
+                "card" => $card,
+                "difficulty" => $difficulty
+            ));
+        } else throw new \BgaUserException($this->_("Illegal Move: ") . "$player_id plays $card_id from Hand to protagonist slot");
+    
         // at the end of the action, move to the next state
         $this->gamestate->nextState("");
     }
@@ -431,6 +462,28 @@ class Game extends \Table
 //       }
     }
 
+    private function generateFakeCard($card): array
+    {
+        $faketype = '';
+        switch ($card['type']) {
+            case 2:
+                $faketype = '4';
+                break;
+            case 3:
+                $faketype = '5';
+                break;
+            default:
+                $faketype = '6';
+        }
+        return [
+            'id' => 'fake-top-card',
+            'type' => $faketype,
+            'type_arg' => '20',
+            'location' => $card['location'],
+            'location_arg' => $card['location_arg'],
+        ];
+    }
+
     /*
      * Gather all information about current game situation (visible by the current player).
      *
@@ -462,6 +515,7 @@ class Game extends \Table
         $result['memoryNb'] = $this->cards->countCardInLocation( 'memory');
         $result['escaped'] = $this->cards->getCardsInLocation( 'escaped', null, 'location_arg');
         $result['graveyardNb'] = $this->cards->countCardInLocation( 'graveyard');
+        $result['graveyardTop'] = $this->cards->getCardOnTop( 'graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop( 'graveyard')) : null;
         $result['ruralDeckNb'] = $this->cards->countCardInLocation( 'deck-rural');
         $result['urbanDeckNb'] = $this->cards->countCardInLocation( 'deck-urban');
 
@@ -539,7 +593,7 @@ class Game extends \Table
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
                 $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
         $this->cards->createCards($cards, 'deck-rural');
-        $this->cards->shuffle('deck-rural');
+        //$this->cards->shuffle('deck-rural');
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
                 $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];

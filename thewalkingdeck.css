@@ -75,7 +75,7 @@
   height: 230px;
   /*border: 2px solid red;*/
 }
-#escaped {
+#escaped .twd-card{
   transform: rotate(-90deg);
 }
 

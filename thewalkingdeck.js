@@ -152,8 +152,9 @@ define([
         fakeCardGenerator: (deckId) => {
           // Generate a fake card based on the original card
           return {
-            id: `${deckId}-top-card`,
+            id: `rural-top-card`,
             type: `4`, // fake rural
+            location: `deck-rural`
           };
         },
       });
@@ -164,8 +165,9 @@ define([
         fakeCardGenerator: (deckId) => {
           // Generate a fake card based on the original card
           return {
-            id: `${deckId}-top-card`,
+            id: `urban-top-card`,
             type: `5`, // fake urban
+            location: `deck-urban`
           };
         },
       });
@@ -182,26 +184,34 @@ define([
       this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"));
       this.hand.setSelectionMode("single");
       //create memory pile
-      this.memory = new BgaCards.DiscardDeck(this.cardsManager, document.getElementById("memory"), {
+      this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
+        //TODO cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
         },
       });
+      //TODO this.memory.setSelectionMode("single");
       //create graveyard pile
       this.graveyard = new BgaCards.Deck(this.cardsManager, document.getElementById("graveyard"), {
+        // TODO cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
         },
       });
+      // TODO this.graveyard.setSelectionMode("single");
       //create escaped pile
       this.escaped = new BgaCards.AllVisibleDeck(this.cardsManager, document.getElementById("escaped"), {
+        //TODO cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
+          position: "bottom"
         },
+        direction: "horizontal",
       });
+      //TODO this.escaped.setSelectionMode("multiple");
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
@@ -220,12 +230,18 @@ define([
       // Rural Deck gamedatas
       this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
       // Memory gamedatas
+      console.log("Memory gamedatas", this.gamedatas.memory);
       if (this.gamedatas.memoryTop) {
-        this.memory.setCardNumber(this.gamedatas.memory - 1);
+        this.memory.setCardNumber(this.gamedatas.memoryNb - 1);
         this.memory.addCard(this.gamedatas.memoryTop);
       }
       // Graveyard gamedatas
       this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
+      console.log("Graveyard gamedatas", this.gamedatas.graveyardNb, this.gamedatas.graveyardTop);
+      if (this.gamedatas.graveyardTop) {
+        this.graveyard.setCardNumber(this.gamedatas.graveyardNb - 1);
+        this.graveyard.addCard(this.gamedatas.graveyardTop);
+      }
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
       // Setup connections
@@ -307,7 +323,44 @@ define([
             script.
         
         */
+    getLocation: function (location) {
+      switch (location) {
+        case "hand":
+          return this.hand;
+        case "memory":
+          return this.memory;
+        case "graveyard":
+          return this.graveyard;
+        case "escaped":
+          return this.escaped;
+        default:
+          console.log("Unknown location: " + location);
+          return null;
+      }
+    },
 
+    generateFakeCard:function (card){
+          // Generate a fake card based on the original card
+          let fakeType;
+          switch (card.type) {
+            case "2": // rural
+              fakeType = `4`; // fake rural
+              break;
+            case "3": // urban
+              fakeType = `5`; // fake urban
+              break;
+            default:
+              fakeType = `6`;
+          }
+          return {
+            id: `fake-top-card`,
+            type: fakeType,
+            type_arg: `20`,
+            location: card.location,
+            location_arg: card.location_arg,
+
+          };
+    },
     ///////////////////////////////////////////////////
     //// Player's action
 
@@ -326,6 +379,12 @@ define([
       dojo.connect(this.hand, "onSelectionChange", this, "onHandSelectionChange");
       dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick");
       dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick");
+      //dojo.connect(this.escaped, "onCardClick", this, "onEscapedClick");
+      //dojo.connect(this.memory, "onCardClick", this, "onMemoryClick");
+      //dojo.connect(this.graveyard, "onCardClick", this, "onGraveyardClick");
+      dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
+      dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
+      dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
     },
 
     onHandSelectionChange: function (selectedCards, lastChange) {
@@ -341,10 +400,33 @@ define([
               card_id: card.id,
             });
             break;
+          case "2": //rural => it's a rural deck pick
+          case "3": //urban => it's an urban deck pick
+            this.playingCardCheck();
+            break;
           default:
             console.log("Unknown card type");
         }
       }
+    },
+
+    playingCardCheck: function () {
+      console.log("playingCardCheck");
+      let card = this.hand.getSelection()[0];
+      if (card){
+        if (this.memory.getSelection().length > 0) {
+          console.log("Memory selected, playing card");
+        } else if (this.graveyard.getSelection().length > 0) {
+          console.log("Graveyard selected, playing card");
+        } else if (this.escaped.getSelection().length > 0) {
+          console.log("Escaped selected, playing card");
+        } else {
+          console.log("No valid location selected");
+        }
+      } else console.log("No card selected");
+      //this.bgaPerformAction("actPlayCard", {
+      //  card_id: this.selectedCard.id,
+      //});
     },
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
@@ -353,6 +435,37 @@ define([
     onUrbanDeckCardClick: function (card) {
       console.log("onUrbanDeckCardClick");
       this.bgaPerformAction("actDrawFromUrbanDeck");
+    },
+
+    onEscapedClick: function () {
+      console.log("onEscapedClick");
+      let card = this.hand.getSelection()[0];
+      if (card){
+        this.bgaPerformAction("actPlayCard", {
+          card_id: card.id,
+          location: "escaped"
+        });
+      }else console.log("No card selected");
+    },
+    onMemoryClick: function () {
+      console.log("onMemoryClick");
+      let card = this.hand.getSelection()[0];
+      if (card){
+        this.bgaPerformAction("actPlayCard", {
+          card_id: card.id,
+          location: "memory"
+        });
+      }else console.log("No card selected");
+    },
+    onGraveyardClick: function () {
+      console.log("onGraveyardClick");
+      let card = this.hand.getSelection()[0];
+      if (card){
+        this.bgaPerformAction("actPlayCard", {
+          card_id: card.id,
+          location: "graveyard"
+        });
+      }else console.log("No card selected");
     },
 
     ///////////////////////////////////////////////////
@@ -386,6 +499,7 @@ define([
         ["protagonistCardPlayed", 100],
         ['cardDrawnFromRuralDeck', 100],
         ['cardDrawnFromUrbanDeck', 100],
+        ['cardPlayed', 100]
       ];
 
       notifs.forEach((notif) => {
@@ -437,6 +551,32 @@ define([
         this.hand.addCard(card, { fromStock: this.urbanDeck });
       }
     },
-
+    notif_cardPlayed: function (notif) {
+      console.log("notif_cardPlayed");
+     // console.log(notif);
+      let card = notif.args.card;
+      let destination = this.getLocation(notif.args.location);
+      console.log("Card played", card, "to location", notif.args.location);
+      if (card && destination) {
+        switch (notif.args.location){
+          case 'memory':
+            this.memory.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
+            break;
+          case 'graveyard':
+            this.hand.removeCard(card);
+            let fakeCard = this.generateFakeCard(card);
+            console.log("Fake card generated for graveyard", fakeCard);
+            card.type= fakeCard.type;
+            console.log("Card to be added to graveyard", card);
+            this.graveyard.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
+            break;
+          case 'escaped':
+            this.escaped.addCard(card, { fromStock: this.hand });
+            break;
+          default:
+            console.log("Unknown location for card played", notif.args.location);
+        }
+      }
+    }
   });
 });
