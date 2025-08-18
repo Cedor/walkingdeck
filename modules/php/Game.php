@@ -237,7 +237,6 @@ class Game extends \Table
                     break;
             }
             $this->notify->all("cardPlayed", \clienttranslate("Card $cardname played from hand to $location"), array(
-                "player_id" => $this->getActivePlayerId(),
                 "card" => $card,
                 "location" => $location
             ));
@@ -288,7 +287,6 @@ class Game extends \Table
      */
     public function actPlayProtagonistCard(int $card_id): void
     {
-        $player_id = $this->getActivePlayerId();
         $card = $this->cards->getCard($card_id);
         if ($card["location"] == "hand" && $this->cards->countCardInLocation("protagonist") == 0) {
             $this->cards->moveCard($card_id, "protagonist");
@@ -298,11 +296,10 @@ class Game extends \Table
             $this->setDifficulty($difficulty);
             $this->cards->moveAllCardsInLocation("hand", "discard");
             $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, difficulty set to $difficulty"), array(
-                "player_id" => $player_id,
                 "card" => $card,
                 "difficulty" => $difficulty
             ));
-        } else throw new \BgaUserException($this->_("Illegal Move: ") . "$player_id plays $card_id from Hand to protagonist slot");
+        } else throw new \BgaUserException($this->_("Illegal Move: ") . "you plays $card_id from Hand to protagonist slot");
 
         // at the end of the action, move to the next state
         $this->gamestate->nextState("");
@@ -315,10 +312,11 @@ class Game extends \Table
      */
     public function actDrawFromRuralDeck(): void
     {
-        $player_id = $this->getActivePlayerId();
-        $cardPicked = $this->cards->pickCard("deck-rural", $player_id);
+        if ($this->cards->countCardInLocation('deck-rural') == 0) {
+            throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in rural deck");
+        }
+        $cardPicked = $this->cards->pickCard("deck-rural",0);
         $this->notify->all("cardDrawnFromRuralDeck", \clienttranslate("Card drawn from rural deck"), array(
-            "player_id" => $player_id,
             "card" => $cardPicked
         ));
         $this->checkHand();
@@ -330,17 +328,18 @@ class Game extends \Table
      */
     public function actDrawFromUrbanDeck(): void
     {
-        $player_id = $this->getActivePlayerId();
-        $cardPicked = $this->cards->pickCard("deck-urban", $player_id);
+        if ($this->cards->countCardInLocation("deck-urban") == 0) {
+            throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in urban deck");
+        }
+        $cardPicked = $this->cards->pickCard("deck-urban", 0);
         $this->notify->all("cardDrawnFromUrbanDeck", \clienttranslate("Card drawn from urban deck"), array(
-            "player_id" => $player_id,
             "card" => $cardPicked
         ));
         $this->checkHand();
     }
     private function checkHand(): void
     {
-        if ($this->cards->countCardInLocation('hand') > 2) {
+        if ($this->cards->countCardInLocation('hand') > 2 || ($this->cards->countCardInLocation('deck-rural') == 0 && $this->cards->countCardInLocation('deck-urban') == 0)) {
             $this->gamestate->nextState("ready");
         } else {
             $this->gamestate->nextState("drawAnotherCard");
