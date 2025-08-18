@@ -259,16 +259,25 @@ class Game extends \Table
      *
      * @throws BgaUserException
      */
-    public function actPass($force = false): void
+    public function actPass(bool $force = false): void
     {
         /* Check board state 
             if both decks empty
             then if hand = 0 then start story check else return to same state et play a card
             else start new turn
         */
-        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0 && $this->cards->countCardInLocation("hand") == 0) {
+        if ($force && $this->cards->countCardInLocation("hand") > 2)
+            throw new \BgaUserException($this->_("You can't pass, play some cards first."));
+        if ($force && $this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0)
+            throw new \BgaUserException($this->_("You can't pass, no cards left to draw."));
+        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0) {
+            if ($this->cards->countCardInLocation("hand") == 0)
             // start story check
             $this->gamestate->nextState("storyCheck");
+            else {
+                // stay in same state
+                $this->gamestate->nextState("keepPlaying");
+            }
         } else {
             if ($this->cards->countCardInLocation("hand") == 0 || $force) {
                 // start new turn
