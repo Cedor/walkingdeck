@@ -308,7 +308,8 @@ define([
       if (this.isCurrentPlayerActive()) {
         console.log("Current player is active");
         switch (stateName) {
-          case "playerTurn":
+          case "playCards":
+            this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass",{force:true}), { color: 'secondary' });
             break;
         }
       } else console.log("Current player is not active, active is " + player);
