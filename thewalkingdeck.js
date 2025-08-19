@@ -27,6 +27,8 @@ define([
       console.log("thewalkingdeck constructor");
       this.cardwidth = 127;
       this.cardheight = 179;
+      this.difficulty = 1;
+      this.gamePhase = 1;
     },
 
     /*
@@ -71,6 +73,7 @@ define([
               <div id="memory-wrap" class="location-wrap">
                 <b>${_("Memory")}</b>
                 <div id="memory"></div>
+                <div id="story"></div>
               </div>
               <div id="protagonist-wrap" class="location-wrap">
                 <b>${_("Protagonist")}</b>
@@ -215,6 +218,8 @@ define([
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
+      this.difficulty = this.gamedatas.difficultyLevel;
+      this.gamePhase = this.gamedatas.gamePhase;
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
@@ -230,8 +235,8 @@ define([
       // Rural Deck gamedatas
       this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
       // Memory gamedatas
-      console.log("Memory gamedatas", this.gamedatas.memory);
-      if (this.gamedatas.memoryTop) {
+      console.log("Memory gamedatas", this.gamedatas.memoryNb, this.gamedatas.memoryTop, this.gamedatas.storyTop);
+      if (this.gamedatas.memoryNb > 0) {
         this.memory.setCardNumber(this.gamedatas.memoryNb - 1);
         this.memory.addCard(this.gamedatas.memoryTop);
       }
@@ -271,7 +276,10 @@ define([
                 
                 break;
            */
-
+        case "storyCheck":
+          document.getElementById("memory").style.display = "hidden";
+          document.getElementById("story").style.display = "block";
+          break;
         case "dummy":
           break;
       }
@@ -309,7 +317,22 @@ define([
         console.log("Current player is active");
         switch (stateName) {
           case "playCards":
-            this.statusBar.addActionButton(_('Pass'), () => this.bgaPerformAction("actPass",{force:true}), { color: 'secondary' });
+            this.statusBar.addActionButton(_("Pass"), () => this.bgaPerformAction("actPass", { force: true }), {
+              color: "secondary",
+            });
+            // TODO remove after tests
+            this.statusBar.addActionButton(
+              _("Story Check"),
+              () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
+              { color: "secondary" }
+            );
+            break;
+          case "storyCheckPlayerChoice":
+            this.statusBar.addActionButton(
+              _("Choose"),
+              () => this.bgaPerformAction("actStoryCheckPlayerChoice"),
+              { color: "secondary" }
+            );
             break;
         }
       } else console.log("Current player is not active, active is " + player);
@@ -500,6 +523,7 @@ define([
         ["cardDrawnFromRuralDeck", 100],
         ["cardDrawnFromUrbanDeck", 100],
         ["cardPlayed", 100],
+        ["storyCheckStarted", 100]
       ];
 
       notifs.forEach((notif) => {
@@ -578,5 +602,11 @@ define([
         }
       }
     },
+    notif_storyCheckStarted: function (notif) {
+      console.log("notif_storyCheckStarted");
+      console.log(notif);
+      let card = this.memory.getTopCard();
+      this.memory.addCard(notif.args.memoryTopCard, {fadeIn: true , autoupdateCardNumber: false, autoRemovePreviousCards: true });
+    }
   });
 });

@@ -91,7 +91,8 @@ $machinestates = [
         ->possibleactions([
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlayCard",
-            "actPass"
+            "actPass",
+            "actGoToStoryCheck",// TODO remove after tests
         ])
         ->transitions([
             "keepPlaying" => 4,

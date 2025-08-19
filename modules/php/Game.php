@@ -51,6 +51,7 @@ class Game extends \Table
 
         $this->initGameStateLabels([
             "difficultyLevel" => 10, // example of game option
+            "gamePhase" => 11, // 1=> expedition phase, 2=> story phase
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
@@ -216,6 +217,11 @@ class Game extends \Table
         $this->setGameStateValue('difficultyLevel', $difficulty);
     }
 
+    private function setGamePhase(int $phase): void
+    {
+        $this->setGameStateValue('gamePhase', $phase);
+    }
+
     /**
      * Player action, play a card from hand
      *
@@ -356,13 +362,26 @@ class Game extends \Table
     }
 
     /**
+     * TODO : remove after tests
+     *
+     * @throws BgaUserException
+     */
+    public function actGoToStoryCheck(): void
+    {
+
+        $this->gamestate->nextState("storyCheck");
+    }
+
+    /**
      * Player action : resolve effects during a story check step
      *
      * @throws BgaUserException
      */
     public function actStoryCheckPlayerChoice(int $card_id): void
     {
-
+        // TODO remove after tests
+        $this->notify->all("actionPicked", \clienttranslate("You have picked an action"), array(
+        ));
         $this->gamestate->nextState("");
     }
 
@@ -405,7 +424,18 @@ class Game extends \Table
      */
     public function stStoryCheck(): void
     {
+        // Starting this point, whe enter the second phase of the game
+        $this->setGamePhase(2);
+        // be parse memory in reverse order
+        static::DbQuery(
+            "UPDATE card  SET card_location_arg = - card_location_arg WHERE card_location = 'memory'"
+        );
+        $memoryFakeTop = $this->generateFakeCard($this->cards->getCardOnTop("memory"));
 
+        // notify
+        $this->notify->all("storyCheckStarted", \clienttranslate("Story check started"), array(
+            "memoryTopCard" => $memoryFakeTop
+        ));
         // Go to following game state
         $this->gamestate->nextState("");
     }
@@ -415,8 +445,8 @@ class Game extends \Table
      */
     public function stStoryCheckStep(): void
     {
-
-        $needPlayerInput = false;
+        //TODO remove after tests
+        $needPlayerInput = true;
 
         // Go to following game state
         if ($needPlayerInput)
@@ -438,6 +468,8 @@ class Game extends \Table
         } else if ($win) {
             $this->gamestate->nextState("gameEnd");
         } else {
+            // TODO remove after tests
+            $this->notify->all("keepPlaying", \clienttranslate("You have picked an action"), array());
             $this->gamestate->nextState("nextStep");
         }
     }
@@ -523,13 +555,19 @@ class Game extends \Table
 
         // Cards played on the table
         $result['protagonistSlot'] = $this->cards->getCardsInLocation('protagonist');
-        $result['memoryTop'] = $this->cards->getCardOnTop('memory');
+        $gamePhase = $this->getGameStateValue("gamePhase");
+        $memoryTop = $this->cards->getCardOnTop('memory');
+        $result['memoryTop'] = $gamePhase == 1? $memoryTop : $this->generateFakeCard($memoryTop);
         $result['memoryNb'] = $this->cards->countCardInLocation('memory');
         $result['escaped'] = $this->cards->getCardsInLocation('escaped', null, 'location_arg');
         $result['graveyardNb'] = $this->cards->countCardInLocation('graveyard');
         $result['graveyardTop'] = $this->cards->getCardOnTop('graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop('graveyard')) : null;
         $result['ruralDeckNb'] = $this->cards->countCardInLocation('deck-rural');
         $result['urbanDeckNb'] = $this->cards->countCardInLocation('deck-urban');
+
+        // Game difficulty and phase
+        $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
+        $result['gamePhase'] = $this->getGameStateValue("gamePhase");
 
         return $result;
     }
@@ -584,6 +622,8 @@ class Game extends \Table
 
         // Difficulty level is define by protagonist picked at game start. Default is 1.
         $this->setGameStateInitialValue("difficultyLevel", 1);
+        // Game phase : 1 => expedition phase, 2 => story phase
+        $this->setGameStateInitialValue("gamePhase", 1);
 
         // Init game statistics.
         //
