@@ -483,7 +483,9 @@ class Game extends \Table
     private function checkLoss(): bool
     {
         // TODO: implement loss condition check
-        return false;
+        $graveyardNb = $this->cards->countCardInLocation("graveyard");
+
+        return $graveyardNb >= intval($this->getGameStateValue("lossCondition"));
     }
 
     /**
@@ -496,12 +498,13 @@ class Game extends \Table
 
         // Go to following game state
         if ($loss) {
+            $this->notify->all("gameLoss", \clienttranslate("You lost the game"));
             $this->gamestate->nextState("gameEnd");
         } else if ($win) {
             $this->gamestate->nextState("gameEnd");
         } else {
             // TODO remove after tests
-            $this->notify->all("keepPlaying", \clienttranslate("You have picked an action"), array());
+            $this->notify->all("keepPlaying", \clienttranslate("You have picked an action"));
             $this->gamestate->nextState("nextStep");
         }
     }
