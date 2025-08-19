@@ -52,6 +52,7 @@ class Game extends \Table
         $this->initGameStateLabels([
             "difficultyLevel" => 10, // example of game option
             "gamePhase" => 11, // 1=> expedition phase, 2=> story phase
+            "lossCondition" => 12,
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
@@ -72,15 +73,19 @@ class Game extends \Table
         self::$CARD_PROTA = [
             1 => [
                 "card_name" => clienttranslate('Aenor'),
+                "losscon" => 5,
             ],
             2 => [
                 "card_name" => clienttranslate('Boris'),
+                "losscon" => 5,
             ],
             3 => [
                 "card_name" => clienttranslate('Adrien'),
+                "losscon" => 4,
             ],
             4 => [
                 "card_name" => clienttranslate('Eleonore'),
+                "losscon" => 3,
             ],
         ];
         self::$CARD_RURAL = [
@@ -274,9 +279,9 @@ class Game extends \Table
         */
         if ($force && $this->cards->countCardInLocation("hand") > 2)
             throw new \BgaUserException($this->_("You can't pass, play some cards first."));
-        if ($force && $this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0)
+        if ($force && $this->cards->countCardInLocation("deck_rural") == 0 && $this->cards->countCardInLocation("deck_urban") == 0)
             throw new \BgaUserException($this->_("You can't pass, no cards left to draw."));
-        if ($this->cards->countCardInLocation("deck-rural") == 0 && $this->cards->countCardInLocation("deck-urban") == 0) {
+        if ($this->cards->countCardInLocation("deck_rural") == 0 && $this->cards->countCardInLocation("deck_urban") == 0) {
             if ($this->cards->countCardInLocation("hand") == 0)
             // start story check
             $this->gamestate->nextState("storyCheck");
@@ -295,6 +300,18 @@ class Game extends \Table
         }
     }
 
+    private function setLossCondition(array $card): int
+    {
+        // TODO: implement loss condition check
+        $card_type = intval($card["type"]);
+        $card_type_arg = intval($card["type_arg"]);
+        if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
+            throw new \BgaUserException($this->_("Illegal call to setLossCondition with") . $card);
+        $lossCon = self::$CARD_PROTA[$card["type_arg"]]["losscon"];
+        $this->setGameStateValue("lossCondition", $lossCon);
+        return $lossCon;
+    }
+
     /**
      * Player action, pick a protagonist. Defines game difficulty.
      *
@@ -307,12 +324,15 @@ class Game extends \Table
             $this->cards->moveCard($card_id, "protagonist");
             $card = $this->cards->getCard($card_id);
             $difficulty = intval($card["type_arg"]);
-            $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
             $this->setDifficulty($difficulty);
+            $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
+            //set loss condition
+            $lossCon = $this->setLossCondition($card);
             $this->cards->moveAllCardsInLocation("hand", "discard");
-            $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, difficulty set to $difficulty"), array(
+            $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
                 "card" => $card,
-                "difficulty" => $difficulty
+                "difficulty" => $difficulty,
+                "lossCondition" => $lossCon,
             ));
         } else throw new \BgaUserException($this->_("Illegal Move: ") . "you plays $card_id from Hand to protagonist slot");
 
@@ -327,10 +347,10 @@ class Game extends \Table
      */
     public function actDrawFromRuralDeck(): void
     {
-        if ($this->cards->countCardInLocation('deck-rural') == 0) {
+        if ($this->cards->countCardInLocation('deck_rural') == 0) {
             throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in rural deck");
         }
-        $cardPicked = $this->cards->pickCard("deck-rural",0);
+        $cardPicked = $this->cards->pickCard("deck_rural",0);
         $this->notify->all("cardDrawnFromRuralDeck", \clienttranslate("Card drawn from rural deck"), array(
             "card" => $cardPicked
         ));
@@ -343,10 +363,10 @@ class Game extends \Table
      */
     public function actDrawFromUrbanDeck(): void
     {
-        if ($this->cards->countCardInLocation("deck-urban") == 0) {
+        if ($this->cards->countCardInLocation("deck_urban") == 0) {
             throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in urban deck");
         }
-        $cardPicked = $this->cards->pickCard("deck-urban", 0);
+        $cardPicked = $this->cards->pickCard("deck_urban", 0);
         $this->notify->all("cardDrawnFromUrbanDeck", \clienttranslate("Card drawn from urban deck"), array(
             "card" => $cardPicked
         ));
@@ -354,7 +374,7 @@ class Game extends \Table
     }
     private function checkHand(): void
     {
-        if ($this->cards->countCardInLocation('hand') > 2 || ($this->cards->countCardInLocation('deck-rural') == 0 && $this->cards->countCardInLocation('deck-urban') == 0)) {
+        if ($this->cards->countCardInLocation('hand') > 2 || ($this->cards->countCardInLocation('deck_rural') == 0 && $this->cards->countCardInLocation('deck_urban') == 0)) {
             $this->gamestate->nextState("ready");
         } else {
             $this->gamestate->nextState("drawAnotherCard");
@@ -455,13 +475,25 @@ class Game extends \Table
             $this->gamestate->nextState("gameCheck");
     }
 
+    private function checkWin(): bool
+    {
+        // TODO: implement win condition check
+        return false;
+    }
+    private function checkLoss(): bool
+    {
+        // TODO: implement loss condition check
+        return false;
+    }
+
     /**
      * Game state action, check win or loss condition
      */
     public function stStoryCheckGameWinLoss(): void
     {
-        $win = false; // TODO: check win condition
-        $loss = false; // TODO: check loss condition
+        $win = $this->checkWin(); // TODO: check win condition
+        $loss = $this->checkLoss(); // TODO: check loss condition
+
         // Go to following game state
         if ($loss) {
             $this->gamestate->nextState("gameEnd");
@@ -562,8 +594,8 @@ class Game extends \Table
         $result['escaped'] = $this->cards->getCardsInLocation('escaped', null, 'location_arg');
         $result['graveyardNb'] = $this->cards->countCardInLocation('graveyard');
         $result['graveyardTop'] = $this->cards->getCardOnTop('graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop('graveyard')) : null;
-        $result['ruralDeckNb'] = $this->cards->countCardInLocation('deck-rural');
-        $result['urbanDeckNb'] = $this->cards->countCardInLocation('deck-urban');
+        $result['ruralDeckNb'] = $this->cards->countCardInLocation('deck_rural');
+        $result['urbanDeckNb'] = $this->cards->countCardInLocation('deck_urban');
 
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
@@ -624,6 +656,8 @@ class Game extends \Table
         $this->setGameStateInitialValue("difficultyLevel", 1);
         // Game phase : 1 => expedition phase, 2 => story phase
         $this->setGameStateInitialValue("gamePhase", 1);
+        //Loss condition : number of buried events (default 5)
+        $this->setGameStateInitialValue("lossCondition", 5);
 
         // Init game statistics.
         //
@@ -644,13 +678,13 @@ class Game extends \Table
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
             $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
-        $this->cards->createCards($cards, 'deck-rural');
-        //$this->cards->shuffle('deck-rural');
+        $this->cards->createCards($cards, 'deck_rural');
+        //$this->cards->shuffle('deck_rural');
         $cards = [];
         for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
             $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
-        $this->cards->createCards($cards, 'deck-urban');
-        $this->cards->shuffle('deck-urban');
+        $this->cards->createCards($cards, 'deck_urban');
+        $this->cards->shuffle('deck_urban');
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();

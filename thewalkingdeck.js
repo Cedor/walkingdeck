@@ -29,6 +29,7 @@ define([
       this.cardheight = 179;
       this.difficulty = 1;
       this.gamePhase = 1;
+      this.lossCondition = 5;//default value
     },
 
     /*
@@ -56,36 +57,36 @@ define([
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
         `
-            <div id="player-table" class="whiteblock">
-            <div id="table-organiser">
-              <div id="deck-rural-wrap" class="location-wrap">
+          <div id="player_table" class="whiteblock">
+            <div id="table_organiser">
+              <div id="deck_rural_wrap" class="location-wrap">
                 <b>${_("Rural Deck")}</b>
-                <div id="deck-rural"></div>
+                <div id="deck_rural"></div>
               </div>
-              <div id="deck-urban-wrap" class="location-wrap">
+              <div id="deck_urban_wrap" class="location-wrap">
                 <b>${_("Urban Deck")}</b>
-                <div id="deck-urban"></div>
+                <div id="deck_urban"></div>
               </div>
-                <div id="escaped-wrap" class="location-wrap">
+                <div id="escaped_wrap" class="location-wrap">
                 <b>${_("Escaped")}</b>
                 <div id="escaped"></div>
               </div>
-              <div id="memory-wrap" class="location-wrap">
+              <div id="memory_wrap" class="location-wrap">
                 <b>${_("Memory")}</b>
                 <div id="memory"></div>
                 <div id="story"></div>
               </div>
-              <div id="protagonist-wrap" class="location-wrap">
+              <div id="protagonist_wrap" class="location-wrap">
                 <b>${_("Protagonist")}</b>
                 <div id="protagonist-slot">
                 </div>
               </div>
-              <div id="graveyard-wrap" class="location-wrap">
+              <div id="graveyard_wrap" class="location-wrap">
                 <b>${_("Graveyard")}</b>
                 <div id="graveyard"></div>
               </div>
-
             </div>
+          </div>
           `
       );
       document.getElementById("game_play_area").insertAdjacentHTML(
@@ -148,7 +149,7 @@ define([
       });
 
       // create decks
-      this.ruralDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck-rural"), {
+      this.ruralDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck_rural"), {
         cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {},
@@ -157,11 +158,11 @@ define([
           return {
             id: `rural-top-card`,
             type: `4`, // fake rural
-            location: `deck-rural`,
+            location: `deck_rural`,
           };
         },
       });
-      this.urbanDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck-urban"), {
+      this.urbanDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck_urban"), {
         cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {},
@@ -170,7 +171,7 @@ define([
           return {
             id: `urban-top-card`,
             type: `5`, // fake urban
-            location: `deck-urban`,
+            location: `deck_urban`,
           };
         },
       });
@@ -186,7 +187,7 @@ define([
       // create hand
       this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"));
       this.hand.setSelectionMode("single");
-      //create memory pile
+      // create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
         //TODO cardClickEventFilter: "all",
         cardNumber: 0,
@@ -195,7 +196,7 @@ define([
         },
       });
       //TODO this.memory.setSelectionMode("single");
-      //create graveyard pile
+      // create graveyard pile
       this.graveyard = new BgaCards.Deck(this.cardsManager, document.getElementById("graveyard"), {
         // TODO cardClickEventFilter: "all",
         cardNumber: 0,
@@ -204,7 +205,7 @@ define([
         },
       });
       // TODO this.graveyard.setSelectionMode("single");
-      //create escaped pile
+      // create escaped pile
       this.escaped = new BgaCards.AllVisibleDeck(this.cardsManager, document.getElementById("escaped"), {
         //TODO cardClickEventFilter: "all",
         cardNumber: 0,
@@ -249,6 +250,7 @@ define([
       }
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
+
       // Setup connections
       this.setupConnections();
       // Setup game notifications to handle (see "setupNotifications" method below)
@@ -267,18 +269,22 @@ define([
       console.log("Entering state: " + stateName, args);
       console.log("Current active player is: " + this.getActivePlayerId());
       switch (stateName) {
-        /* Example:
-            
-            case 'myGameState':
-            
-                // Show some HTML block at this game state
-                dojo.style( 'my_html_block_id', 'display', 'block' );
-                
-                break;
-           */
         case "storyCheck":
-          document.getElementById("memory").style.display = "hidden";
-          document.getElementById("story").style.display = "block";
+          document.getElementById("player_table").insertAdjacentHTML(
+            "beforeend",
+            `
+            <div id="story_organiser">
+              <div id="characters-wrap" class="location-wrap">
+                <b>${_("Characters")}</b>
+                <div id="characters"></div>
+              </div>
+            </div>
+            `);
+          // create characters area
+          this.characters = new BgaCards.LineStock(this.cardsManager, document.getElementById("characters"), {
+            cardClickEventFilter: "all",
+          });
+          document.getElementById("story_organiser").style.display = "block";
           break;
         case "dummy":
           break;
@@ -556,6 +562,7 @@ define([
       if (card) {
         this.protagonistSlot.addCard(card, { fromStock: this.hand });
         this.hand.removeAll();
+        this.lossCondition = notif.args.lossCondition;
       }
     },
     notif_cardDrawnFromRuralDeck: function (notif) {

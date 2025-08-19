@@ -63,7 +63,7 @@
         background-repeat: none;
     }
 */
-#table-organiser {
+#table_organiser {
   position: relative;
   width: max-content;
   display: grid;
