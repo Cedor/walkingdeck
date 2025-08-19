@@ -185,7 +185,7 @@ define([
         console.log("Card added to protagonist slot", card);
       };
       // create hand
-      this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"));
+      this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"),{cardClickEventFilter: "all"});
       this.hand.setSelectionMode("single");
       // create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
@@ -269,6 +269,11 @@ define([
       console.log("Entering state: " + stateName, args);
       console.log("Current active player is: " + this.getActivePlayerId());
       switch (stateName) {
+        case "protagonistSelection":
+          this.hand.setSelectionMode("none");
+          this.onProtagonistClickHandle = dojo.connect(this.hand, "onCardClick", this, "onProtagonistCardClick");
+          console.log(this.onProtagonistClickHandle);
+          break;
         case "storyCheck":
           document.getElementById("player_table").insertAdjacentHTML(
             "beforeend",
@@ -307,7 +312,10 @@ define([
                 
                 break;
            */
-
+        case "protagonistSelection":
+          this.hand.setSelectionMode("single");
+          dojo.disconnect(this.onProtagonistClickHandle);
+          break;
         case "dummy":
           break;
       }
@@ -405,62 +413,27 @@ define([
         */
     setupConnections: function () {
       console.log("Setting up connections");
-      dojo.connect(this.hand, "onSelectionChange", this, "onHandSelectionChange");
       dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick");
       dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick");
-      //dojo.connect(this.escaped, "onCardClick", this, "onEscapedClick");
-      //dojo.connect(this.memory, "onCardClick", this, "onMemoryClick");
-      //dojo.connect(this.graveyard, "onCardClick", this, "onGraveyardClick");
       dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
     },
 
-    onHandSelectionChange: function (selectedCards, lastChange) {
-      console.log("onHandSelectionChange", selectedCards);
-      if (selectedCards.length === 0) {
-        console.log("No card selected");
-        return;
-      } else {
-        card = selectedCards[0];
-        switch (card.type) {
-          case "1": //protagonist => it's a protagonist pick
-            this.bgaPerformAction("actPlayProtagonistCard", {
-              card_id: card.id,
-            });
-            break;
-          case "2": //rural => it's a rural deck pick
-          case "3": //urban => it's an urban deck pick
-            this.playingCardCheck();
-            break;
-          default:
-            console.log("Unknown card type");
-        }
-      }
+    // Used only during state of protagonist selection on card in hand click
+    onProtagonistCardClick: function (card) {
+      console.log("onProtagonistCardClick");
+      if (card.type != "1")
+        console.log("Invalid card type");
+      else
+      this.bgaPerformAction("actPlayProtagonistCard", {card_id: card.id,});
     },
 
-    playingCardCheck: function () {
-      console.log("playingCardCheck");
-      let card = this.hand.getSelection()[0];
-      if (card) {
-        if (this.memory.getSelection().length > 0) {
-          console.log("Memory selected, playing card");
-        } else if (this.graveyard.getSelection().length > 0) {
-          console.log("Graveyard selected, playing card");
-        } else if (this.escaped.getSelection().length > 0) {
-          console.log("Escaped selected, playing card");
-        } else {
-          console.log("No valid location selected");
-        }
-      } else console.log("No card selected");
-      //this.bgaPerformAction("actPlayCard", {
-      //  card_id: this.selectedCard.id,
-      //});
-    },
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
       this.bgaPerformAction("actDrawFromRuralDeck");
     },
+
     onUrbanDeckCardClick: function (card) {
       console.log("onUrbanDeckCardClick");
       this.bgaPerformAction("actDrawFromUrbanDeck");

@@ -56,7 +56,7 @@ $machinestates = [
 
     // ID=2 => your first state
     2 => GameStateBuilder::create()
-        ->name('protagonistChoice')
+        ->name('protagonistSelection')
         ->description(clienttranslate('You must pick a protagonist'))
         ->descriptionmyturn(clienttranslate('You must pick a protagonist'))
         ->type(StateType::ACTIVE_PLAYER)
