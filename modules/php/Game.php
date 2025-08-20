@@ -35,15 +35,8 @@ class Game extends \Table
      * `setGameStateValue` functions.
      */
 
-    protected $cards;
-
-    private static array $CARD_TYPE;
-    private static array $CARD_PROTA;
-    private static array $CARD_RURAL;
-    private static array $CARD_URBAN;
-    private static int $PROTA_COUNT = 4; // number of protagonists
-    private static int $RURAL_COUNT = 18; // number of rural cards
-    private static int $URBAN_COUNT = 18; // number of urban cards
+    public $cards;
+    protected $twdDeck;
 
     public function __construct()
     {
@@ -57,149 +50,7 @@ class Game extends \Table
 
         $this->cards = $this->getNew("module.common.deck");
         $this->cards->init("card");
-
-        self::$CARD_TYPE = [
-            1 => [
-                "type_name" => clienttranslate('Protagonist'),
-            ],
-            2 => [
-                "type_name" => clienttranslate('Rural'),
-            ],
-            3 => [
-                "type_name" => clienttranslate('Urban'),
-            ],
-
-        ];
-        self::$CARD_PROTA = [
-            1 => [
-                "card_name" => clienttranslate('Aenor'),
-                "losscon" => 5,
-            ],
-            2 => [
-                "card_name" => clienttranslate('Boris'),
-                "losscon" => 5,
-            ],
-            3 => [
-                "card_name" => clienttranslate('Adrien'),
-                "losscon" => 4,
-            ],
-            4 => [
-                "card_name" => clienttranslate('Eleonore'),
-                "losscon" => 3,
-            ],
-        ];
-        self::$CARD_RURAL = [
-            1 => [
-                "card_name" => clienttranslate('Punk'),
-            ],
-            2 => [
-                "card_name" => clienttranslate('Piege a loup'),
-            ],
-            3 => [
-                "card_name" => clienttranslate('Clown'),
-            ],
-            4 => [
-                "card_name" => clienttranslate('Ellie et Joel'),
-            ],
-            5 => [
-                "card_name" => clienttranslate('Kieren'),
-            ],
-            6 => [
-                "card_name" => clienttranslate('Tallahassee'),
-            ],
-            7 => [
-                "card_name" => clienttranslate('Gretchen'),
-            ],
-            8 => [
-                "card_name" => clienttranslate('Robert'),
-            ],
-            9 => [
-                "card_name" => clienttranslate('Brigade'),
-            ],
-            10 => [
-                "card_name" => clienttranslate('Feu de camp'),
-            ],
-            11 => [
-                "card_name" => clienttranslate('Cheval'),
-            ],
-            12 => [
-                "card_name" => clienttranslate('Camping-Car'),
-            ],
-            13 => [
-                "card_name" => clienttranslate('Cave'),
-            ],
-            14 => [
-                "card_name" => clienttranslate('Peluche'),
-            ],
-            15 => [
-                "card_name" => clienttranslate('Wild Zero'),
-            ],
-            16 => [
-                "card_name" => clienttranslate('Vaudou'),
-            ],
-            17 => [
-                "card_name" => clienttranslate('Cabot'),
-            ],
-            18 => [
-                "card_name" => clienttranslate('Grenade'),
-            ],
-        ];
-        self::$CARD_URBAN = [
-            1 => [
-                "card_name" => clienttranslate('Musiciens'),
-            ],
-            2 => [
-                "card_name" => clienttranslate('Chef de chantier'),
-            ],
-            3 => [
-                "card_name" => clienttranslate('Glenn'),
-            ],
-            4 => [
-                "card_name" => clienttranslate('Murphy'),
-            ],
-            5 => [
-                "card_name" => clienttranslate('Horde'),
-            ],
-            6 => [
-                "card_name" => clienttranslate('Majordome'),
-            ],
-            7 => [
-                "card_name" => clienttranslate('Conserve'),
-            ],
-            8 => [
-                "card_name" => clienttranslate('Entrepot'),
-            ],
-            9 => [
-                "card_name" => clienttranslate('Alcool medical'),
-            ],
-            10 => [
-                "card_name" => clienttranslate('Carte'),
-            ],
-            11 => [
-                "card_name" => clienttranslate('Domitille'),
-            ],
-            12 => [
-                "card_name" => clienttranslate('La Faucheuse'),
-            ],
-            13 => [
-                "card_name" => clienttranslate('Controlleur'),
-            ],
-            14 => [
-                "card_name" => clienttranslate('Zoey'),
-            ],
-            15 => [
-                "card_name" => clienttranslate('Jill'),
-            ],
-            16 => [
-                "card_name" => clienttranslate('Shaun'),
-            ],
-            17 => [
-                "card_name" => clienttranslate('Cafe Jeux'),
-            ],
-            18 => [
-                "card_name" => clienttranslate('Enseignante'),
-            ],
-        ];
+        $this->twdDeck = new TWDDeck($this);
 
         /* example of notification decorator.
         // automatically complete notification args when needed
@@ -234,25 +85,18 @@ class Game extends \Table
      */
     public function actPlayCard(int $card_id, string $location): void
     {
-        $card = $this->cards->getCard($card_id);
+        $card = $this->twdDeck->getCard($card_id);
+        $card_name = $card['card_name'];
         if ($card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
-            $this->cards->insertCardOnExtremePosition($card_id, $location, true);
-            $card = $this->cards->getCard($card_id);
-            $cardname = "";
-            switch ($card["type"]) {
-                case 2:
-                    $cardname = self::$CARD_RURAL[$card["type_arg"]]["card_name"];
-                    break;
-                case 3:
-                    $cardname = self::$CARD_URBAN[$card["type_arg"]]["card_name"];
-                    break;
-            }
-            $this->notify->all("cardPlayed", \clienttranslate("Card $cardname played from hand to $location"), array(
+            $this->twdDeck->insertCardOnExtremePosition($card_id, $location, true);
+            $card = $this->twdDeck->getCard($card_id);
+            $card_name = $card['card_name'];
+            $this->notify->all("cardPlayed", \clienttranslate("Card $card_name played from hand to $location"), array(
                 "card" => $card,
                 "location" => $location
             ));
         } else {
-            throw new \BgaUserException($this->_("Illegal Move: ") . "$card_id cannot be played from hand to location $location");
+            throw new \BgaUserException($this->_("Illegal Move: ") . "$card_name ($card_id) cannot be played from hand to location $location");
         }
         $this->actPass();
     }
@@ -277,20 +121,20 @@ class Game extends \Table
             then if hand = 0 then start story check else return to same state et play a card
             else start new turn
         */
-        if ($force && $this->cards->countCardInLocation("hand") > 2)
+        if ($force && $this->twdDeck->countCardInLocation("hand") > 2)
             throw new \BgaUserException($this->_("You can't pass, play some cards first."));
-        if ($force && $this->cards->countCardInLocation("deck_rural") == 0 && $this->cards->countCardInLocation("deck_urban") == 0)
+        if ($force && $this->twdDeck->countCardInLocation("deck_rural") == 0 && $this->twdDeck->countCardInLocation("deck_urban") == 0)
             throw new \BgaUserException($this->_("You can't pass, no cards left to draw."));
-        if ($this->cards->countCardInLocation("deck_rural") == 0 && $this->cards->countCardInLocation("deck_urban") == 0) {
-            if ($this->cards->countCardInLocation("hand") == 0)
-            // start story check
-            $this->gamestate->nextState("storyCheck");
+        if ($this->twdDeck->countCardInLocation("deck_rural") == 0 && $this->twdDeck->countCardInLocation("deck_urban") == 0) {
+            if ($this->twdDeck->countCardInLocation("hand") == 0)
+                // start story check
+                $this->gamestate->nextState("storyCheck");
             else {
                 // stay in same state
                 $this->gamestate->nextState("keepPlaying");
             }
         } else {
-            if ($this->cards->countCardInLocation("hand") == 0 || $force) {
+            if ($this->twdDeck->countCardInLocation("hand") == 0 || $force) {
                 // start new turn
                 $this->gamestate->nextState("nextTurn");
             } else {
@@ -307,7 +151,7 @@ class Game extends \Table
         $card_type_arg = intval($card["type_arg"]);
         if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
             throw new \BgaUserException($this->_("Illegal call to setLossCondition with") . $card);
-        $lossCon = self::$CARD_PROTA[$card["type_arg"]]["losscon"];
+        $lossCon = $card["losscon"];
         $this->setGameStateValue("lossCondition", $lossCon);
         return $lossCon;
     }
@@ -319,16 +163,16 @@ class Game extends \Table
      */
     public function actPlayProtagonistCard(int $card_id): void
     {
-        $card = $this->cards->getCard($card_id);
-        if ($card["location"] == "hand" && $this->cards->countCardInLocation("protagonist") == 0) {
-            $this->cards->moveCard($card_id, "protagonist");
-            $card = $this->cards->getCard($card_id);
+        $card = $this->twdDeck->getCard($card_id);
+        if ($card['type'] == '1' && $card["location"] == "hand" && $this->twdDeck->countCardInLocation("protagonist") == 0) {
+            $this->twdDeck->moveCard($card_id, "protagonist");
+            $card = $this->twdDeck->getCard($card_id);
             $difficulty = intval($card["type_arg"]);
             $this->setDifficulty($difficulty);
-            $cardname = self::$CARD_PROTA[$difficulty]["card_name"];
+            $cardname = $card["card_name"];
             //set loss condition
             $lossCon = $this->setLossCondition($card);
-            $this->cards->moveAllCardsInLocation("hand", "discard");
+            $this->twdDeck->moveAllCardsInLocation("hand", "discard");
             $this->notify->all("protagonistCardPlayed", \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
                 "card" => $card,
                 "difficulty" => $difficulty,
@@ -347,10 +191,10 @@ class Game extends \Table
      */
     public function actDrawFromRuralDeck(): void
     {
-        if ($this->cards->countCardInLocation('deck_rural') == 0) {
+        if ($this->twdDeck->countCardInLocation('deck_rural') == 0) {
             throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in rural deck");
         }
-        $cardPicked = $this->cards->pickCard("deck_rural",0);
+        $cardPicked = $this->twdDeck->pickCard("deck_rural", 0);
         $this->notify->all("cardDrawnFromRuralDeck", \clienttranslate("Card drawn from rural deck"), array(
             "card" => $cardPicked
         ));
@@ -363,10 +207,10 @@ class Game extends \Table
      */
     public function actDrawFromUrbanDeck(): void
     {
-        if ($this->cards->countCardInLocation("deck_urban") == 0) {
+        if ($this->twdDeck->countCardInLocation("deck_urban") == 0) {
             throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in urban deck");
         }
-        $cardPicked = $this->cards->pickCard("deck_urban", 0);
+        $cardPicked = $this->twdDeck->pickCard("deck_urban", 0);
         $this->notify->all("cardDrawnFromUrbanDeck", \clienttranslate("Card drawn from urban deck"), array(
             "card" => $cardPicked
         ));
@@ -374,7 +218,7 @@ class Game extends \Table
     }
     private function checkHand(): void
     {
-        if ($this->cards->countCardInLocation('hand') > 2 || ($this->cards->countCardInLocation('deck_rural') == 0 && $this->cards->countCardInLocation('deck_urban') == 0)) {
+        if ($this->twdDeck->countCardInLocation('hand') > 2 || ($this->twdDeck->countCardInLocation('deck_rural') == 0 && $this->twdDeck->countCardInLocation('deck_urban') == 0)) {
             $this->gamestate->nextState("ready");
         } else {
             $this->gamestate->nextState("drawAnotherCard");
@@ -397,11 +241,10 @@ class Game extends \Table
      *
      * @throws BgaUserException
      */
-    public function actStoryCheckPlayerChoice(int $card_id): void
+    public function actStoryCheckPlayerChoice(int $card_id = null): void
     {
         // TODO remove after tests
-        $this->notify->all("actionPicked", \clienttranslate("You have picked an action"), array(
-        ));
+        $this->notify->all("actionPicked", \clienttranslate("You have picked an action"), array());
         $this->gamestate->nextState("");
     }
 
@@ -450,7 +293,7 @@ class Game extends \Table
         static::DbQuery(
             "UPDATE card  SET card_location_arg = - card_location_arg WHERE card_location = 'memory'"
         );
-        $memoryFakeTop = $this->generateFakeCard($this->cards->getCardOnTop("memory"));
+        $memoryFakeTop =  $this->twdDeck->generateFakeCard($this->twdDeck->getCardOnTop("memory"));
 
         // notify
         $this->notify->all("storyCheckStarted", \clienttranslate("Story check started"), array(
@@ -483,7 +326,7 @@ class Game extends \Table
     private function checkLoss(): bool
     {
         // TODO: implement loss condition check
-        $graveyardNb = $this->cards->countCardInLocation("graveyard");
+        $graveyardNb = $this->twdDeck->countCardInLocation("graveyard");
 
         return $graveyardNb >= intval($this->getGameStateValue("lossCondition"));
     }
@@ -541,28 +384,6 @@ class Game extends \Table
         //       }
     }
 
-    private function generateFakeCard($card): array
-    {
-        $faketype = '';
-        switch ($card['type']) {
-            case 2:
-                $faketype = '4';
-                break;
-            case 3:
-                $faketype = '5';
-                break;
-            default:
-                $faketype = '6';
-        }
-        return [
-            'id' => 'fake-top-card',
-            'type' => $faketype,
-            'type_arg' => '20',
-            'location' => $card['location'],
-            'location_arg' => $card['location_arg'],
-        ];
-    }
-
     /*
      * Gather all information about current game situation (visible by the current player).
      *
@@ -586,19 +407,19 @@ class Game extends \Table
 
         // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Cards in player hand
-        $result['hand'] = $this->cards->getCardsInLocation('hand');
+        $result['hand'] = $this->twdDeck->getCardsInLocation('hand');
 
         // Cards played on the table
-        $result['protagonistSlot'] = $this->cards->getCardsInLocation('protagonist');
+        $result['protagonistSlot'] = $this->twdDeck->getCardsInLocation('protagonist');
         $gamePhase = $this->getGameStateValue("gamePhase");
-        $memoryTop = $this->cards->getCardOnTop('memory');
-        $result['memoryTop'] = $gamePhase == 1? $memoryTop : $this->generateFakeCard($memoryTop);
-        $result['memoryNb'] = $this->cards->countCardInLocation('memory');
-        $result['escaped'] = $this->cards->getCardsInLocation('escaped', null, 'location_arg');
-        $result['graveyardNb'] = $this->cards->countCardInLocation('graveyard');
-        $result['graveyardTop'] = $this->cards->getCardOnTop('graveyard') ? $this->generateFakeCard($this->cards->getCardOnTop('graveyard')) : null;
-        $result['ruralDeckNb'] = $this->cards->countCardInLocation('deck_rural');
-        $result['urbanDeckNb'] = $this->cards->countCardInLocation('deck_urban');
+        $memoryTop = $this->twdDeck->getCardOnTop('memory');
+        $result['memoryTop'] = $gamePhase == 1 ? $memoryTop :  $this->twdDeck->generateFakeCard($memoryTop);
+        $result['memoryNb'] = $this->twdDeck->countCardInLocation('memory');
+        $result['escaped'] = $this->twdDeck->getCardsInLocation('escaped', null, 'location_arg');
+        $result['graveyardNb'] = $this->twdDeck->countCardInLocation('graveyard');
+        $result['graveyardTop'] = $this->twdDeck->getCardOnTop('graveyard') ?  $this->twdDeck->generateFakeCard($this->twdDeck->getCardOnTop('graveyard')) : null;
+        $result['ruralDeckNb'] = $this->twdDeck->countCardInLocation('deck_rural');
+        $result['urbanDeckNb'] = $this->twdDeck->countCardInLocation('deck_urban');
 
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
@@ -672,22 +493,8 @@ class Game extends \Table
 
         // TODO: Setup the initial game situation here.
 
-        //create protoganist cards
-        $cards = [];
-        //$pcards[] = ['type' => ];
-        for ($i = 1; $i <= 4; $i++) // 4 protagonists
-            $cards[] = ['type' => 1, 'type_arg' => $i, 'nbr' => 1];
-        $this->cards->createCards($cards, 'hand');
-        $cards = [];
-        for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
-            $cards[] = ['type' => 2, 'type_arg' => $i, 'nbr' => 1];
-        $this->cards->createCards($cards, 'deck_rural');
-        //$this->cards->shuffle('deck_rural');
-        $cards = [];
-        for ($i = 1; $i <= 18; $i++) // 18 cards in each deck
-            $cards[] = ['type' => 3, 'type_arg' => $i, 'nbr' => 1];
-        $this->cards->createCards($cards, 'deck_urban');
-        $this->cards->shuffle('deck_urban');
+        // Create the decks.
+        $this->twdDeck->createCards();
 
         // Activate first player once everything has been initialized and ready.
         $this->activeNextPlayer();

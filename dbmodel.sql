@@ -1,4 +1,3 @@
-
 -- ------
 -- BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
 -- TheWalkingDeck implementation : © <Cedor> <cedordev@gmail.com>
@@ -6,20 +5,14 @@
 -- This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
 -- See http://en.boardgamearena.com/#!doc/Studio for more information.
 -- -----
-
 -- dbmodel.sql
-
 -- This is the file where you are describing the database schema of your game
 -- Basically, you just have to export from PhpMyAdmin your table structure and copy/paste
 -- this export here.
 -- Note that the database itself and the standard tables ("global", "stats", "gamelog" and "player") are
 -- already created and must not be created here
-
 -- Note: The database schema is created from this file when the game starts. If you modify this file,
 --       you have to restart a game to see your changes in database.
-
--- Example 1: create a standard "card" table to be used with the "Deck" tools (see example game "hearts"):
-
 CREATE TABLE IF NOT EXISTS `card` (
   `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `card_type` varchar(16) NOT NULL,
@@ -27,9 +20,100 @@ CREATE TABLE IF NOT EXISTS `card` (
   `card_location` varchar(16) NOT NULL,
   `card_location_arg` int(11) NOT NULL,
   PRIMARY KEY (`card_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
+
+CREATE TABLE IF NOT EXISTS `card_info` (
+  `info_id` int(10) unsigned NOT NULL,
+  `card_type` varchar(16) NOT NULL,
+  `card_type_arg` int(11) NOT NULL,
+  `card_name` varchar(64) NOT NULL,
+  `is_zombie` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_character` TINYINT(1) NOT NULL DEFAULT 0,
+  `consequence_black` varchar(255) ,
+  `consequence_white` varchar(255) ,
+  `consequence_grey` varchar(255) ,
+  PRIMARY KEY (`info_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
+
+CREATE TABLE IF NOT EXISTS `protagonist_info` (
+  `info_id` int(10) unsigned NOT NULL,
+  `losscon` TINYINT(1) NOT NULL DEFAULT 5,
+  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
+
+CREATE TABLE IF NOT EXISTS `character_info` (
+  `info_id` int(10) unsigned NOT NULL,
+  `weakness_1` TINYINT(1) NOT NULL DEFAULT 0,
+  `weakness_2` TINYINT(1) NOT NULL DEFAULT 0,
+  `weakness_3` TINYINT(1) NOT NULL DEFAULT 0,
+  `wounds` TINYINT(1) NOT NULL DEFAULT 0,
+  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
 
--- Example 2: add a custom field to the standard "player" table
--- ALTER TABLE `player` ADD `player_my_custom_field` INT UNSIGNED NOT NULL DEFAULT '0';
+-- Create all the cards info
+INSERT INTO `card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`) VALUES
+(1, '1', 1, 'Aenor', 0, 0, NULL, NULL, NULL),
+(2, '1', 2, 'Boris\r\n', 0, 0, NULL, NULL, NULL),
+(3, '1', 3, 'Adrien', 0, 0, NULL, NULL, NULL),
+(4, '1', 4, 'Eleonore', 0, 0, NULL, NULL, NULL),
+(5, '2', 1, 'Punk', 1, 0, 'stuff', NULL, NULL),
+(6, '2', 2, 'Wolf Trap', 0, 0, 'stuff', NULL, ''),
+(7, '2', 3, 'Clown', 1, 0, NULL, NULL, 'stuff'),
+(8, '2', 4, 'Ellie and Joel', 0, 1, NULL, NULL, 'stuff'),
+(9, '2', 5, 'Kieren', 0, 1, 'stuff', NULL, 'stuff'),
+(10, '2', 6, 'Tallahassee', 0, 1, NULL, 'stuff','suff'),
+(11, '2', 7, 'Gretchen', 0, 1, 'stuff', NULL, 'suff'),
+(12, '2', 8, 'Robert', 0, 1, NULL, NULL, 'suff'),
+(13, '2', 9, 'Brigade', 1, 0, NULL, 'stuff', 'suff'),
+(14, '2', 10, 'Bonfire', 0, 0, 'stuff', NULL, 'suff'),
+(15, '2', 11, 'Horse', 0, 0, 'stuff', NULL, 'suff'),
+(16, '2', 12, 'RV', 0, 0, 'stuff', NULL, 'suff'),
+(17, '2', 13, 'Cellar', 0, 0, 'stuff', NULL, 'suff'),
+(18, '2', 14, 'Teddy Bear', 0, 0, 'stuff', NULL, 'suff'),
+(19, '2', 15, 'Wild Zero', 1, 0, 'stuff', NULL, 'suff'),
+(20, '2', 16, 'Voodoo', 1, 0, 'stuff', NULL, 'suff'),
+(21, '2', 17, 'Mutt', 0, 0, 'stuff', NULL, 'suff'),
+(22, '2', 18, 'Grenade', 0, 0, 'stuff', NULL, 'suff'),
+(23, '3', 1, 'Musicians', 1, 0, NULL, NULL, 'suff'),
+(24, '3', 2, 'Site Manager', 1, 0, NULL, 'stuff', 'suff'),
+(25, '3', 3, 'Glenn', 0, 1, NULL, 'stuff', 'suff'),
+(26, '3', 4, 'Murphy', 0, 1, 'stuff', NULL, 'suff'),
+(27, '3', 5, 'Horde', 1, 0, NULL, 'stuff', 'suff'),
+(28, '3', 6, 'Butler', 1, 0, NULL, 'stuff', 'suff'),
+(29, '3', 7, 'Canned food', 0, 0, 'stuff', 'stuff', 'suff'),
+(30, '3', 8, 'Warehouse', 0, 0, 'stuff', NULL, 'suff'),
+(31, '3', 9, 'Medical alcohol', 0, 0, 'stuff', NULL, 'suff'),
+(32, '3', 10, 'Map', 0, 0, 'stuff', NULL, 'suff'),
+(33, '3', 11, 'Domitille', 0, 1, 'stuff', NULL, 'suff'),
+(34, '3', 12, 'The reaper', 1, 0, 'stuff', NULL, 'suff'),
+(35, '3', 13, 'Controller', 1, 0, 'stuff', NULL, 'suff'),
+(36, '3', 14, 'Zoey', 0, 1, 'stuff', NULL, 'suff'),
+(37, '3', 15, 'Jill', 0, 1, 'stuff', NULL, 'suff'),
+(38, '3', 16, 'Shaun', 0, 1, 'stuff', 'stuff', 'suff'),
+(39, '3', 17, 'LGS', 0, 0, 'stuff', NULL, 'suff'),
+(40, '3', 18, 'Teacher', 1, 0, 'stuff', NULL, NULL)
+;
 
+-- Create Protagonist info
+INSERT INTO `protagonist_info` (`info_id`, `losscon`) VALUES
+(1, 5),
+(2, 5),
+(3, 4),
+(4, 3)
+;
+
+-- Create characters info
+INSERT INTO `character_info` (`info_id`, `weakness_1`, `weakness_2`, `weakness_3`, `wounds`) VALUES
+(8, 1, 0, 1, 0),
+(9, 0, 0, 1, 0),
+(10, 1, 0, 1, 0),
+(11, 0, 0, 1, 0),
+(12, 0, 1, 0, 0),
+(25, 0, 1, 0, 0),
+(26, 0, 0, 1, 0),
+(33, 1, 0, 0, 0),
+(36, 1, 0, 0, 0),
+(37, 0, 0, 1, 0),
+(38, 0, 0, 1, 0)
+;

@@ -1,0 +1,141 @@
+<?php
+
+namespace Bga\Games\TheWalkingDeck;
+
+require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
+
+class TWDDeck
+{
+  protected $game;
+
+  public function __construct($game)
+  {
+    $this->game = $game;
+  }
+
+  private function getExtendedCardInfo(int $type, int $type_arg): array
+  {
+    switch ($type) {
+      case 1: // protagonist
+        $cardInfo = $this->game->getObjectListFromDB(
+          "SELECT `card_name`, `losscon`
+          FROM `card_info` JOIN `protagonist_info` ON `card_info`.`info_id` = `protagonist_info`.`info_id`
+          WHERE `card_info`.`info_id` = `protagonist_info`.`info_id`
+          AND `card_info`.`card_type` = $type
+          AND `card_info`.`card_type_arg` = $type_arg"
+        );
+        break;
+      default: // rural and urban
+        $cardInfo = $this->game->getObjectListFromDB(
+          "SELECT `card_name`, `is_zombie`, `is_character`, `weakness_1`, `weakness_2`, `weakness_3`, `wounds`
+          FROM `card_info` LEFT JOIN `character_info` ON `card_info`.`info_id` = `character_info`.`info_id`
+          WHERE `card_type` = $type
+          AND `card_type_arg` = $type_arg"
+        );
+    }
+    return $cardInfo;
+  }
+
+  public function pickCard(string $location, int $player_id): ?array
+  {
+    $card = $this->game->cards->pickCard($location, $player_id);
+    if ($card === null) {
+      return null;
+    }
+    $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+    return array_merge($card, $card_info[0] ?? []);
+  }
+  public function getCard(int $card_id): array
+  {
+    $card = $this->game->cards->getCard($card_id);
+    if ($card === null) {
+      throw new \InvalidArgumentException("Card with ID $card_id does not exist.");
+    }
+    $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+    return array_merge($card, $card_info[0] ?? []);
+  }
+  function getCardsInLocation(string $location, ?int $location_arg = null, ?string $order_by = null): array
+  {
+    $cards = $this->game->cards->getCardsInLocation($location, $location_arg, $order_by);
+    return array_map(function ($card) {
+      $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+      return array_merge($card, $card_info[0] ?? []);
+    }, $cards);
+  }
+  public function getCardOnTop(string $location): ?array
+  {
+    $card = $this->game->cards->getCardOnTop($location);
+    if ($card === null) {
+      return null;
+    }
+    $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+    return array_merge($card, $card_info[0] ?? []);
+  }
+  public function countCardInLocation(string $location, ?int $location_arg = null): int
+  {
+    return $this->game->cards->countCardInLocation($location, $location_arg);
+  }
+  public function insertCardOnExtremePosition(int $card_id, string $location, bool $bOnTop): void
+  {
+    $this->game->cards->insertCardOnExtremePosition($card_id, $location, $bOnTop);
+  }
+  public function moveCard(int $card_id, string $location, int $location_arg = 0): void
+  {
+    $this->game->cards->moveCard($card_id, $location, $location_arg);
+  }
+  public function moveAllCardsInLocation(?string $from_location, ?string $to_location, ?int $from_location_arg = null, int $to_location_arg = 0): void
+  {
+    $this->game->cards->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
+  }
+  public function generateFakeCard($card): array
+  {
+    $faketype = '';
+    switch ($card['type']) {
+      case 2:
+        $faketype = '4';
+        break;
+      case 3:
+        $faketype = '5';
+        break;
+      default:
+        $faketype = '6';
+    }
+    return [
+      'id' => 'fake-top-card',
+      'type' => $faketype,
+      'type_arg' => '20',
+      'location' => $card['location'],
+      'location_arg' => $card['location_arg'],
+    ];
+  }
+  public function createCards(): void
+  {
+    $cardInfo = $this->game->getObjectListFromDB(
+      "SELECT `card_type`, `card_type_arg`
+          FROM `card_info`"
+    );
+
+    //create protoganist cards
+    $prota = [];
+    $urban = [];
+    $rural = [];
+    foreach ($cardInfo as $card) {
+      switch ($card['card_type']) {
+        case 1: // protagonist
+          $prota[] = ['type' => 1, 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
+          break;
+        case 2: // rural
+          $rural[] = ['type' => 2, 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
+          break;
+        case 3: // urban
+          $urban[] = ['type' => 3, 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
+          break;
+      }
+    }
+    $this->game->cards->createCards($prota, 'hand');
+    $this->game->cards->createCards($rural, 'deck_rural');
+    $this->game->cards->shuffle('deck_rural');
+    $this->game->cards->createCards($urban, 'deck_urban');
+    $this->game->cards->shuffle('deck_urban');
+  }
+}
