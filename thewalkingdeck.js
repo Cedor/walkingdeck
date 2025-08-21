@@ -29,7 +29,7 @@ define([
       this.cardheight = 179;
       this.difficulty = 1;
       this.gamePhase = 1;
-      this.lossCondition = 5;//default value
+      this.lossCondition = 5; //default value
     },
 
     /*
@@ -84,6 +84,12 @@ define([
               <div id="graveyard_wrap" class="location-wrap">
                 <b>${_("Graveyard")}</b>
                 <div id="graveyard"></div>
+              </div>
+              <div id ="ressources_wrap" class="ressources-wrap">
+                <b>${_("Ressources")}</b>
+                <div id="ressources-slots">
+
+                </div>
               </div>
             </div>
           </div>
@@ -185,7 +191,9 @@ define([
         console.log("Card added to protagonist slot", card);
       };
       // create hand
-      this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"),{cardClickEventFilter: "all"});
+      this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"), {
+        cardClickEventFilter: "all",
+      });
       this.hand.setSelectionMode("single");
       // create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
@@ -216,6 +224,44 @@ define([
         direction: "horizontal",
       });
       //TODO this.escaped.setSelectionMode("multiple");
+
+      // Create ressources
+      this.ressourcesManager = new BgaCards.Manager({
+        animationManager: this.animationManager,
+        type: "twd-ressource",
+        getId: (token) => `token-${token.id}`,
+        setupDiv: (token, div) => {
+          div.classList.add("twd-ressource");
+        },
+        setupFrontDiv: (token, div) => {
+          div.classList.add("twd-ressource-front");
+          div.dataset.id = token.id;
+          if (token.id) {
+            this.addTooltipHtml(div.id, `tooltip de ${token.id}`);
+          }
+        },
+        setupBackDiv: (token, div) => {
+          div.classList.add("twd-ressource-back");
+          div.dataset.id = token.id;
+          if (token.id) {
+            this.addTooltipHtml(div.id, `tooltip de ${token.id}`);
+          }
+        },
+        isCardVisible: (token) => !Boolean(parseInt(token.consumed)),
+        cardWidth: 90,
+        cardHeight: 90,
+      });
+      // Create slots for ressources
+      this.ressourcesSlots = new BgaCards.SlotStock(
+        this.ressourcesManager,
+        document.getElementById("ressources-slots"),
+        {
+          cardClickEventFilter: "all",
+          slotsIds: ["1", "2", "3"],
+          slotClasses: ["twd-ressources-slot"],
+          mapCardToSlot: (card) => card.id,
+        }
+      );
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
@@ -251,6 +297,12 @@ define([
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
 
+      // Ressources gamedatas
+      console.log("Ressources gamedatas", this.gamedatas.ressources);
+      for (let ressource in this.gamedatas.ressources) {
+        this.ressourcesSlots.addCard(this.gamedatas.ressources[ressource]);
+      }
+
       // Setup connections
       this.setupConnections();
       // Setup game notifications to handle (see "setupNotifications" method below)
@@ -284,7 +336,8 @@ define([
                 <div id="characters"></div>
               </div>
             </div>
-            `);
+            `
+          );
           // create characters area
           this.characters = new BgaCards.LineStock(this.cardsManager, document.getElementById("characters"), {
             cardClickEventFilter: "all",
@@ -342,11 +395,9 @@ define([
             );
             break;
           case "storyCheckPlayerChoice":
-            this.statusBar.addActionButton(
-              _("Choose"),
-              () => this.bgaPerformAction("actStoryCheckPlayerChoice"),
-              { color: "secondary" }
-            );
+            this.statusBar.addActionButton(_("Choose"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
+              color: "secondary",
+            });
             break;
         }
       } else console.log("Current player is not active, active is " + player);
@@ -418,15 +469,14 @@ define([
       dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
+      dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
     },
 
     // Used only during state of protagonist selection on card in hand click
     onProtagonistCardClick: function (card) {
       console.log("onProtagonistCardClick");
-      if (card.type != "1")
-        console.log("Invalid card type");
-      else
-      this.bgaPerformAction("actPlayProtagonistCard", {card_id: card.id,});
+      if (card.type != "1") console.log("Invalid card type");
+      else this.bgaPerformAction("actPlayProtagonistCard", { card_id: card.id });
     },
 
     onRuralDeckCardClick: function (card) {
@@ -469,7 +519,13 @@ define([
         });
       } else console.log("No card selected");
     },
-
+    onRessourceClick: function (token) {
+      console.log("onRessourceClick", token);
+      // TODO send action to server
+      if (token.consumed === "0") token.consumed = "1"; // toggle consumed state
+      else token.consumed = "0";
+      this.ressourcesSlots.flipCard(token);
+    },
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
 
@@ -502,7 +558,8 @@ define([
         ["cardDrawnFromRuralDeck", 100],
         ["cardDrawnFromUrbanDeck", 100],
         ["cardPlayed", 100],
-        ["storyCheckStarted", 100]
+        ["storyCheckStarted", 100],
+        ["ressourceFlipped", 100],
       ];
 
       notifs.forEach((notif) => {
@@ -586,7 +643,17 @@ define([
       console.log("notif_storyCheckStarted");
       console.log(notif);
       let card = this.memory.getTopCard();
-      this.memory.addCard(notif.args.memoryTopCard, {fadeIn: true , autoupdateCardNumber: false, autoRemovePreviousCards: true });
-    }
+      this.memory.addCard(notif.args.memoryTopCard, {
+        fadeIn: true,
+        autoupdateCardNumber: false,
+        autoRemovePreviousCards: true,
+      });
+    },
+    notif_ressourceFlipped: function (notif) {
+      console.log("notif_ressourceFlipped");
+      console.log(notif);
+      let token = notif.args.token;
+      this.ressourcesSlots.flipCard(token);
+    },
   });
 });

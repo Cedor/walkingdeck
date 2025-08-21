@@ -67,7 +67,42 @@
   position: relative;
   width: max-content;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: auto;
+}
+
+#memory_wrap {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+#escaped_wrap {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+#ressources_wrap {
+  grid-column: 4;
+  grid-row: 2;
+}
+
+#deck_rural_wrap {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+#deck_urban_wrap {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#protagonist_wrap {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+#graveyard_wrap {
+  grid-column: 3;
+  grid-row: 2;
 }
 
 .location-wrap {
@@ -110,4 +145,67 @@
 .twd-card-back-urban {
   background: url("img/sprite_sheet.png");
   background-position: -762px -358px;
+}
+
+/* ressources */
+/*
+.ressources-wrap {
+  display: flex;
+  justify-content: space-between;
+}*/
+/*
+#ressource1,
+#ressource2,
+#ressource3 {
+  width: 30%;
+  height: 20px;
+  background: #eee;
+  border: 1px solid #ccc;
+  margin: 2px;
+}*/
+.twd-ressources-slot {
+  width: 90px;
+  height: 90px;
+}
+
+.twd-ressource,
+.ressource {
+  width: 90px;
+  height: 90px;
+}
+
+.twd-ressource-back,
+.twd-ressource-front {
+  background: url("img/ressources.png");
+  background-size: 276px 184px;
+}
+
+.twd-ressource-front[data-id="1"] {
+  background-position-x: 0px;
+  background-position-y: 0px;
+}
+
+.twd-ressource-front[data-id="2"] {
+  background-position-x: -184px;
+  background-position-y: 0px;
+}
+
+.twd-ressource-front[data-id="3"] {
+  background-position-x: -368px;
+  background-position-y: 0px;
+}
+
+.twd-ressource-back[data-id="1"] {
+  background-position-x: 0px;
+  background-position-y: -92px;
+}
+
+.twd-ressource-back[data-id="2"] {
+  background-position-x: -184px;
+  background-position-y: -92px;
+}
+
+.twd-ressource-back[data-id="3"] {
+  background-position-x: -368px;
+  background-position-y: -92px;
 }

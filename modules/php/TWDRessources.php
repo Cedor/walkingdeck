@@ -20,6 +20,16 @@ class TWDRessources
     $this->game->setGameStateInitialValue("ressource3", 0);
   }
 
+  public function getRessources(): array
+  {
+    // Get all ressources values
+    return [
+      1 => ["id" => '1', "consumed" => $this->game->getGameStateValue("ressource1")],
+      2 => ["id" => '2', "consumed" => $this->game->getGameStateValue("ressource2")],
+      3 => ["id" => '3', "consumed" => $this->game->getGameStateValue("ressource3")],
+    ];
+  }
+
   public function getRessource(int $ressource_id): int
   {
     // Get the value of a specific ressource

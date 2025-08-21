@@ -156,7 +156,7 @@ class Game extends \Table
         $card_type_arg = intval($card["type_arg"]);
         if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
             throw new \BgaUserException($this->_("Illegal call to setLossCondition with") . $card);
-        $lossCon = $card["losscon"];
+        $lossCon = intval($card["losscon"]);
         $this->setGameStateValue("lossCondition", $lossCon);
         return $lossCon;
     }
@@ -427,9 +427,7 @@ class Game extends \Table
         $result['urbanDeckNb'] = $this->twdDeck->countCardInLocation('deck_urban');
 
         // ressources
-        $result['ressource1'] = $this->ressources->getRessource(1);
-        $result['ressource2'] = $this->ressources->getRessource(2);
-        $result['ressource3'] = $this->ressources->getRessource(3);
+        $result['ressources'] = $this->ressources->getRessources();
 
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
