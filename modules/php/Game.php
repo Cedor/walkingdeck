@@ -37,6 +37,7 @@ class Game extends \Table
 
     public $cards;
     protected $twdDeck;
+    protected $ressources;
 
     public function __construct()
     {
@@ -46,11 +47,15 @@ class Game extends \Table
             "difficultyLevel" => 10, // example of game option
             "gamePhase" => 11, // 1=> expedition phase, 2=> story phase
             "lossCondition" => 12,
+            "ressource1" => 13,
+            "ressource2" => 14,
+            "ressource3" => 15
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
         $this->cards->init("card");
         $this->twdDeck = new TWDDeck($this);
+        $this->ressources = new TWDRessources($this);
 
         /* example of notification decorator.
         // automatically complete notification args when needed
@@ -421,6 +426,11 @@ class Game extends \Table
         $result['ruralDeckNb'] = $this->twdDeck->countCardInLocation('deck_rural');
         $result['urbanDeckNb'] = $this->twdDeck->countCardInLocation('deck_urban');
 
+        // ressources
+        $result['ressource1'] = $this->ressources->getRessource(1);
+        $result['ressource2'] = $this->ressources->getRessource(2);
+        $result['ressource3'] = $this->ressources->getRessource(3);
+
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
         $result['gamePhase'] = $this->getGameStateValue("gamePhase");
@@ -480,8 +490,10 @@ class Game extends \Table
         $this->setGameStateInitialValue("difficultyLevel", 1);
         // Game phase : 1 => expedition phase, 2 => story phase
         $this->setGameStateInitialValue("gamePhase", 1);
-        //Loss condition : number of buried events (default 5)
+        // Loss condition : number of buried events (default 5)
         $this->setGameStateInitialValue("lossCondition", 5);
+        // Init ressources
+        $this->ressources->initRessources();
 
         // Init game statistics.
         //
