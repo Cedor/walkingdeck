@@ -82,7 +82,7 @@
 
 #ressources_wrap {
   grid-column: 4;
-  grid-row: 2;
+  grid-row: 1;
 }
 
 #deck_rural_wrap {
@@ -148,28 +148,7 @@
 }
 
 /* ressources */
-/*
-.ressources-wrap {
-  display: flex;
-  justify-content: space-between;
-}*/
-/*
-#ressource1,
-#ressource2,
-#ressource3 {
-  width: 30%;
-  height: 20px;
-  background: #eee;
-  border: 1px solid #ccc;
-  margin: 2px;
-}*/
 .twd-ressources-slot {
-  width: 90px;
-  height: 90px;
-}
-
-.twd-ressource,
-.ressource {
   width: 90px;
   height: 90px;
 }

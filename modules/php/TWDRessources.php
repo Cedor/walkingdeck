@@ -2,7 +2,6 @@
 
 namespace Bga\Games\TheWalkingDeck;
 
-
 class TWDRessources
 {
   protected $game;

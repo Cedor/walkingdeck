@@ -88,8 +88,13 @@ define([
               <div id ="ressources_wrap" class="ressources-wrap">
                 <b>${_("Ressources")}</b>
                 <div id="ressources-slots">
-
                 </div>
+              </div>
+              <div id="disasters_wrap" class="location-wrap">
+                <b>${_("Disasters")}</b>
+                <div id="disasters"></div>
+                <div id="disastersDrawnSlot"></div>
+                <div id="disastersPlayed"></div>
               </div>
             </div>
           </div>
@@ -228,6 +233,7 @@ define([
       // Create ressources
       this.ressourcesManager = new BgaCards.Manager({
         animationManager: this.animationManager,
+        cardBorderRadius: "50%",
         type: "twd-ressource",
         getId: (token) => `token-${token.id}`,
         setupDiv: (token, div) => {

@@ -38,16 +38,16 @@ class TWDDeck
 
   public function pickCard(string $location, int $player_id): ?array
   {
-    $card = $this->game->cards->pickCard($location, $player_id);
-    if ($card === null) {
-      return null;
+    $card = $this->game->getCards()->pickCard($location, $player_id);
+    if ($card) {
+      $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+      return array_merge($card, $card_info[0] ?? []);
     }
-    $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-    return array_merge($card, $card_info[0] ?? []);
+    return null;
   }
   public function getCard(int $card_id): array
   {
-    $card = $this->game->cards->getCard($card_id);
+    $card = $this->game->getCards()->getCard($card_id);
     if ($card === null) {
       throw new \InvalidArgumentException("Card with ID $card_id does not exist.");
     }
@@ -56,7 +56,7 @@ class TWDDeck
   }
   function getCardsInLocation(string $location, ?int $location_arg = null, ?string $order_by = null): array
   {
-    $cards = $this->game->cards->getCardsInLocation($location, $location_arg, $order_by);
+    $cards = $this->game->getCards()->getCardsInLocation($location, $location_arg, $order_by);
     return array_map(function ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
       return array_merge($card, $card_info[0] ?? []);
@@ -64,7 +64,7 @@ class TWDDeck
   }
   public function getCardOnTop(string $location): ?array
   {
-    $card = $this->game->cards->getCardOnTop($location);
+    $card = $this->game->getCards()->getCardOnTop($location);
     if ($card === null) {
       return null;
     }
@@ -73,19 +73,19 @@ class TWDDeck
   }
   public function countCardInLocation(string $location, ?int $location_arg = null): int
   {
-    return $this->game->cards->countCardInLocation($location, $location_arg);
+    return $this->game->getCards()->countCardInLocation($location, $location_arg);
   }
   public function insertCardOnExtremePosition(int $card_id, string $location, bool $bOnTop): void
   {
-    $this->game->cards->insertCardOnExtremePosition($card_id, $location, $bOnTop);
+    $this->game->getCards()->insertCardOnExtremePosition($card_id, $location, $bOnTop);
   }
   public function moveCard(int $card_id, string $location, int $location_arg = 0): void
   {
-    $this->game->cards->moveCard($card_id, $location, $location_arg);
+    $this->game->getCards()->moveCard($card_id, $location, $location_arg);
   }
   public function moveAllCardsInLocation(?string $from_location, ?string $to_location, ?int $from_location_arg = null, int $to_location_arg = 0): void
   {
-    $this->game->cards->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
+    $this->game->getCards()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
   }
   public function generateFakeCard($card): array
   {
@@ -132,10 +132,10 @@ class TWDDeck
           break;
       }
     }
-    $this->game->cards->createCards($prota, 'hand');
-    $this->game->cards->createCards($rural, 'deck_rural');
-    $this->game->cards->shuffle('deck_rural');
-    $this->game->cards->createCards($urban, 'deck_urban');
-    $this->game->cards->shuffle('deck_urban');
+    $this->game->getCards()->createCards($prota, 'hand');
+    $this->game->getCards()->createCards($rural, 'deck_rural');
+    $this->game->getCards()->shuffle('deck_rural');
+    $this->game->getCards()->createCards($urban, 'deck_urban');
+    $this->game->getCards()->shuffle('deck_urban');
   }
 }

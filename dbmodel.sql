@@ -29,16 +29,16 @@ CREATE TABLE IF NOT EXISTS `card_info` (
   `card_name` varchar(64) NOT NULL,
   `is_zombie` TINYINT(1) NOT NULL DEFAULT 0,
   `is_character` TINYINT(1) NOT NULL DEFAULT 0,
-  `consequence_black` varchar(255) ,
-  `consequence_white` varchar(255) ,
-  `consequence_grey` varchar(255) ,
+  `consequence_black` varchar(255),
+  `consequence_white` varchar(255),
+  `consequence_grey` varchar(255),
   PRIMARY KEY (`info_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
 CREATE TABLE IF NOT EXISTS `protagonist_info` (
   `info_id` int(10) unsigned NOT NULL,
   `losscon` TINYINT(1) NOT NULL DEFAULT 5,
-  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) 
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
 CREATE TABLE IF NOT EXISTS `character_info` (
@@ -47,9 +47,25 @@ CREATE TABLE IF NOT EXISTS `character_info` (
   `weakness_2` TINYINT(1) NOT NULL DEFAULT 0,
   `weakness_3` TINYINT(1) NOT NULL DEFAULT 0,
   `wounds` TINYINT(1) NOT NULL DEFAULT 0,
-  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  FOREIGN KEY (info_id) REFERENCES `card_info` (`info_id`) 
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
+CREATE TABLE IF NOT EXISTS `disaster` (
+  `card_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `card_type` varchar(16) NOT NULL,
+  `card_type_arg` int(11) NOT NULL,
+  `card_location` varchar(16) NOT NULL,
+  `card_location_arg` int(11) NOT NULL,
+  PRIMARY KEY (`card_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
+
+CREATE TABLE IF NOT EXISTS `disaster_info` (
+  `card_type` varchar(16) NOT NULL,
+  `disaster1` TINYINT(1) NOT NULL DEFAULT 0,
+  `disaster2` TINYINT(1) NOT NULL DEFAULT 0,
+  `disaster3` TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`card_type`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
 -- Create all the cards info
 INSERT INTO `card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`) VALUES
@@ -116,4 +132,15 @@ INSERT INTO `character_info` (`info_id`, `weakness_1`, `weakness_2`, `weakness_3
 (36, 1, 0, 0, 0),
 (37, 0, 0, 1, 0),
 (38, 0, 0, 1, 0)
+;
+
+-- Create disaster info
+INSERT INTO `disaster_info` (`card_type`, `disaster1`, `disaster2`, `disaster3`) VALUES
+(1, 1, 0, 0),
+(2, 0, 1, 0),
+(3, 0, 0, 1),
+(4, 1, 1, 0),
+(5, 0, 1, 1),
+(6, 1, 0, 1),
+(7, 0, 0, 0)
 ;
