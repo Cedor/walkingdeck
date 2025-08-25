@@ -77,6 +77,7 @@ $machinestates = [
             // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actDrawFromRuralDeck",
             "actDrawFromUrbanDeck",
+            "actDrawFromDisasterBag",// TODO remove after tests
         ])
         ->transitions([
             "drawAnotherCard" => 3,
@@ -93,6 +94,7 @@ $machinestates = [
             "actPlayCard",
             "actPass",
             "actGoToStoryCheck",// TODO remove after tests
+            "actDrawFromDisasterBag",// TODO remove after tests
         ])
         ->transitions([
             "keepPlaying" => 4,

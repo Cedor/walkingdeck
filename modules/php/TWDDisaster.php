@@ -25,7 +25,7 @@ class TWDDisaster
     $this->game->getDisaster()->createCards($disasters, "deck");
     $this->game->getDisaster()->shuffle('deck');
     $blanks = ['type' => 7, 'type_arg' => 0, 'nbr' => 2];
-    $this->game->getDisaster()->createCards([$blanks], "slot");
+    $this->game->getDisaster()->createCards([$blanks], "reserve");
   }
   public function getExtendedCardInfo(int $type): array
   {
@@ -35,6 +35,15 @@ class TWDDisaster
         WHERE `card_type` = $type"
     );
     return $disaster_info;
+  }
+
+  public function getCardsInLocation(string $location): array
+  {
+    $disasters = $this->game->getDisaster()->getCardsInLocation($location);
+    return array_map(function ($disaster) {
+      $disaster_info = $this->getExtendedCardInfo($disaster['type']);
+      return array_merge($disaster, $disaster_info[0] ?? []);
+    }, $disasters);
   }
 
   public function pickCard(string $location, int $player_id): ?array
@@ -53,5 +62,13 @@ class TWDDisaster
     public function moveAllCardsInLocation(?string $from_location, ?string $to_location, ?int $from_location_arg = null, int $to_location_arg = 0): void
   {
     $this->game->getDisaster()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
+  }
+  public function countCardInLocation(string $location): int
+  {
+    return $this->game->getDisaster()->countCardInLocation($location);
+  }
+  public function shuffle(string $location): void
+  {
+    $this->game->getDisaster()->shuffle($location);
   }
 }

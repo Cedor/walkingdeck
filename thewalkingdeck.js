@@ -78,7 +78,7 @@ define([
               </div>
               <div id="protagonist_wrap" class="location-wrap">
                 <b>${_("Protagonist")}</b>
-                <div id="protagonist-slot">
+                <div id="protagonist_slot">
                 </div>
               </div>
               <div id="graveyard_wrap" class="location-wrap">
@@ -87,14 +87,16 @@ define([
               </div>
               <div id ="ressources_wrap" class="ressources-wrap">
                 <b>${_("Ressources")}</b>
-                <div id="ressources-slots">
+                <div id="ressources_slots">
                 </div>
               </div>
               <div id="disasters_wrap" class="location-wrap">
                 <b>${_("Disasters")}</b>
-                <div id="disasters"></div>
-                <div id="disastersDrawnSlot"></div>
-                <div id="disastersPlayed"></div>
+                <div id="disasters_organiser">
+                  <div id="disasters_reserve"></div>
+                  <div id="disasters_bag" class="twd-disasters-bag"></div>
+                  <div id="disasters_drawn_slot"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -186,21 +188,22 @@ define([
           };
         },
       });
-      // create protagonist slot
-      this.protagonistSlot = new BgaCards.SlotStock(this.cardsManager, document.getElementById("protagonist-slot"), {
+      // Create protagonist slot
+      this.protagonistSlot = new BgaCards.SlotStock(this.cardsManager, document.getElementById("protagonist_slot"), {
         slotsIds: ["A"],
-        slotClasses: ["twd-slot"],
+        slotClasses: ["twd-card-slot"],
         mapCardToSlot: (card) => "A",
       });
+      // TODO remove
       this.protagonistSlot.onCardAdded = (card) => {
         console.log("Card added to protagonist slot", card);
       };
-      // create hand
+      // Create hand
       this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"), {
         cardClickEventFilter: "all",
       });
       this.hand.setSelectionMode("single");
-      // create memory pile
+      // Create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
         //TODO cardClickEventFilter: "all",
         cardNumber: 0,
@@ -260,7 +263,7 @@ define([
       // Create slots for ressources
       this.ressourcesSlots = new BgaCards.SlotStock(
         this.ressourcesManager,
-        document.getElementById("ressources-slots"),
+        document.getElementById("ressources_slots"),
         {
           cardClickEventFilter: "all",
           slotsIds: ["1", "2", "3"],
@@ -268,6 +271,57 @@ define([
           mapCardToSlot: (card) => card.id,
         }
       );
+
+      // Create disasters
+      this.disastersManager = new BgaCards.Manager({
+        animationManager: this.animationManager,
+        cardBorderRadius: "50%",
+        type: "twd-disaster",
+        getId: (token) => `token-${token.id}`,
+        setupDiv: (token, div) => {
+          div.classList.add("twd-disaster");
+        },
+        setupFrontDiv: (token, div) => {
+          div.classList.add("twd-disaster-front");
+          div.dataset.id = token.type;
+          if (token.id) {
+            this.addTooltipHtml(div.id, `tooltip de ${token.id}`);
+          }
+        },
+        setupBackDiv: (token, div) => {
+          div.classList.add("twd-disaster-back");
+          div.dataset.id = token.type;
+          if (token.id) {
+            this.addTooltipHtml(div.id, `tooltip de ${token.id}`);
+          }
+        },
+        isCardVisible: (token) => true,
+        cardWidth: 90,
+        cardHeight: 90,
+      });
+      // Create slot for blanks
+      this.disastersReserve = new BgaCards.Deck(
+        this.disastersManager,
+        document.getElementById("disasters_reserve"),
+        {
+          cardNumber: 0,
+          counter: {
+            hideWhenEmpty: true,
+            position: "center",
+          },
+        }
+      );
+      // Create slot for drawn disasters
+      this.disastersDrawnSlot = new BgaCards.SlotStock(
+        this.disastersManager,
+        document.getElementById("disasters_drawn_slot"),
+        {
+          slotsIds: ["A"],
+          slotClasses: ["twd-token-slot"],
+          mapCardToSlot: (card) => "A",
+        }
+      );
+
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
@@ -307,6 +361,16 @@ define([
       console.log("Ressources gamedatas", this.gamedatas.ressources);
       for (let ressource in this.gamedatas.ressources) {
         this.ressourcesSlots.addCard(this.gamedatas.ressources[ressource]);
+      }
+
+      // Disasters gamedatas
+      console.log("Disasters reserve gamedatas", this.gamedatas.disastersReserve);
+      console.log("Disasters drawn gamedatas", this.gamedatas.disastersDrawn);
+      for (let disaster in this.gamedatas.disastersReserve) {
+        this.disastersReserve.addCard(this.gamedatas.disastersReserve[disaster]);
+      }
+      for (let disaster in this.gamedatas.disastersDrawn) {
+        this.disastersDrawnSlot.addCard(this.gamedatas.disastersDrawn[disaster]);
       }
 
       // Setup connections
@@ -476,6 +540,8 @@ define([
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
+      // TODO allowing only in phase 2
+      dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
     },
 
     // Used only during state of protagonist selection on card in hand click
@@ -532,6 +598,12 @@ define([
       else token.consumed = "0";
       this.ressourcesSlots.flipCard(token);
     },
+
+    onDisasterBagClick: function () {
+      console.log("onDisasterBagClick");
+      this.bgaPerformAction("actDrawFromDisasterBag");
+    },
+
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
 
@@ -566,6 +638,8 @@ define([
         ["cardPlayed", 100],
         ["storyCheckStarted", 100],
         ["ressourceFlipped", 100],
+        ["disasterShuffledBack", 0],
+        ["disasterDrawnFromBag", 100]
       ];
 
       notifs.forEach((notif) => {
@@ -661,5 +735,21 @@ define([
       let token = notif.args.token;
       this.ressourcesSlots.flipCard(token);
     },
+    notif_disasterDrawnFromBag: function (notif) {
+      console.log("notif_disasterDrawnFromBag");
+      console.log(notif);
+      let disaster = notif.args.disaster;
+      let shuffle = notif.args.shuffle;
+      if (shuffle)
+        this.disastersDrawnSlot.removeAll({slideTo: document.getElementById("disasters_bag")});
+      if (disaster) {
+        this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
+      }
+    },
+    notif_disasterShuffledBack: function(notif) {
+      console.log("notif_disasterShuffledBack");
+      console.log(notif);
+      this.disastersDrawnSlot.removeAll({slideTo: document.getElementById("disasters_bag")});
+    }
   });
 });
