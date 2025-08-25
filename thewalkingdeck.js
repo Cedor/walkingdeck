@@ -205,9 +205,10 @@ define([
       };
       // Create hand
       this.hand = new BgaCards.HandStock(this.cardsManager, document.getElementById("hand"), {
-        cardClickEventFilter: "all",
+        cardClickEventFilter: "selectable",
       });
       this.hand.setSelectionMode("single");
+
       // Create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
         //TODO cardClickEventFilter: "all",
@@ -410,9 +411,7 @@ define([
       console.log("Current active player is: " + this.getActivePlayerId());
       switch (stateName) {
         case "protagonistSelection":
-          this.hand.setSelectionMode("none");
-          this.onProtagonistClickHandle = dojo.connect(this.hand, "onCardClick", this, "onProtagonistCardClick");
-          console.log(this.onProtagonistClickHandle);
+          this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
         case "storyCheck":
           document.getElementById("story_organiser").style.display = "block";
@@ -439,8 +438,7 @@ define([
                 break;
            */
         case "protagonistSelection":
-          this.hand.setSelectionMode("single");
-          dojo.disconnect(this.onProtagonistClickHandle);
+          this.hand.onSelectionChange = null;
           break;
         case "dummy":
           break;
@@ -456,6 +454,12 @@ define([
       if (this.isCurrentPlayerActive()) {
         console.log("Current player is active");
         switch (stateName) {
+          case "protagonistSelection":
+            this.statusBar.addActionButton(_("Confirm Selection"), () => this.confirmProtagonistSelection(), {
+              id: "confirm_protagonist_selection",
+              color: "secondary",
+            }).style.visibility = 'hidden';
+            break;
           case "playCards":
             this.statusBar.addActionButton(_("Pass"), () => this.bgaPerformAction("actPass", { force: true }), {
               color: "secondary",
@@ -549,11 +553,23 @@ define([
       dojo.connect(document.getElementById("characters_wrap"), "onclick", this, "onCharactersWrapClick");
     },
 
-    // Used only during state of protagonist selection on card in hand click
-    onProtagonistCardClick: function (card) {
-      console.log("onProtagonistCardClick");
-      if (card.type != "1") console.log("Invalid card type");
-      else this.bgaPerformAction("actPlayProtagonistCard", { card_id: card.id });
+    onProtagonistSelectionChange: function (selection, lastchange) {
+      console.log("onProtagonistSelectionChange", selection, lastchange);
+      if (selection[0]) {
+        document.getElementById("confirm_protagonist_selection").style.visibility = 'visible';
+      } else {
+        document.getElementById("confirm_protagonist_selection").style.visibility = 'hidden';
+      }
+    },
+
+    // Used only during state of protagonist selection
+    // triggered by having a character selected in hand and clicking the confirm button
+    confirmProtagonistSelection: function () {
+      console.log("confirmProtagonistSelection");
+      let card = this.hand.getSelection()[0];
+      if (card && card.type == "1") {
+        this.bgaPerformAction("actPlayProtagonistCard", { card_id: card.id });
+      }
     },
 
     onRuralDeckCardClick: function (card) {
