@@ -118,8 +118,8 @@ class Game extends \Table
     public function actPlayCard(int $card_id, string $location): void
     {
         $card = $this->deckManager->getCard($card_id);
-        $card_name = $card['card_name'];
-        if ($card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
+        $card_name = "";
+        if ($card && $card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
@@ -138,6 +138,11 @@ class Game extends \Table
         // Check if the card can be played in the specified location
         // For example, you might want to check if the location is valid for the card type
         // Here we assume that all cards can be played in any location for simplicity
+        switch ($location) {
+            case "characters":
+                return $card['is_character'] == '1';
+                break;
+        }
         return true;
     }
 
@@ -287,6 +292,26 @@ class Game extends \Table
             "disaster" => $disasterPicked,
             "shuffle" => $shuffle
         ));
+    }
+
+    /**
+     * Player action : putting a character in play
+     *
+     * @throws BgaUserException
+     */
+    public function actPutCharacterInPlay(int $card_id, string $location): void
+    {
+        $card = $this->deckManager->getCard($card_id);
+        $card_name = "";
+        if ($card && $card["location"] == 'hand' &&  $this->cardCanBePlayedInLocation($card, $location)) {
+            $this->deckManager->moveCard($card_id, 'characters');
+            $card = $this->deckManager->getCard($card_id);
+            $card_name = $card["card_name"];
+            $this->notify->all("characterPutInPlay", \clienttranslate("Card $card_name played from hand to $location"), array(
+                "card" => $card,
+                "location" => $location
+            ));
+        } else throw new \BgaUserException($this->_("Illegal Move: ") . "Trying to play card " . $card_id . " " .  $card["is_character"]);
     }
 
     /**
@@ -472,6 +497,9 @@ class Game extends \Table
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue("difficultyLevel");
         $result['gamePhase'] = $this->getGameStateValue("gamePhase");
+
+        // Characters in play
+        $result['charactersInPlay'] = $this->deckManager->getCardsInLocation('characters');
 
         return $result;
     }

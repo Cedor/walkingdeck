@@ -74,7 +74,6 @@ define([
               <div id="memory_wrap" class="location-wrap">
                 <b>${_("Memory")}</b>
                 <div id="memory"></div>
-                <div id="story"></div>
               </div>
               <div id="protagonist_wrap" class="location-wrap">
                 <b>${_("Protagonist")}</b>
@@ -97,6 +96,12 @@ define([
                   <div id="disasters_bag" class="twd-disasters-bag"></div>
                   <div id="disasters_drawn_slot"></div>
                 </div>
+              </div>
+            </div>
+            <div id="story_organiser">
+              <div id="characters_wrap" class="characters-slot-wrap">
+                <b>${_("Characters")}</b>
+                <div id="characters"></div>
               </div>
             </div>
           </div>
@@ -300,17 +305,13 @@ define([
         cardHeight: 90,
       });
       // Create slot for blanks
-      this.disastersReserve = new BgaCards.Deck(
-        this.disastersManager,
-        document.getElementById("disasters_reserve"),
-        {
-          cardNumber: 0,
-          counter: {
-            hideWhenEmpty: true,
-            position: "center",
-          },
-        }
-      );
+      this.disastersReserve = new BgaCards.Deck(this.disastersManager, document.getElementById("disasters_reserve"), {
+        cardNumber: 0,
+        counter: {
+          hideWhenEmpty: true,
+          position: "center",
+        },
+      });
       // Create slot for drawn disasters
       this.disastersDrawnSlot = new BgaCards.SlotStock(
         this.disastersManager,
@@ -321,12 +322,23 @@ define([
           mapCardToSlot: (card) => "A",
         }
       );
-
+      // Create characters area (phase 2)
+      this.characters = new BgaCards.LineStock(this.cardsManager, document.getElementById("characters"), {
+        cardClickEventFilter: "all",
+        direction: "row",
+        center: false,
+      });
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
       this.gamePhase = this.gamedatas.gamePhase;
+      let charactersVisibility = "none";
+      if (this.gamePhase === "2") {
+        // Display characters area (phase 2)
+        charactersVisibility = "block";
+      }
+      document.getElementById("story_organiser").style.display = charactersVisibility;
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
@@ -342,7 +354,7 @@ define([
       // Rural Deck gamedatas
       this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
       // Memory gamedatas
-      console.log("Memory gamedatas", this.gamedatas.memoryNb, this.gamedatas.memoryTop, this.gamedatas.storyTop);
+      console.log("Memory gamedatas", this.gamedatas.memoryNb, this.gamedatas.memoryTop);
       if (this.gamedatas.memoryNb > 0) {
         this.memory.setCardNumber(this.gamedatas.memoryNb - 1);
         this.memory.addCard(this.gamedatas.memoryTop);
@@ -373,6 +385,12 @@ define([
         this.disastersDrawnSlot.addCard(this.gamedatas.disastersDrawn[disaster]);
       }
 
+      // Characters gamedatas
+      console.log("Characters gamedatas", this.gamedatas.charactersInPlay);
+      for (let character in this.gamedatas.charactersInPlay) {
+        this.characters.addCard(this.gamedatas.charactersInPlay[character]);
+      }
+
       // Setup connections
       this.setupConnections();
       // Setup game notifications to handle (see "setupNotifications" method below)
@@ -397,21 +415,6 @@ define([
           console.log(this.onProtagonistClickHandle);
           break;
         case "storyCheck":
-          document.getElementById("player_table").insertAdjacentHTML(
-            "beforeend",
-            `
-            <div id="story_organiser">
-              <div id="characters-wrap" class="location-wrap">
-                <b>${_("Characters")}</b>
-                <div id="characters"></div>
-              </div>
-            </div>
-            `
-          );
-          // create characters area
-          this.characters = new BgaCards.LineStock(this.cardsManager, document.getElementById("characters"), {
-            cardClickEventFilter: "all",
-          });
           document.getElementById("story_organiser").style.display = "block";
           break;
         case "dummy":
@@ -542,6 +545,8 @@ define([
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
       // TODO allowing only in phase 2
       dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
+      // TODO rework
+      dojo.connect(document.getElementById("characters_wrap"), "onclick", this, "onCharactersWrapClick");
     },
 
     // Used only during state of protagonist selection on card in hand click
@@ -604,6 +609,18 @@ define([
       this.bgaPerformAction("actDrawFromDisasterBag");
     },
 
+    onCharactersWrapClick: function () {
+      console.log("onCharactersWrapClick");
+      let card = this.hand.getSelection()[0];
+      console.log("Selected card in hand", card);
+      if (card) {
+        this.bgaPerformAction("actPutCharacterInPlay", {
+          card_id: card.id,
+          location: "characters",
+        });
+      } else console.log("No card selected");
+    },
+
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
 
@@ -639,7 +656,8 @@ define([
         ["storyCheckStarted", 100],
         ["ressourceFlipped", 100],
         ["disasterShuffledBack", 0],
-        ["disasterDrawnFromBag", 100]
+        ["disasterDrawnFromBag", 100],
+        ["characterPutInPlay", 100],
       ];
 
       notifs.forEach((notif) => {
@@ -740,16 +758,25 @@ define([
       console.log(notif);
       let disaster = notif.args.disaster;
       let shuffle = notif.args.shuffle;
-      if (shuffle)
-        this.disastersDrawnSlot.removeAll({slideTo: document.getElementById("disasters_bag")});
+      if (shuffle) {
+        this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
+      }
       if (disaster) {
         this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
       }
     },
-    notif_disasterShuffledBack: function(notif) {
+    notif_disasterShuffledBack: function (notif) {
       console.log("notif_disasterShuffledBack");
       console.log(notif);
-      this.disastersDrawnSlot.removeAll({slideTo: document.getElementById("disasters_bag")});
-    }
+      this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
+    },
+    notif_characterPutInPlay: function (notif) {
+      console.log("notif_characterPutInPlay");
+      console.log(notif);
+      let card = notif.args.card;
+      if (card) {
+        this.characters.addCard(card, { fromStock: this.hand });
+      }
+    },
   });
 });
