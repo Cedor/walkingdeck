@@ -95,6 +95,7 @@ $machinestates = [
             "actPass",
             "actGoToStoryCheck",// TODO remove after tests
             "actDrawFromDisasterBag",// TODO remove after tests
+            "actFlipRessource",// TODO remove after tests
         ])
         ->transitions([
             "keepPlaying" => 4,

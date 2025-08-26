@@ -244,7 +244,7 @@ define([
         animationManager: this.animationManager,
         cardBorderRadius: "50%",
         type: "twd-ressource",
-        getId: (token) => `token-${token.id}`,
+        getId: (token) => token.id,
         setupDiv: (token, div) => {
           div.classList.add("twd-ressource");
         },
@@ -272,9 +272,9 @@ define([
         document.getElementById("ressources_slots"),
         {
           cardClickEventFilter: "all",
-          slotsIds: ["1", "2", "3"],
+          slotsIds: ["slot_ressource1", "slot_ressource2", "slot_ressource3"],
           slotClasses: ["twd-ressources-slot"],
-          mapCardToSlot: (card) => card.id,
+          mapCardToSlot: (token) => `slot_${token.id}`,
         }
       );
 
@@ -622,7 +622,7 @@ define([
           card_id: card.id,
           location: "escaped",
         });
-      } 
+      }
     },
     onMemoryClick: function () {
       console.log("onMemoryClick");
@@ -648,9 +648,7 @@ define([
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
       // TODO send action to server
-      if (token.consumed === "0") token.consumed = "1"; // toggle consumed state
-      else token.consumed = "0";
-      this.ressourcesSlots.flipCard(token);
+        this.bgaPerformAction("actFlipRessource", { token_id: token.id });
     },
 
     onDisasterBagClick: function () {
@@ -707,6 +705,8 @@ define([
         ["disasterShuffledBack", 1],
         ["disasterDrawnFromBag", 100],
         ["characterPutInPlay", 100],
+        ["ressourceConsumed", 1],
+        ["ressourceRefilled", 1],
       ];
 
       notifs.forEach((notif) => {
@@ -826,6 +826,18 @@ define([
       if (card) {
         this.characters.addCard(card, { fromStock: this.hand });
       }
+    },
+    notif_ressourceConsumed: function (notif) {
+      console.log("notif_ressourceConsumed");
+      console.log(notif);
+      let token = notif.args;
+      this.ressourcesManager.flipCard(token);
+    },
+    notif_ressourceRefilled: function (notif) {
+      console.log("notif_ressourceRefilled");
+      console.log(notif);
+      let token = notif.args;
+      this.ressourcesManager.flipCard(token);
     },
   });
 });

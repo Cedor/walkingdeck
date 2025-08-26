@@ -502,7 +502,16 @@ class Game extends \Table
         }
     }
 
-
+    /**
+     * Game state action, flip a resource
+     */
+    public function actFlipRessource(string $token_id): void
+    {
+        $state = $this->ressources->getRessourceState($token_id);
+        if ($state == 1)
+            $this->ressources->refillRessources($token_id);
+        else $this->ressources->consumeRessources($token_id);
+    }
 
     /**
      * Migrate database.

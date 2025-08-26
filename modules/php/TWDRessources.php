@@ -23,25 +23,53 @@ class TWDRessources
   {
     // Get all ressources values
     return [
-      1 => ["id" => '1', "consumed" => $this->game->getGameStateValue("ressource1")],
-      2 => ["id" => '2', "consumed" => $this->game->getGameStateValue("ressource2")],
-      3 => ["id" => '3', "consumed" => $this->game->getGameStateValue("ressource3")],
+      1 => ["id" => 'ressource1', "consumed" => $this->game->getGameStateValue("ressource1")],
+      2 => ["id" => 'ressource2', "consumed" => $this->game->getGameStateValue("ressource2")],
+      3 => ["id" => 'ressource3', "consumed" => $this->game->getGameStateValue("ressource3")],
     ];
   }
 
-  public function getRessource(int $ressource_id): int
+  public function getRessource(string $ressource_id): array
   {
     // Get the value of a specific ressource
-    return $this->game->getGameStateValue("ressource" . $ressource_id);
+    return ["id" => $ressource_id, "consumed" => $this->getRessourceState($ressource_id)];
   }
 
-  public function consumeRessources(int $ressource_id): void
+  public function getRessourceState(string $ressource_id): int
   {
-    $this->game->setGameStateValue("ressource" . $ressource_id, 1);
+    // Get the value of a specific ressource
+    return $this->game->getGameStateValue($ressource_id);
   }
 
-  public function refillRessources(int $ressource_id): void
+  public function setRessourceState(string $ressource_id, int $value): void
   {
-    $this->game->setGameStateValue("ressource" . $ressource_id, 0);
+    // Set the value of a specific ressource
+    if ($ressource_id && ($value == 0 || $value == 1))
+      $this->game->setGameStateValue($ressource_id, $value);
+    else
+      throw new \InvalidArgumentException("Invalid ressource id or state");
+  }
+
+  public function consumeRessources(string $ressource_id): void
+  {
+    $ressource_consumed = $this->getRessourceState($ressource_id);
+    if (!$ressource_consumed) {
+      $this->setRessourceState($ressource_id, 1);
+      $this->game->notify->all("ressourceConsumed", \clienttranslate("Ressource $ressource_id consumed"), array(
+        "id" => $ressource_id,
+        "consumed" => 1
+      ));
+    }
+  }
+
+  public function refillRessources(string $ressource_id): void
+  {
+    if ($this->getRessourceState($ressource_id)) {
+      $this->setRessourceState($ressource_id, 0);
+      $this->game->notify->all("ressourceRefilled", \clienttranslate("Ressource $ressource_id refilled"), array(
+        "id" => $ressource_id,
+        "consumed" => 0
+      ));
+    }
   }
 }

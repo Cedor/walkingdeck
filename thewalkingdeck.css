@@ -158,32 +158,32 @@
   background-size: 276px 184px;
 }
 
-.twd-ressource-front[data-id="1"] {
+.twd-ressource-front[data-id="ressource1"] {
   background-position-x: 0px;
   background-position-y: 0px;
 }
 
-.twd-ressource-front[data-id="2"] {
+.twd-ressource-front[data-id="ressource2"] {
   background-position-x: -184px;
   background-position-y: 0px;
 }
 
-.twd-ressource-front[data-id="3"] {
+.twd-ressource-front[data-id="ressource3"] {
   background-position-x: -368px;
   background-position-y: 0px;
 }
 
-.twd-ressource-back[data-id="1"] {
+.twd-ressource-back[data-id="ressource1"] {
   background-position-x: 0px;
   background-position-y: -92px;
 }
 
-.twd-ressource-back[data-id="2"] {
+.twd-ressource-back[data-id="ressource2"] {
   background-position-x: -184px;
   background-position-y: -92px;
 }
 
-.twd-ressource-back[data-id="3"] {
+.twd-ressource-back[data-id="ressource3"] {
   background-position-x: -368px;
   background-position-y: -92px;
 }
