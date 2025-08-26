@@ -127,20 +127,104 @@ class Game extends \Table
                 "card" => $card,
                 "location" => $location
             ));
+            switch ($location) {
+                case "memory":
+                    $this->applyConsequence($card, "white");
+                    break;
+                case "escaped":
+                    $this->applyConsequence($card, "black");
+                    break;
+            }
         } else {
             throw new \BgaUserException($this->_("Illegal Move: ") . "$card_name ($card_id) cannot be played from hand to location $location");
         }
         $this->actPass();
     }
 
+
+    /**
+     * Parse and execute the consequence string
+     * This is THE function that handles the consequences of card actions
+     */
+    private function parseAndExecuteConsequence(array $card,string $consequence): void
+    {
+        // Parse and execute the consequence string
+        // This is a placeholder implementation; you need to implement the actual parsing logic based on your game's rules
+        $actions = explode(',', $consequence);
+        foreach ($actions as $action) {
+            $action = trim($action);
+            if (empty($action)) {
+                continue;
+            }
+
+            if (preg_match('/^nothing$/', $action, $matches)) {
+                // nothing to do
+                return;
+            } elseif (preg_match('/^stuff$/', $action, $matches)) {
+                // unmanaged action
+                // TODO remove
+                $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array());
+            } elseif (preg_match('/^draw (\d+) cards$/', $action, $matches)) {
+                $numCards = intval($matches[1]);
+                // TODO go to special draw step
+            } elseif (preg_match('/^gain ressource (\w+)$/', $action, $matches)) {
+                $this->ressources->refillRessources($matches[1]);
+            } elseif (preg_match('/^lose ressource (\w+)$/', $action, $matches)) {
+                $this->ressources->consumeRessources($matches[1]);
+            } elseif (preg_match('/^bury (\w+)$/', $action, $matches)) {
+                // TODO implement bury action
+                switch ($matches[1]) {
+                    case "this":
+                        //$this->deckManager->buryCard($this->deckManager->getCard($matches[1]));
+                        break;
+                    case "character":
+                        break;
+                    case "topCard":
+                        break;
+                }
+            } elseif (preg_match('/^bite (\d+)$/', $action, $matches)) {
+                $biteValue = intval($matches[1]);
+                // TODO must ask player to assign damages
+            }
+        }
+    }
+
+    private function applyConsequence(array $card, string $color): void
+    {
+        // Apply the consequence of the card based on its color
+        switch ($color) {
+            case "white":
+                if ($card['consequence_white']) {
+                    $this->parseAndExecuteConsequence($card, $card['consequence_white']);
+                }
+                break;
+            case "black":
+                if ($card['consequence_black']) {
+                    $this->parseAndExecuteConsequence($card, $card['consequence_black']);
+                }
+                break;
+        }
+    }
+
+    private function consequenceCanBeResolved(array $card): bool
+    {
+        // Check if the consequence of the card can be resolved
+        // For example, you might want to check if the player has enough resources to resolve the consequence
+        // Here we assume that all consequences can be resolved for simplicity
+        return true;
+    }
+
     private function cardCanBePlayedInLocation(array $card, string $location): bool
     {
-        // Check if the card can be played in the specified location
-        // For example, you might want to check if the location is valid for the card type
-        // Here we assume that all cards can be played in any location for simplicity
         switch ($location) {
             case "characters":
                 return $card['is_character'] == '1';
+                break;
+            case "memory":
+                return $card['consequence_white'] || $card['consequence_grey'];
+                break;
+            case "escaped":
+                return $card['consequence_black'] && $this->consequenceCanBeResolved($card);
                 break;
         }
         return true;

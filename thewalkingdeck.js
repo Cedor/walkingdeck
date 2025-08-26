@@ -413,6 +413,9 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
+        case "playCards":
+          this.hand.onCardRemoved = this.onHandCardRemovedPhase1;
+          break;
         case "storyCheck":
           document.getElementById("story_organiser").style.display = "block";
           break;
@@ -440,6 +443,9 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = null;
           break;
+        case "playCards":
+          this.hand.onCardRemoved = null;
+          break;
         case "dummy":
           break;
       }
@@ -458,12 +464,13 @@ define([
             this.statusBar.addActionButton(_("Confirm Selection"), () => this.confirmProtagonistSelection(), {
               id: "confirm_protagonist_selection",
               color: "secondary",
-            }).style.visibility = 'hidden';
+            }).style.visibility = "hidden";
             break;
           case "playCards":
             this.statusBar.addActionButton(_("Pass"), () => this.bgaPerformAction("actPass", { force: true }), {
+              id: "pass_button",
               color: "secondary",
-            });
+            }).style.visibility = "hidden";
             // TODO remove after tests
             this.statusBar.addActionButton(
               _("Story Check"),
@@ -526,6 +533,26 @@ define([
         location_arg: card.location_arg,
       };
     },
+
+    canCardBePlayedInLocation: function (card, location) {
+      // Check if the card can be played in the specified location
+      console.log("canCardBePlayedInLocation", card, location);
+      if (!card || !location) return false;
+
+      switch (location) {
+        case "hand":
+          return false;
+        case "memory":
+          return card.consequence_white || card.consequence_grey;
+        case "graveyard":
+          return false;
+        case "escaped":
+          return card.consequence_black;
+        default:
+          return false;
+      }
+    },
+
     ///////////////////////////////////////////////////
     //// Player's action
 
@@ -556,9 +583,9 @@ define([
     onProtagonistSelectionChange: function (selection, lastchange) {
       console.log("onProtagonistSelectionChange", selection, lastchange);
       if (selection[0]) {
-        document.getElementById("confirm_protagonist_selection").style.visibility = 'visible';
+        document.getElementById("confirm_protagonist_selection").style.visibility = "visible";
       } else {
-        document.getElementById("confirm_protagonist_selection").style.visibility = 'hidden';
+        document.getElementById("confirm_protagonist_selection").style.visibility = "hidden";
       }
     },
 
@@ -570,6 +597,11 @@ define([
       if (card && card.type == "1") {
         this.bgaPerformAction("actPlayProtagonistCard", { card_id: card.id });
       }
+    },
+
+    onHandCardRemovedPhase1: function (card) {
+      console.log("onHandCardRemovedPhase1", card);
+      document.getElementById("pass_button").style.visibility = "visible";
     },
 
     onRuralDeckCardClick: function (card) {
@@ -585,33 +617,34 @@ define([
     onEscapedClick: function () {
       console.log("onEscapedClick");
       let card = this.hand.getSelection()[0];
-      if (card) {
+      if (card && this.canCardBePlayedInLocation(card, "escaped")) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
           location: "escaped",
         });
-      } else console.log("No card selected");
+      } 
     },
     onMemoryClick: function () {
       console.log("onMemoryClick");
       let card = this.hand.getSelection()[0];
-      if (card) {
+      if (card && this.canCardBePlayedInLocation(card, "memory")) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
           location: "memory",
         });
-      } else console.log("No card selected");
+      }
     },
     onGraveyardClick: function () {
       console.log("onGraveyardClick");
       let card = this.hand.getSelection()[0];
-      if (card) {
+      if (card && this.canCardBePlayedInLocation(card, "graveyard")) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
           location: "graveyard",
         });
-      } else console.log("No card selected");
+      }
     },
+
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
       // TODO send action to server
@@ -671,7 +704,7 @@ define([
         ["cardPlayed", 100],
         ["storyCheckStarted", 100],
         ["ressourceFlipped", 100],
-        ["disasterShuffledBack", 0],
+        ["disasterShuffledBack", 1],
         ["disasterDrawnFromBag", 100],
         ["characterPutInPlay", 100],
       ];

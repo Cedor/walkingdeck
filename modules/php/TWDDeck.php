@@ -27,7 +27,7 @@ class TWDDeck
         break;
       default: // rural and urban
         $cardInfo = $this->game->getObjectListFromDB(
-          "SELECT `card_name`, `is_zombie`, `is_character`, `weakness_1`, `weakness_2`, `weakness_3`, `wounds`
+          "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
           FROM `card_info` LEFT JOIN `character_info` ON `card_info`.`info_id` = `character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
