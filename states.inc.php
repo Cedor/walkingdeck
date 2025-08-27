@@ -61,7 +61,6 @@ $machinestates = [
         ->descriptionmyturn(clienttranslate('You must pick a protagonist'))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlayProtagonistCard",
         ])
         ->transitions([
@@ -74,9 +73,7 @@ $machinestates = [
         ->descriptionmyturn(clienttranslate('You must draw cards'))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
-            "actDrawFromRuralDeck",
-            "actDrawFromUrbanDeck",
+            "actDrawFromDeck",
             "actDrawFromDisasterBag",// TODO remove after tests
         ])
         ->transitions([
@@ -90,7 +87,6 @@ $machinestates = [
         ->descriptionmyturn(clienttranslate('You must play cards'))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actPlayCard",
             "actPass",
             "actGoToStoryCheck",// TODO remove after tests
@@ -100,7 +96,8 @@ $machinestates = [
         ->transitions([
             "keepPlaying" => 4,
             "nextTurn" => 3,
-            "storyCheck" => 5
+            "storyCheck" => 5,
+            "gameEnd" => 99
         ])
         ->build(),
     5 => GameStateBuilder::create()
@@ -127,7 +124,6 @@ $machinestates = [
         ->description(clienttranslate('Story check player choice'))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            // these actions are called from the front with bgaPerformAction, and matched to the function on the game.php file
             "actStoryCheckPlayerChoice",
             "actPutCharacterInPlay",
         ])
@@ -140,7 +136,6 @@ $machinestates = [
         ->description(clienttranslate('Story check game win/loss'))
         ->type(StateType::GAME)
         ->action('stStoryCheckGameWinLoss')
-
         ->transitions([
             "nextStep" => 6,
             "gameEnd" => 99

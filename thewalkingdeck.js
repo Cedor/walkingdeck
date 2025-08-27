@@ -30,6 +30,7 @@ define([
       this.difficulty = 1;
       this.gamePhase = 1;
       this.lossCondition = 5; //default value
+      this.stateConnectors = [];
     },
 
     /*
@@ -413,8 +414,16 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
+        case "drawCards":
+          this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
+          this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
+          break;
         case "playCards":
-          this.hand.onCardRemoved = this.onHandCardRemovedPhase1;
+          if (this.hand.getCardCount() < 3) {
+            document.getElementById("pass_button").style.visibility = "visible";
+          } else {
+            document.getElementById("pass_button").style.visibility = "hidden";
+          }
           break;
         case "storyCheck":
           document.getElementById("story_organiser").style.display = "block";
@@ -443,8 +452,11 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = null;
           break;
+        case "drawCards":
+          this.stateConnectors.forEach(conn => dojo.disconnect(conn));
+          this.stateConnectors = [];
+          break;
         case "playCards":
-          this.hand.onCardRemoved = null;
           break;
         case "dummy":
           break;
@@ -470,7 +482,7 @@ define([
             this.statusBar.addActionButton(_("Pass"), () => this.bgaPerformAction("actPass", { force: true }), {
               id: "pass_button",
               color: "secondary",
-            }).style.visibility = "hidden";
+            });
             // TODO remove after tests
             this.statusBar.addActionButton(
               _("Story Check"),
@@ -568,15 +580,11 @@ define([
         */
     setupConnections: function () {
       console.log("Setting up connections");
-      dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick");
-      dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick");
       dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
-      // TODO allowing only in phase 2
       dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
-      // TODO rework
       dojo.connect(document.getElementById("characters_wrap"), "onclick", this, "onCharactersWrapClick");
     },
 
@@ -599,19 +607,14 @@ define([
       }
     },
 
-    onHandCardRemovedPhase1: function (card) {
-      console.log("onHandCardRemovedPhase1", card);
-      document.getElementById("pass_button").style.visibility = "visible";
-    },
-
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
-      this.bgaPerformAction("actDrawFromRuralDeck");
+      this.bgaPerformAction("actDrawFromDeck",{location:"deck_rural"});
     },
 
     onUrbanDeckCardClick: function (card) {
       console.log("onUrbanDeckCardClick");
-      this.bgaPerformAction("actDrawFromUrbanDeck");
+      this.bgaPerformAction("actDrawFromDeck",{location:"deck_urban"});
     },
 
     onEscapedClick: function () {
@@ -651,11 +654,15 @@ define([
         this.bgaPerformAction("actFlipRessource", { token_id: token.id });
     },
 
+    // TODO allowing only in phase 2
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
-      this.bgaPerformAction("actDrawFromDisasterBag");
+      if (this.gamePhase == 2) {
+        this.bgaPerformAction("actDrawFromDisasterBag");
+      }
     },
 
+    // TODO rework
     onCharactersWrapClick: function () {
       console.log("onCharactersWrapClick");
       let card = this.hand.getSelection()[0];
@@ -697,8 +704,8 @@ define([
       // table of notif type to delay in milliseconds
       const notifs = [
         ["protagonistCardPlayed", 100],
-        ["cardDrawnFromRuralDeck", 100],
-        ["cardDrawnFromUrbanDeck", 100],
+        ["cardDrawnFromRuralDeck", 1],
+        ["cardDrawnFromUrbanDeck", 1],
         ["cardPlayed", 100],
         ["storyCheckStarted", 100],
         ["ressourceFlipped", 100],
@@ -707,6 +714,8 @@ define([
         ["characterPutInPlay", 100],
         ["ressourceConsumed", 1],
         ["ressourceRefilled", 1],
+        ["specialDraw", 100],
+        ["cardMoved", 100]
       ];
 
       notifs.forEach((notif) => {
@@ -839,5 +848,22 @@ define([
       let token = notif.args;
       this.ressourcesManager.flipCard(token);
     },
+    notif_specialDraw: function (notif) {
+      console.log("notif_specialDraw");
+      console.log(notif);
+      let card = notif.args.card;
+      if (card) {
+        this.memory.addCard(card, { fromStock: this.hans });
+      }
+    },
+    notif_cardMoved: function (notif) {
+      console.log("notif_cardMoved");
+      console.log(notif);
+      let card = notif.args.card;
+      let destination = this.getLocation(notif.args.location);
+      if (card && destination) {
+        destination.addCard(card);
+      }
+    }
   });
 });

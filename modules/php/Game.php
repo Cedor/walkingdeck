@@ -78,7 +78,7 @@ class Game extends \Table
         });*/
     }
 
-    public function getCards(): \Bga\GameFramework\Components\Deck
+    public function getCardManager(): \Bga\GameFramework\Components\Deck
     {
         return $this->cards;
     }
@@ -141,68 +141,65 @@ class Game extends \Table
         $this->actPass();
     }
 
+    private function moveCard(int $card_id, string $location, int $location_arg = 0): void
+    {
+        $this->deckManager->moveCard($card_id, $location, $location_arg);
+        $card = $this->deckManager->getCard($card_id);
+        $card_name = $card["card_name"];
+        $this->notify->all("cardMoved", \clienttranslate("Card $card_name moved to $location"), array(
+            "card" => $card,
+            "location" => $location
+        ));
+    }
 
     /**
      * Parse and execute the consequence string
      * This is THE function that handles the consequences of card actions
      */
-    private function parseAndExecuteConsequence(array $card,string $consequence): void
-    {
-        // Parse and execute the consequence string
-        // This is a placeholder implementation; you need to implement the actual parsing logic based on your game's rules
-        $actions = explode(',', $consequence);
-        foreach ($actions as $action) {
-            $action = trim($action);
-            if (empty($action)) {
-                continue;
-            }
-
-            if (preg_match('/^nothing$/', $action, $matches)) {
-                // nothing to do
-                return;
-            } elseif (preg_match('/^stuff$/', $action, $matches)) {
-                // unmanaged action
-                // TODO remove
-                $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array());
-            } elseif (preg_match('/^draw (\d+) cards$/', $action, $matches)) {
-                $numCards = intval($matches[1]);
-                // TODO go to special draw step
-            } elseif (preg_match('/^gain ressource (\w+)$/', $action, $matches)) {
-                $this->ressources->refillRessources($matches[1]);
-            } elseif (preg_match('/^lose ressource (\w+)$/', $action, $matches)) {
-                $this->ressources->consumeRessources($matches[1]);
-            } elseif (preg_match('/^bury (\w+)$/', $action, $matches)) {
-                // TODO implement bury action
-                switch ($matches[1]) {
-                    case "this":
-                        //$this->deckManager->buryCard($this->deckManager->getCard($matches[1]));
-                        break;
-                    case "character":
-                        break;
-                    case "topCard":
-                        break;
-                }
-            } elseif (preg_match('/^bite (\d+)$/', $action, $matches)) {
-                $biteValue = intval($matches[1]);
-                // TODO must ask player to assign damages
-            }
-        }
-    }
-
     private function applyConsequence(array $card, string $color): void
     {
         // Apply the consequence of the card based on its color
-        switch ($color) {
-            case "white":
-                if ($card['consequence_white']) {
-                    $this->parseAndExecuteConsequence($card, $card['consequence_white']);
+        $consequence = $card['consequence_' . $color];
+        if ($consequence) {
+            // Parse and execute the consequence string
+            // This is a placeholder implementation; you need to implement the actual parsing logic based on your game's rules
+            $actions = explode(',', $consequence);
+            foreach ($actions as $action) {
+                $action = trim($action);
+                if (empty($action)) {
+                    continue;
                 }
-                break;
-            case "black":
-                if ($card['consequence_black']) {
-                    $this->parseAndExecuteConsequence($card, $card['consequence_black']);
+
+                if (preg_match('/^nothing$/', $action, $matches)) {
+                    // nothing to do
+                    return;
+                } elseif (preg_match('/^stuff$/', $action, $matches)) {
+                    // unmanaged action
+                    // TODO remove
+                    $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array("card" => $card));
+                } elseif (preg_match('/^draw (\d+) cards$/', $action, $matches)) {
+                    $numCards = intval($matches[1]);
+                    // TODO go to additionnal draw step
+                } elseif (preg_match('/^gain ressource (\w+)$/', $action, $matches)) {
+                    $this->ressources->refillRessources($matches[1]);
+                } elseif (preg_match('/^lose ressource (\w+)$/', $action, $matches)) {
+                    $this->ressources->consumeRessources($matches[1]);
+                } elseif (preg_match('/^bury (\w+)$/', $action, $matches)) {
+                    // TODO implement bury action
+                    switch ($matches[1]) {
+                        case "character":
+                            break;
+                        case "topCard":
+                            break;
+                        default: //should be bury this
+                            $this->moveCard(intval($card['id']), "graveyard");
+                    }
+                    $this->checkLoss();
+                } elseif (preg_match('/^bite (\d+)$/', $action, $matches)) {
+                    $biteValue = intval($matches[1]);
+                    // TODO must ask player to assign damages
                 }
-                break;
+            }
         }
     }
 
@@ -294,36 +291,35 @@ class Game extends \Table
     }
 
     /**
-     * Player action : drawing a card from Rural deck
+     * Player action : drawing a card from $location deck
      *
      * @throws BgaUserException
      */
-    public function actDrawFromRuralDeck(): void
+    public function actDrawFromDeck(string $location): void
     {
-        if ($this->deckManager->countCardInLocation('deck_rural') == 0) {
-            throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in rural deck");
+
+        if ($this->deckManager->countCardInLocation($location) == 0) {
+            throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in $location");
         }
-        $cardPicked = $this->deckManager->pickCard("deck_rural", 0);
-        $this->notify->all("cardDrawnFromRuralDeck", \clienttranslate("Card drawn from rural deck"), array(
-            "card" => $cardPicked
-        ));
+        $cardPicked = $this->deckManager->pickCard($location, 0);
+        if ($cardPicked['special_draw'] == 1) {
+            $this->specialDraw($cardPicked);
+        }
         $this->checkHand();
     }
-    /**
-     * Player action : drawing a card from Urban deck
-     *
-     * @throws BgaUserException
-     */
-    public function actDrawFromUrbanDeck(): void
+
+    private function specialDraw(array $card): void
     {
-        if ($this->deckManager->countCardInLocation("deck_urban") == 0) {
-            throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in urban deck");
-        }
-        $cardPicked = $this->deckManager->pickCard("deck_urban", 0);
-        $this->notify->all("cardDrawnFromUrbanDeck", \clienttranslate("Card drawn from urban deck"), array(
-            "card" => $cardPicked
+        // TODO implement special draw logic
+        $cardId = intval($card['id']);
+        $location = "memory";
+        $this->deckManager->insertCardOnExtremePosition($cardId, $location, true);
+        $card = $this->deckManager->getCard($cardId);
+        $this->notify->all("specialDraw", \clienttranslate("Special draw triggered by card " . $card['card_name']), array(
+            "card" => $card
         ));
-        $this->checkHand();
+        // transition vers draw step...
+        $this->gamestate->nextState("drawAnotherCard");
     }
     private function checkHand(): void
     {
@@ -473,12 +469,18 @@ class Game extends \Table
         // TODO: implement win condition check
         return false;
     }
-    private function checkLoss(): bool
+    private function isLossReached(): bool
     {
-        // TODO: implement loss condition check
         $graveyardNb = $this->deckManager->countCardInLocation("graveyard");
-
         return $graveyardNb >= intval($this->getGameStateValue("lossCondition"));
+    }
+
+    private function checkLoss(): void
+    {
+        if ($this->isLossReached()) {
+            $this->notify->all("gameLoss", \clienttranslate("You lost the game"));
+            $this->gamestate->nextState("gameEnd");
+        }
     }
 
     /**
@@ -487,7 +489,7 @@ class Game extends \Table
     public function stStoryCheckGameWinLoss(): void
     {
         $win = $this->checkWin(); // TODO: check win condition
-        $loss = $this->checkLoss(); // TODO: check loss condition
+        $loss = $this->isLossReached(); // TODO: check loss condition
 
         // Go to following game state
         if ($loss) {

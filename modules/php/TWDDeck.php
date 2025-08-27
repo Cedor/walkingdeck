@@ -27,7 +27,7 @@ class TWDDeck
         break;
       default: // rural and urban
         $cardInfo = $this->game->getObjectListFromDB(
-          "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
+          "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
           FROM `card_info` LEFT JOIN `character_info` ON `card_info`.`info_id` = `character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
@@ -38,16 +38,20 @@ class TWDDeck
 
   public function pickCard(string $location, int $player_id): ?array
   {
-    $card = $this->game->getCards()->pickCard($location, $player_id);
+    $card = $this->game->getCardManager()->pickCard($location, $player_id);
     if ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-      return array_merge($card, $card_info[0] ?? []);
+      $finalCard = array_merge($card, $card_info[0] ?? []);
+      $this->game->notify->all("cardDrawnFrom" . ($location == "deck_rural" ? "Rural" : "Urban") . "Deck", \clienttranslate("Card drawn from $location deck"), array(
+        "card" => $finalCard
+      ));
+      return $finalCard;
     }
     return null;
   }
   public function getCard(int $card_id): array
   {
-    $card = $this->game->getCards()->getCard($card_id);
+    $card = $this->game->getCardManager()->getCard($card_id);
     if ($card === null) {
       throw new \InvalidArgumentException("Card with ID $card_id does not exist.");
     }
@@ -56,7 +60,7 @@ class TWDDeck
   }
   function getCardsInLocation(string $location, ?int $location_arg = null, ?string $order_by = null): array
   {
-    $cards = $this->game->getCards()->getCardsInLocation($location, $location_arg, $order_by);
+    $cards = $this->game->getCardManager()->getCardsInLocation($location, $location_arg, $order_by);
     return array_map(function ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
       return array_merge($card, $card_info[0] ?? []);
@@ -64,7 +68,7 @@ class TWDDeck
   }
   public function getCardOnTop(string $location): ?array
   {
-    $card = $this->game->getCards()->getCardOnTop($location);
+    $card = $this->game->getCardManager()->getCardOnTop($location);
     if ($card === null) {
       return null;
     }
@@ -73,19 +77,19 @@ class TWDDeck
   }
   public function countCardInLocation(string $location, ?int $location_arg = null): int
   {
-    return $this->game->getCards()->countCardInLocation($location, $location_arg);
+    return $this->game->getCardManager()->countCardInLocation($location, $location_arg);
   }
   public function insertCardOnExtremePosition(int $card_id, string $location, bool $bOnTop): void
   {
-    $this->game->getCards()->insertCardOnExtremePosition($card_id, $location, $bOnTop);
+    $this->game->getCardManager()->insertCardOnExtremePosition($card_id, $location, $bOnTop);
   }
   public function moveCard(int $card_id, string $location, int $location_arg = 0): void
   {
-    $this->game->getCards()->moveCard($card_id, $location, $location_arg);
+    $this->game->getCardManager()->moveCard($card_id, $location, $location_arg);
   }
   public function moveAllCardsInLocation(?string $from_location, ?string $to_location, ?int $from_location_arg = null, int $to_location_arg = 0): void
   {
-    $this->game->getCards()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
+    $this->game->getCardManager()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
   }
   public function generateFakeCard($card): array
   {
@@ -132,10 +136,10 @@ class TWDDeck
           break;
       }
     }
-    $this->game->getCards()->createCards($prota, 'hand');
-    $this->game->getCards()->createCards($rural, 'deck_rural');
-    $this->game->getCards()->shuffle('deck_rural');
-    $this->game->getCards()->createCards($urban, 'deck_urban');
-    $this->game->getCards()->shuffle('deck_urban');
+    $this->game->getCardManager()->createCards($prota, 'hand');
+    $this->game->getCardManager()->createCards($rural, 'deck_rural');
+    $this->game->getCardManager()->shuffle('deck_rural');
+    $this->game->getCardManager()->createCards($urban, 'deck_urban');
+    $this->game->getCardManager()->shuffle('deck_urban');
   }
 }
