@@ -63,6 +63,10 @@
         background-repeat: none;
     }
 */
+.twd-highlight {
+    box-shadow: 0 0 8px 8px orange;
+}
+
 #table_organiser {
   position: relative;
   width: max-content;

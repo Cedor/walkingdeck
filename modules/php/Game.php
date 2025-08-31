@@ -123,9 +123,10 @@ class Game extends \Table
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
-            $this->notify->all("cardPlayed", \clienttranslate("Card $card_name played from hand to $location"), array(
+            $this->notify->all("cardMoved", \clienttranslate("Card $card_name played from hand to $location"), array(
                 "card" => $card,
-                "location" => $location
+                "destination" => $location,
+                "source" => "hand"
             ));
             switch ($location) {
                 case "memory":
@@ -143,12 +144,14 @@ class Game extends \Table
 
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
     {
+        $source = $this->deckManager->getCard($card_id)["location"]; 
         $this->deckManager->moveCard($card_id, $location, $location_arg);
         $card = $this->deckManager->getCard($card_id);
         $card_name = $card["card_name"];
-        $this->notify->all("cardMoved", \clienttranslate("Card $card_name moved to $location"), array(
+        $this->notify->all("cardMoved", \clienttranslate("Card $card_name moved from $source to $location"), array(
             "card" => $card,
-            "location" => $location
+            "destination" => $location,
+            "source" => $source
         ));
     }
 
@@ -303,24 +306,28 @@ class Game extends \Table
         }
         $cardPicked = $this->deckManager->pickCard($location, 0);
         if ($cardPicked['special_draw'] == 1) {
-            $this->specialDraw($cardPicked);
+            $cardId = intval($cardPicked['id']);
+            $destination = "memory";
+            $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
+            $card = $this->deckManager->getCard($cardId);
+            $this->notify->all("cardMoved", \clienttranslate("Special draw triggered by card " . $card['card_name']), array(
+                "card" => $card,
+                "source" => $location,
+                "destination" => $destination,
+                "special" => true
+            ));
+            // transition vers draw step...
+            $this->gamestate->nextState("drawAnotherCard");
+        } else {
+            $this->notify->all("cardMoved", \clienttranslate("Card drawn from " . ($location == "deck_rural" ? "Rural" : "Urban") . " deck"), array(
+                "card" => $cardPicked,
+                "source" => $location,
+                "destination" => "hand"
+            ));
         }
         $this->checkHand();
     }
 
-    private function specialDraw(array $card): void
-    {
-        // TODO implement special draw logic
-        $cardId = intval($card['id']);
-        $location = "memory";
-        $this->deckManager->insertCardOnExtremePosition($cardId, $location, true);
-        $card = $this->deckManager->getCard($cardId);
-        $this->notify->all("specialDraw", \clienttranslate("Special draw triggered by card " . $card['card_name']), array(
-            "card" => $card
-        ));
-        // transition vers draw step...
-        $this->gamestate->nextState("drawAnotherCard");
-    }
     private function checkHand(): void
     {
         if ($this->deckManager->countCardInLocation('hand') > 2 || ($this->deckManager->countCardInLocation('deck_rural') == 0 && $this->deckManager->countCardInLocation('deck_urban') == 0)) {

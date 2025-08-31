@@ -125,7 +125,7 @@ define([
       this.cardsManager = new BgaCards.Manager({
         animationManager: this.animationManager,
         type: "twd-card",
-        getId: (card) => `card-${card.id}`,
+        getId: (card) => `${card.id}`,
         setupDiv: (card, div) => {
           div.classList.add("twd-card");
         },
@@ -453,7 +453,7 @@ define([
           this.hand.onSelectionChange = null;
           break;
         case "drawCards":
-          this.stateConnectors.forEach(conn => dojo.disconnect(conn));
+          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
           this.stateConnectors = [];
           break;
         case "playCards":
@@ -518,6 +518,10 @@ define([
           return this.graveyard;
         case "escaped":
           return this.escaped;
+        case "deck_rural":
+          return this.ruralDeck;
+        case "deck_urban":
+          return this.urbanDeck;
         default:
           console.log("Unknown location: " + location);
           return null;
@@ -565,6 +569,31 @@ define([
       }
     },
 
+    moveCardToLocation: async function (card, destination, source = "hand", special = false) {
+      console.log("moveCardToLocation", card, destination, source);
+      if (!card || !location) return;
+      let settings = { fromStock: this.getLocation(source) };
+      switch (destination) {
+        case "graveyard":
+          card = this.generateFakeCard(card);
+          settings.autoRemovePreviousCards = true;
+          break;
+        case "memory":
+          settings.autoRemovePreviousCards = true;
+          break;
+        case "escaped":
+          break;
+        default:
+          console.log("Unknown location for card played", destination);
+          return;
+      }
+      // Move the card to the new location
+      await this.getLocation(destination).addCard(card, settings);
+      if (special){
+        document.getElementById(`twd-card-${card.id}`).classList.add("twd-highlight");
+      }
+    },
+
     ///////////////////////////////////////////////////
     //// Player's action
 
@@ -580,12 +609,19 @@ define([
         */
     setupConnections: function () {
       console.log("Setting up connections");
+      dojo.connect(document.getElementById("game_play_area"), "onclick", this, "dispellHighlight");
       dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
       dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
       dojo.connect(document.getElementById("characters_wrap"), "onclick", this, "onCharactersWrapClick");
+    },
+
+    dispellHighlight: function () {
+      document.querySelectorAll(".twd-highlight").forEach((el) => {
+        el.classList.remove("twd-highlight");
+      });
     },
 
     onProtagonistSelectionChange: function (selection, lastchange) {
@@ -609,12 +645,12 @@ define([
 
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
-      this.bgaPerformAction("actDrawFromDeck",{location:"deck_rural"});
+      this.bgaPerformAction("actDrawFromDeck", { location: "deck_rural" });
     },
 
     onUrbanDeckCardClick: function (card) {
       console.log("onUrbanDeckCardClick");
-      this.bgaPerformAction("actDrawFromDeck",{location:"deck_urban"});
+      this.bgaPerformAction("actDrawFromDeck", { location: "deck_urban" });
     },
 
     onEscapedClick: function () {
@@ -677,145 +713,50 @@ define([
 
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
-
-    /*
-            setupNotifications:
-            
-            In this method, you associate each of your game notifications with your local method to handle it.
-            
-            Note: game notification names correspond to "notifyAllPlayers" and "notifyPlayer" calls in
-                  your thewalkingdeck.game.php file.
-        
-        */
     setupNotifications: function () {
       console.log("notifications subscriptions setup");
-
-      // TODO: here, associate your game notifications with local methods
-
-      // Example 1: standard notification handling
-      // dojo.subscribe( 'cardPlayed', this, "notif_cardPlayed" );
-
-      // Example 2: standard notification handling + tell the user interface to wait
-      //            during 3 seconds after calling the method in order to let the players
-      //            see what is happening in the game.
-      // dojo.subscribe( 'cardPlayed', this, "notif_cardPlayed" );
-      // this.notifqueue.setSynchronous( 'cardPlayed', 3000 );
-      //
-      // table of notif type to delay in milliseconds
-      const notifs = [
-        ["protagonistCardPlayed", 100],
-        ["cardDrawnFromRuralDeck", 1],
-        ["cardDrawnFromUrbanDeck", 1],
-        ["cardPlayed", 100],
-        ["storyCheckStarted", 100],
-        ["ressourceFlipped", 100],
-        ["disasterShuffledBack", 1],
-        ["disasterDrawnFromBag", 100],
-        ["characterPutInPlay", 100],
-        ["ressourceConsumed", 1],
-        ["ressourceRefilled", 1],
-        ["specialDraw", 100],
-        ["cardMoved", 100]
-      ];
-
-      notifs.forEach((notif) => {
-        dojo.subscribe(notif[0], this, `notif_${notif[0]}`);
-        this.notifqueue.setSynchronous(notif[0], notif[1]);
-        console.log(`Subscribed to notification ${notif[0]} with delay ${notif[1]}ms`);
-      });
+      // automatically listen to the notifications, based on the `notif_xxx` function on this class.
+      this.bgaSetupPromiseNotifications();
     },
 
-    // TODO: from this point and below, you can write your game notifications handling methods
-
-    /*
-        Example:
-        
-        notif_cardPlayed: function( notif )
-        {
-            console.log( 'notif_cardPlayed' );
-            console.log( notif );
-            
-            // Note: notif.args contains the arguments specified during you "notifyAllPlayers" / "notifyPlayer" PHP call
-            
-            // TODO: play the card in the user interface.
-        },    
-        
-        */
-    notif_protagonistCardPlayed: function (notif) {
+    notif_protagonistCardPlayed: function (args) {
       console.log("notif_protagonistCardPlayed");
-      console.log(notif);
-      let card = notif.args.card;
+      console.log(args);
+      let card = args.card;
       if (card) {
         this.protagonistSlot.addCard(card, { fromStock: this.hand });
         this.hand.removeAll();
-        this.lossCondition = notif.args.lossCondition;
+        this.lossCondition = args.lossCondition;
       }
     },
-    notif_cardDrawnFromRuralDeck: function (notif) {
-      console.log("notif_cardDrawnFromRuralDeck");
-      console.log(notif);
-      let card = notif.args.card;
-      console.log("Card drawn from rural deck", card);
-      if (card) {
-        this.hand.addCard(card, { fromStock: this.ruralDeck });
-      }
+    notif_cardDrawn: async function (args) {
+      console.log("notif_cardDrawn");
+      console.log(args);
+      let card = args.card;
+      let source = this.getLocation(args.source);
+      let destination = this.getLocation(args.destination);
+      await destination.addCard(card, { fromStock: source });
     },
-    notif_cardDrawnFromUrbanDeck: function (notif) {
-      console.log("notif_cardDrawnFromUrbanDeck");
-      console.log(notif);
-      let card = notif.args.card;
-      if (card) {
-        this.hand.addCard(card, { fromStock: this.urbanDeck });
-      }
-    },
-    notif_cardPlayed: function (notif) {
-      console.log("notif_cardPlayed");
-      // console.log(notif);
-      let card = notif.args.card;
-      let destination = this.getLocation(notif.args.location);
-      console.log("Card played", card, "to location", notif.args.location);
-      if (card && destination) {
-        switch (notif.args.location) {
-          case "memory":
-            this.memory.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
-            break;
-          case "graveyard":
-            this.hand.removeCard(card);
-            let fakeCard = this.generateFakeCard(card);
-            console.log("Fake card generated for graveyard", fakeCard);
-            card.type = fakeCard.type;
-            console.log("Card to be added to graveyard", card);
-            this.graveyard.addCard(card, { autoRemovePreviousCards: true, fromStock: this.hand });
-            break;
-          case "escaped":
-            this.escaped.addCard(card, { fromStock: this.hand });
-            break;
-          default:
-            console.log("Unknown location for card played", notif.args.location);
-        }
-      }
-    },
-    notif_storyCheckStarted: function (notif) {
+    notif_storyCheckStarted: function (args) {
       console.log("notif_storyCheckStarted");
-      console.log(notif);
-      let card = this.memory.getTopCard();
-      this.memory.addCard(notif.args.memoryTopCard, {
+      console.log(args);
+      this.memory.addCard(args.memoryTopCard, {
         fadeIn: true,
         autoupdateCardNumber: false,
         autoRemovePreviousCards: true,
       });
     },
-    notif_ressourceFlipped: function (notif) {
+    notif_ressourceFlipped: function (args) {
       console.log("notif_ressourceFlipped");
-      console.log(notif);
-      let token = notif.args.token;
+      console.log(args);
+      let token = args.token;
       this.ressourcesSlots.flipCard(token);
     },
-    notif_disasterDrawnFromBag: function (notif) {
+    notif_disasterDrawnFromBag: function (args) {
       console.log("notif_disasterDrawnFromBag");
-      console.log(notif);
-      let disaster = notif.args.disaster;
-      let shuffle = notif.args.shuffle;
+      console.log(args);
+      let disaster = args.disaster;
+      let shuffle = args.shuffle;
       if (shuffle) {
         this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
       }
@@ -823,47 +764,36 @@ define([
         this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
       }
     },
-    notif_disasterShuffledBack: function (notif) {
+    // TODO Remove
+    notif_disasterShuffledBack: function (args) {
       console.log("notif_disasterShuffledBack");
-      console.log(notif);
+      console.log(args);
       this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
     },
-    notif_characterPutInPlay: function (notif) {
+    notif_characterPutInPlay: function (args) {
       console.log("notif_characterPutInPlay");
-      console.log(notif);
-      let card = notif.args.card;
+      console.log(args);
+      let card = args.card;
       if (card) {
-        this.characters.addCard(card, { fromStock: this.hand });
+        this.characters.addCard(card);
       }
     },
-    notif_ressourceConsumed: function (notif) {
+    notif_ressourceConsumed: function (args) {
       console.log("notif_ressourceConsumed");
-      console.log(notif);
-      let token = notif.args;
+      console.log(args);
+      let token = args;
       this.ressourcesManager.flipCard(token);
     },
-    notif_ressourceRefilled: function (notif) {
+    notif_ressourceRefilled: function (args) {
       console.log("notif_ressourceRefilled");
-      console.log(notif);
-      let token = notif.args;
+      console.log(args);
+      let token = args;
       this.ressourcesManager.flipCard(token);
     },
-    notif_specialDraw: function (notif) {
-      console.log("notif_specialDraw");
-      console.log(notif);
-      let card = notif.args.card;
-      if (card) {
-        this.memory.addCard(card, { fromStock: this.hans });
-      }
-    },
-    notif_cardMoved: function (notif) {
+    notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
-      console.log(notif);
-      let card = notif.args.card;
-      let destination = this.getLocation(notif.args.location);
-      if (card && destination) {
-        destination.addCard(card);
-      }
-    }
+      console.log(args);
+      await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
+    },
   });
 });

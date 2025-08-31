@@ -42,9 +42,6 @@ class TWDDeck
     if ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
       $finalCard = array_merge($card, $card_info[0] ?? []);
-      $this->game->notify->all("cardDrawnFrom" . ($location == "deck_rural" ? "Rural" : "Urban") . "Deck", \clienttranslate("Card drawn from $location deck"), array(
-        "card" => $finalCard
-      ));
       return $finalCard;
     }
     return null;
