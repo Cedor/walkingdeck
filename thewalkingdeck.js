@@ -415,6 +415,7 @@ define([
           this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
         case "drawCards":
+        case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
           this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
           break;
@@ -453,6 +454,7 @@ define([
           this.hand.onSelectionChange = null;
           break;
         case "drawCards":
+        case "specialDraw":
           this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
           this.stateConnectors = [];
           break;
@@ -582,14 +584,15 @@ define([
           settings.autoRemovePreviousCards = true;
           break;
         case "escaped":
+        case "hand":
           break;
         default:
-          console.log("Unknown location for card played", destination);
+          console.log("Unknown/Illegal destination for card movement", destination);
           return;
       }
       // Move the card to the new location
       await this.getLocation(destination).addCard(card, settings);
-      if (special){
+      if (special) {
         document.getElementById(`twd-card-${card.id}`).classList.add("twd-highlight");
       }
     },
@@ -687,7 +690,7 @@ define([
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
       // TODO send action to server
-        this.bgaPerformAction("actFlipRessource", { token_id: token.id });
+      this.bgaPerformAction("actFlipRessource", { token_id: token.id });
     },
 
     // TODO allowing only in phase 2

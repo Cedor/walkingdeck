@@ -78,7 +78,24 @@ $machinestates = [
         ])
         ->transitions([
             "drawAnotherCard" => 3,
-            "ready" => 4
+            "specialDraw" => 31,
+            "playCards" => 4,
+            "storyCheck" => 5,
+        ])
+        ->build(),
+    31 => GameStateBuilder::create()
+        ->name('specialDraw')
+        ->description(clienttranslate('You must draw a card'))
+        ->descriptionmyturn(clienttranslate('You must draw a card (special draw)')) // TODO revise after tests
+        ->type(StateType::ACTIVE_PLAYER)
+        ->possibleactions([
+            "actDrawFromDeck",
+        ])
+        ->transitions([
+            "specialDrawAnotherCard" => 31,
+            "drawAnotherCard" => 3,
+            "playCards" => 4,
+            "storyCheck" => 5,
         ])
         ->build(),
     4 => GameStateBuilder::create()
@@ -95,7 +112,8 @@ $machinestates = [
         ])
         ->transitions([
             "keepPlaying" => 4,
-            "nextTurn" => 3,
+            "drawCards" => 3,
+            "specialDrawCards" => 31,
             "storyCheck" => 5,
             "gameEnd" => 99
         ])

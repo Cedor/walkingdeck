@@ -51,7 +51,9 @@ class Game extends \Table
             "lossCondition" => 12,
             "ressource1" => 13,
             "ressource2" => 14,
-            "ressource3" => 15
+            "ressource3" => 15,
+            "additionalDraws" => 16, // additional draws given by cards (default init to 0)
+            "additionalDrawsCall" => 17 // 1 return to draw state, 2 return to play state (default init to 0)
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
@@ -98,6 +100,65 @@ class Game extends \Table
         $this->setGameStateValue('gamePhase', $phase);
     }
 
+    private function getAdditionalDraws(): int
+    {
+        return intval($this->getGameStateValue("additionalDraws"));
+    }
+
+    private function setAdditionalDraws(int $nb): void
+    {
+        $this->setGameStateValue("additionalDraws", $nb < 0 ? 0 : $nb);
+        if ($nb < 0) throw new \BgaUserException($this->_("Illegal call to setAdditionalDraws with") . $nb);
+    }
+
+    private function increaseAdditionalDraws($nb = 1): void
+    {
+        $this->setAdditionalDraws($this->getAdditionalDraws() + $nb);
+    }
+
+    private function decreaseAdditionalDraws(): void
+    {
+        $this->setAdditionalDraws($this->getAdditionalDraws() - 1);
+    }
+
+    private function getAdditionalDrawsCall(): string
+    {
+        $val = intval($this->getGameStateValue("additionalDrawsCall"));
+        $nextState = "";
+        switch ($val) {
+            case 1:
+                $nextState = "drawAnotherCard";
+                break;
+            case 2:
+                $nextState = "playCards";
+                break;
+            default:
+                $nextState = "none";
+                break;
+        }
+        return $nextState;
+    }
+
+    private function setAdditionalDrawsCall(string $nextState): void
+    {
+        $val = 0;
+        switch ($nextState) {
+            case "drawAnotherCard":
+                $val = 1;
+                break;
+            case "playCards":
+                $val = 2;
+                break;
+            case "none":
+                $val = 0;
+                break;
+            default:
+                throw new \BgaUserException($this->_("Illegal value for additionalDrawsCall: ") . $nextState);
+        }
+
+        $this->setGameStateValue("additionalDrawsCall", $val);
+    }
+
     private function setLossCondition(array $card): int
     {
         // TODO: implement loss condition check
@@ -119,6 +180,7 @@ class Game extends \Table
     {
         $card = $this->deckManager->getCard($card_id);
         $card_name = "";
+        $forcePass = false;
         if ($card && $card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
@@ -130,21 +192,21 @@ class Game extends \Table
             ));
             switch ($location) {
                 case "memory":
-                    $this->applyConsequence($card, "white");
+                    $forcePass = $this->applyConsequence($card, "white");
                     break;
                 case "escaped":
-                    $this->applyConsequence($card, "black");
+                    $forcePass = $this->applyConsequence($card, "black");
                     break;
             }
         } else {
             throw new \BgaUserException($this->_("Illegal Move: ") . "$card_name ($card_id) cannot be played from hand to location $location");
         }
-        $this->actPass();
+        $this->actPass($forcePass);
     }
 
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
     {
-        $source = $this->deckManager->getCard($card_id)["location"]; 
+        $source = $this->deckManager->getCard($card_id)["location"];
         $this->deckManager->moveCard($card_id, $location, $location_arg);
         $card = $this->deckManager->getCard($card_id);
         $card_name = $card["card_name"];
@@ -159,10 +221,11 @@ class Game extends \Table
      * Parse and execute the consequence string
      * This is THE function that handles the consequences of card actions
      */
-    private function applyConsequence(array $card, string $color): void
+    private function applyConsequence(array $card, string $color): bool
     {
         // Apply the consequence of the card based on its color
         $consequence = $card['consequence_' . $color];
+        $forcePass = false;
         if ($consequence) {
             // Parse and execute the consequence string
             // This is a placeholder implementation; you need to implement the actual parsing logic based on your game's rules
@@ -175,14 +238,12 @@ class Game extends \Table
 
                 if (preg_match('/^nothing$/', $action, $matches)) {
                     // nothing to do
-                    return;
-                } elseif (preg_match('/^stuff$/', $action, $matches)) {
-                    // unmanaged action
-                    // TODO remove
-                    $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array("card" => $card));
+                    return false;
                 } elseif (preg_match('/^draw (\d+) cards$/', $action, $matches)) {
                     $numCards = intval($matches[1]);
-                    // TODO go to additionnal draw step
+                    $this->increaseAdditionalDraws($numCards);
+                    $this->setAdditionalDrawsCall("playCards");
+                    $forcePass = true;
                 } elseif (preg_match('/^gain ressource (\w+)$/', $action, $matches)) {
                     $this->ressources->refillRessources($matches[1]);
                 } elseif (preg_match('/^lose ressource (\w+)$/', $action, $matches)) {
@@ -201,9 +262,13 @@ class Game extends \Table
                 } elseif (preg_match('/^bite (\d+)$/', $action, $matches)) {
                     $biteValue = intval($matches[1]);
                     // TODO must ask player to assign damages
+                } else {
+                    // Unrecognized action
+                    $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array("card" => $card));
                 }
             }
         }
+        return $forcePass;
     }
 
     private function consequenceCanBeResolved(array $card): bool
@@ -242,22 +307,25 @@ class Game extends \Table
             then if hand = 0 then start story check else return to same state et play a card
             else start new turn
         */
-        if ($force && $this->deckManager->countCardInLocation("hand") > 2)
+        if ($force && $this->deckManager->countCardInLocation("hand") > 2 && $this->getAdditionalDraws() == 0)
             throw new \BgaUserException($this->_("You can't pass, play some cards first."));
-        if ($force && $this->deckManager->countCardInLocation("deck_rural") == 0 && $this->deckManager->countCardInLocation("deck_urban") == 0)
-            throw new \BgaUserException($this->_("You can't pass, no cards left to draw."));
         if ($this->deckManager->countCardInLocation("deck_rural") == 0 && $this->deckManager->countCardInLocation("deck_urban") == 0) {
             if ($this->deckManager->countCardInLocation("hand") == 0)
                 // start story check
                 $this->gamestate->nextState("storyCheck");
             else {
-                // stay in same state
+                // keep playing (even with additional draws)
                 $this->gamestate->nextState("keepPlaying");
             }
         } else {
             if ($this->deckManager->countCardInLocation("hand") == 0 || $force) {
-                // start new turn
-                $this->gamestate->nextState("nextTurn");
+                // go draw again
+                if ($this->getAdditionalDraws() > 0) {
+                    // we have additional draws to do
+                    $this->gamestate->nextState("specialDrawCards");
+                } else {
+                    $this->gamestate->nextState("drawCards");
+                }
             } else {
                 // stay in same state
                 $this->gamestate->nextState("keepPlaying");
@@ -300,12 +368,22 @@ class Game extends \Table
      */
     public function actDrawFromDeck(string $location): void
     {
-
         if ($this->deckManager->countCardInLocation($location) == 0) {
             throw new \BgaUserException($this->_("Illegal Move: ") . "No card left in $location");
         }
+        // pick the card
         $cardPicked = $this->deckManager->pickCard($location, 0);
+
+        $additionalDraws = ($this->getAdditionalDraws() > 0);
+        if ($additionalDraws) {
+            //we are in the additional draw state
+            $this->decreaseAdditionalDraws();
+        }
         if ($cardPicked['special_draw'] == 1) {
+            $this->increaseAdditionalDraws();
+            if (!$additionalDraws) { //we were in a regular draw, we need to save current state
+                $this->setAdditionalDrawsCall("drawAnotherCard");
+            }
             $cardId = intval($cardPicked['id']);
             $destination = "memory";
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
@@ -316,8 +394,6 @@ class Game extends \Table
                 "destination" => $destination,
                 "special" => true
             ));
-            // transition vers draw step...
-            $this->gamestate->nextState("drawAnotherCard");
         } else {
             $this->notify->all("cardMoved", \clienttranslate("Card drawn from " . ($location == "deck_rural" ? "Rural" : "Urban") . " deck"), array(
                 "card" => $cardPicked,
@@ -325,15 +401,40 @@ class Game extends \Table
                 "destination" => "hand"
             ));
         }
-        $this->checkHand();
+        $this->checkHand($additionalDraws);
     }
 
-    private function checkHand(): void
+    private function checkHand(bool $additionalDraws = false): void
     {
-        if ($this->deckManager->countCardInLocation('hand') > 2 || ($this->deckManager->countCardInLocation('deck_rural') == 0 && $this->deckManager->countCardInLocation('deck_urban') == 0)) {
-            $this->gamestate->nextState("ready");
+        if ($this->deckManager->countCardInLocation('deck_rural') == 0 && $this->deckManager->countCardInLocation('deck_urban') == 0) {
+            // no matter which state we're in, there is no card left to draw
+            if ($this->deckManager->countCardInLocation("hand") == 0) {
+                // no card in hand, go to story check (very rare situation)
+                $this->gamestate->nextState("storyCheck");
+            } else {
+                $this->gamestate->nextState("playCards");
+            }
+        } else if ($additionalDraws) {
+            // we come from an additional draw state
+            $nextState = $this->getAdditionalDrawsCall();
+            if ($this->getAdditionalDraws() > 0) {
+                // we still have additionals draws
+                $this->gamestate->nextState("specialDrawAnotherCard");
+                //else return to previous situation
+            } else if ($nextState == "playCards" || $this->deckManager->countCardInLocation("hand") >= 3) {
+                $this->setAdditionalDrawsCall("none");
+                $this->gamestate->nextState("playCards");
+            } else {
+                $this->setAdditionalDrawsCall("none");
+                $this->gamestate->nextState("drawAnotherCard");
+            }
         } else {
-            $this->gamestate->nextState("drawAnotherCard");
+            // we are in regular draw situation
+            if ($this->deckManager->countCardInLocation("hand") >= 3) {
+                $this->gamestate->nextState("playCards");
+            } else {
+                $this->gamestate->nextState("drawAnotherCard");
+            }
         }
     }
 
@@ -660,6 +761,9 @@ class Game extends \Table
         $this->setGameStateInitialValue("gamePhase", 1);
         // Loss condition : number of buried events (default 5)
         $this->setGameStateInitialValue("lossCondition", 5);
+        // additional draws given by cards
+        $this->setGameStateInitialValue("additionalDraws", 0);
+        $this->setGameStateInitialValue("additionalDrawsCall", 0);
 
         // Init game statistics.
         //
