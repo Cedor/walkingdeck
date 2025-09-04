@@ -15,42 +15,39 @@ class TWDDeck
 
   private function getExtendedCardInfo(int $type, int $type_arg): array
   {
-    switch ($type) {
-      case 1: // protagonist
-        $cardInfo = $this->game->getObjectListFromDB(
-          "SELECT `card_name`, `losscon`
+    if ($type === 1) {
+      // protagonist
+      $cardInfo = $this->game->getObjectListFromDB(
+        "SELECT `card_name`, `losscon`
           FROM `card_info` JOIN `protagonist_info` ON `card_info`.`info_id` = `protagonist_info`.`info_id`
           WHERE `card_info`.`info_id` = `protagonist_info`.`info_id`
           AND `card_info`.`card_type` = $type
           AND `card_info`.`card_type_arg` = $type_arg"
-        );
-        if ($cardInfo) {
-          $cardInfo = $cardInfo[0];
-        } else {
-          $cardInfo = array();
-        }
-        break;
-      default: // rural and urban
-        $cardInfo = $this->game->getObjectListFromDB(
-          "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
+      );
+      if ($cardInfo) {
+        $cardInfo = $cardInfo[0];
+      } else {
+        $cardInfo = array();
+      }
+    } else { // type == 2 or 3
+      // rural and urban
+      $cardInfo = $this->game->getObjectListFromDB(
+        "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
           FROM `card_info` LEFT JOIN `character_info` ON `card_info`.`info_id` = `character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
-        );
-        if ($cardInfo) {
-          $cardInfo = $cardInfo[0];
-          if ($cardInfo["consequence_black"]) {
-            $cardInfo["consequence_black"] = json_decode($cardInfo["consequence_black"], true);
+      );
+      if ($cardInfo) {
+        $cardInfo = $cardInfo[0];
+        $ids = ['consequence_black', 'consequence_white', 'consequence_grey'];
+        foreach ($ids as $id) {
+          if ($cardInfo[$id]) {
+            $cardInfo[$id] = json_decode($cardInfo[$id], true);
           }
-          if ($cardInfo["consequence_white"]) {
-            $cardInfo["consequence_white"] = json_decode($cardInfo["consequence_white"], true);
-          }
-          if ($cardInfo["consequence_grey"]) {
-            $cardInfo["consequence_grey"] = json_decode($cardInfo["consequence_grey"], true);
-          }
-        }else {
-          $cardInfo = array();
         }
+      } else {
+        $cardInfo = array();
+      }
     }
     return $cardInfo;
   }
