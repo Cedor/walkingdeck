@@ -24,6 +24,11 @@ class TWDDeck
           AND `card_info`.`card_type` = $type
           AND `card_info`.`card_type_arg` = $type_arg"
         );
+        if ($cardInfo) {
+          $cardInfo = $cardInfo[0];
+        } else {
+          $cardInfo = array();
+        }
         break;
       default: // rural and urban
         $cardInfo = $this->game->getObjectListFromDB(
@@ -32,6 +37,20 @@ class TWDDeck
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
         );
+        if ($cardInfo) {
+          $cardInfo = $cardInfo[0];
+          if ($cardInfo["consequence_black"]) {
+            $cardInfo["consequence_black"] = json_decode($cardInfo["consequence_black"], true);
+          }
+          if ($cardInfo["consequence_white"]) {
+            $cardInfo["consequence_white"] = json_decode($cardInfo["consequence_white"], true);
+          }
+          if ($cardInfo["consequence_grey"]) {
+            $cardInfo["consequence_grey"] = json_decode($cardInfo["consequence_grey"], true);
+          }
+        }else {
+          $cardInfo = array();
+        }
     }
     return $cardInfo;
   }
@@ -41,7 +60,7 @@ class TWDDeck
     $card = $this->game->getCardManager()->pickCard($location, $player_id);
     if ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-      $finalCard = array_merge($card, $card_info[0] ?? []);
+      $finalCard = array_merge($card, $card_info);
       return $finalCard;
     }
     return null;
@@ -53,14 +72,14 @@ class TWDDeck
       throw new \InvalidArgumentException("Card with ID $card_id does not exist.");
     }
     $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-    return array_merge($card, $card_info[0] ?? []);
+    return array_merge($card, $card_info);
   }
   function getCardsInLocation(string $location, ?int $location_arg = null, ?string $order_by = null): array
   {
     $cards = $this->game->getCardManager()->getCardsInLocation($location, $location_arg, $order_by);
     return array_map(function ($card) {
       $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-      return array_merge($card, $card_info[0] ?? []);
+      return array_merge($card, $card_info);
     }, $cards);
   }
   public function getCardOnTop(string $location): ?array
@@ -70,7 +89,7 @@ class TWDDeck
       return null;
     }
     $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
-    return array_merge($card, $card_info[0] ?? []);
+    return array_merge($card, $card_info);
   }
   public function countCardInLocation(string $location, ?int $location_arg = null): int
   {

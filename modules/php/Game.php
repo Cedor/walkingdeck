@@ -181,7 +181,8 @@ class Game extends \Table
         $card = $this->deckManager->getCard($card_id);
         $card_name = "";
         $forcePass = false;
-        if ($card && $card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) {
+        $nextState = "pass";
+        if ($card && $card["location"] == "hand" && ($card["type"] == 2 || $card["type"] == 3) && $this->cardCanBePlayedInLocation($card, $location)) { // card can be played
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
@@ -190,18 +191,35 @@ class Game extends \Table
                 "destination" => $location,
                 "source" => "hand"
             ));
+            // now determine next step
             switch ($location) {
                 case "memory":
-                    $forcePass = $this->applyConsequence($card, "white");
+                    $this->notify->all("cardInMemory", \clienttranslate("Card $card_name placed in memory, we will apply white consequences"), array(
+                        "card" => $card,
+                    ));
+                    $nextState = $this->applyConsequences($card, "white");
                     break;
                 case "escaped":
-                    $forcePass = $this->applyConsequence($card, "black");
-                    break;
+                    $nextState = $this->applyConsequences($card, "black");
+            }
+            // go to next step
+            switch ($nextState) {
+                case "additionalDraws":
+                case "forcePass":
+                    $forcePass = true;
+                case "checkLoss":
+                    if ($this->isLossReached()) { // if loss is reached, got to end state and break execution
+                        $this->notify->all("gameLoss", \clienttranslate("You lost the game"));
+                        $this->gamestate->nextState("gameEnd");
+                        break;
+                    } // else continue to next turn/action
+                case "pass":
+                default:
+                    $this->actPass($forcePass);
             }
         } else {
             throw new \BgaUserException($this->_("Illegal Move: ") . "$card_name ($card_id) cannot be played from hand to location $location");
         }
-        $this->actPass($forcePass);
     }
 
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
@@ -218,57 +236,88 @@ class Game extends \Table
     }
 
     /**
-     * Parse and execute the consequence string
+     * Parse and execute ONE consequence array
      * This is THE function that handles the consequences of card actions
      */
-    private function applyConsequence(array $card, string $color): bool
+    private function applyConsequence(array $consequence, array $card): string
+    {
+        $nextState = "pass";
+        switch ($consequence['action']) {
+            case 'draw':
+                $numCards = intval($consequence['number']);
+                $this->increaseAdditionalDraws($numCards);
+                $this->setAdditionalDrawsCall("playCards");
+                $nextState = "additionalDraws";
+                break;
+            case 'consume':
+                $this->ressources->consumeRessources($consequence['ressource']);
+                break;
+            case 'restore':
+                $this->ressources->refillRessources($consequence['ressource']);
+                break;
+            case "bury":
+                switch ($consequence['bury']) {
+                    case "this":
+                        $this->moveCard(intval($card['id']), "graveyard");
+                        $nextState = "checkLoss";
+                        break;
+                    case "character":
+                        // TODO implement bury character
+                        break;
+                    case "topCard":
+                        // TODO implement bury top card
+                        break;
+                    default:
+                        throw new \BgaUserException($this->_("Illegal call to bury with ") . $consequence['bury']);
+                }
+                break;
+            case "bite":
+                // TODO implement bite damage (phase 2 only)
+                break;
+            case 'none':
+                //nothing to do
+                break;
+            default:
+                // Unrecognized action
+                $action = $consequence ? $consequence['action'] : 'none';
+                $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $action"), array("card" => $card));
+        }
+        return $nextState;
+    }
+    /**
+     * Parse and execute the array of consequences
+     */
+    private function applyConsequences(array $card, string $color): string
     {
         // Apply the consequence of the card based on its color
         $consequence = $card['consequence_' . $color];
-        $forcePass = false;
-        if ($consequence) {
-            // Parse and execute the consequence string
-            // This is a placeholder implementation; you need to implement the actual parsing logic based on your game's rules
-            $actions = explode(',', $consequence);
-            foreach ($actions as $action) {
-                $action = trim($action);
-                if (empty($action)) {
-                    continue;
-                }
-
-                if (preg_match('/^nothing$/', $action, $matches)) {
-                    // nothing to do
-                    return false;
-                } elseif (preg_match('/^draw (\d+) cards$/', $action, $matches)) {
-                    $numCards = intval($matches[1]);
-                    $this->increaseAdditionalDraws($numCards);
-                    $this->setAdditionalDrawsCall("playCards");
-                    $forcePass = true;
-                } elseif (preg_match('/^gain ressource (\w+)$/', $action, $matches)) {
-                    $this->ressources->refillRessources($matches[1]);
-                } elseif (preg_match('/^lose ressource (\w+)$/', $action, $matches)) {
-                    $this->ressources->consumeRessources($matches[1]);
-                } elseif (preg_match('/^bury (\w+)$/', $action, $matches)) {
-                    // TODO implement bury action
-                    switch ($matches[1]) {
-                        case "character":
+        $nextState = "pass";
+        if ($consequence && $consequence['action']) {
+            if ($consequence['action'] == 'multiple' && isset($consequence['number'])) {
+                // TODO remove after implementation
+                // temporary disable multiple actions
+                $this->notify->all("unmanagedAction", \clienttranslate("Multiple actions not yet implemented, skipping all actions"), array("card" => $card));
+                return "pass";
+                for ($i = 0; $i < intval($consequence['number']); $i++) {
+                    if (isset($consequence[strval($i)])) {
+                        $nextState = $this->applyConsequence($consequence[strval($i)], $card);
+                        if ($nextState == "additionalDraws") {
+                            // we have to stop here, we will continue later
                             break;
-                        case "topCard":
-                            break;
-                        default: //should be bury this
-                            $this->moveCard(intval($card['id']), "graveyard");
+                        }
                     }
-                    $this->checkLoss();
-                } elseif (preg_match('/^bite (\d+)$/', $action, $matches)) {
-                    $biteValue = intval($matches[1]);
-                    // TODO must ask player to assign damages
-                } else {
-                    // Unrecognized action
-                    $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $consequence"), array("card" => $card));
                 }
+            } else {
+                $action = $consequence ? $consequence['action'] : 'none';
+                $this->notify->all("applyingConsequence", \clienttranslate("Applying consequence: $action"), array("card" => $card));
+                $nextState = $this->applyConsequence($consequence, $card);
+                $this->notify->all("appliedConsequence", \clienttranslate("Going for next state: $nextState"), array("card" => $card));
             }
+        } else {
+            $action = $consequence ? $consequence['action'] : 'none';
+            $this->notify->all("unmanagedAction", \clienttranslate("Unmanaged action: $action"), array("card" => $card));
         }
-        return $forcePass;
+        return $nextState;
     }
 
     private function consequenceCanBeResolved(array $card): bool
