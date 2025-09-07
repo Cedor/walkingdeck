@@ -544,7 +544,7 @@ define([
           fakeType = `6`;
       }
       return {
-        id: `fake-top-card`,
+        id: card.id,
         type: fakeType,
         type_arg: `20`,
         location: card.location,
