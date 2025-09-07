@@ -17,36 +17,28 @@ class TWDDeck
   {
     if ($type === 1) {
       // protagonist
-      $cardInfo = $this->game->getObjectListFromDB(
+      $cardInfo = $this->game->getObjectFromDB(
         "SELECT `card_name`, `losscon`
-          FROM `card_info` JOIN `protagonist_info` ON `card_info`.`info_id` = `protagonist_info`.`info_id`
-          WHERE `card_info`.`info_id` = `protagonist_info`.`info_id`
-          AND `card_info`.`card_type` = $type
-          AND `card_info`.`card_type_arg` = $type_arg"
+          FROM `twd_card_info` JOIN `twd_protagonist_info` ON `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
+          WHERE `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
+          AND `twd_card_info`.`card_type` = $type
+          AND `twd_card_info`.`card_type_arg` = $type_arg"
       );
-      if ($cardInfo) {
-        $cardInfo = $cardInfo[0];
-      } else {
-        $cardInfo = array();
-      }
     } else { // type == 2 or 3
       // rural and urban
-      $cardInfo = $this->game->getObjectListFromDB(
+      $cardInfo = $this->game->getObjectFromDB(
         "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`,`weakness_1`, `weakness_2`, `weakness_3`, `wounds`
-          FROM `card_info` LEFT JOIN `character_info` ON `card_info`.`info_id` = `character_info`.`info_id`
+          FROM `twd_card_info` LEFT JOIN `twd_character_info` ON `twd_card_info`.`info_id` = `twd_character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
       );
       if ($cardInfo) {
-        $cardInfo = $cardInfo[0];
         $ids = ['consequence_black', 'consequence_white', 'consequence_grey'];
         foreach ($ids as $id) {
           if ($cardInfo[$id]) {
             $cardInfo[$id] = json_decode($cardInfo[$id], true);
           }
         }
-      } else {
-        $cardInfo = array();
       }
     }
     return $cardInfo;
@@ -129,7 +121,7 @@ class TWDDeck
   {
     $cardInfo = $this->game->getObjectListFromDB(
       "SELECT `card_type`, `card_type_arg`
-          FROM `card_info`"
+          FROM `twd_card_info`"
     );
 
     //create protoganist cards

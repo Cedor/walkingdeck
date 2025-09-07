@@ -57,11 +57,11 @@ class Game extends \Table
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
-        $this->cards->init("card");
+        $this->cards->init("twd_card");
         $this->deckManager = new TWDDeck($this);
         $this->ressources = new TWDRessources($this);
         $this->disaster = $this->getNew("module.common.deck");
-        $this->disaster->init("disaster");
+        $this->disaster->init("twd_disaster");
         $this->disasterManager = new TWDDisaster($this);
 
         /* example of notification decorator.
