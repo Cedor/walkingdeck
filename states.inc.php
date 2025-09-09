@@ -49,13 +49,16 @@
 */
 
 //    !! It is not a good idea to modify this file when a game is running !!
+require_once('modules/php/TWDConstants.inc.php');
+use Bga\Games\TheWalkingDeck\TWDState;
+use Bga\Games\TheWalkingDeck;
 use Bga\GameFramework\GameStateBuilder;
 use Bga\GameFramework\StateType;
 
 $machinestates = [
 
     // ID=2 => your first state
-    2 => GameStateBuilder::create()
+    TWDState\ST_PROTAGONIST_SELECTION => GameStateBuilder::create()
         ->name('protagonistSelection')
         ->description(clienttranslate('You must pick a protagonist'))
         ->descriptionmyturn(clienttranslate('You must pick a protagonist'))
@@ -64,10 +67,10 @@ $machinestates = [
             "actPlayProtagonistCard",
         ])
         ->transitions([
-            "" => 3
+            "" => TWDState\ST_DRAW_CARDS,
         ])
         ->build(),
-    3 => GameStateBuilder::create()
+    TWDState\ST_DRAW_CARDS => GameStateBuilder::create()
         ->name('drawCards')
         ->description(clienttranslate('You must draw cards'))
         ->descriptionmyturn(clienttranslate('You must draw cards'))
@@ -77,13 +80,13 @@ $machinestates = [
             "actDrawFromDisasterBag",// TODO remove after tests
         ])
         ->transitions([
-            "drawAnotherCard" => 3,
-            "specialDraw" => 31,
-            "playCards" => 4,
-            "storyCheck" => 5,
+            "drawAnotherCard" => TWDState\ST_DRAW_CARDS,
+            "specialDraw" => TWDState\ST_SPECIAL_DRAW,
+            "playCards" => TWDState\ST_PLAY_CARDS,
+            "storyCheck" => TWDState\ST_STORY_CHECK,
         ])
         ->build(),
-    31 => GameStateBuilder::create()
+    TWDState\ST_SPECIAL_DRAW => GameStateBuilder::create()
         ->name('specialDraw')
         ->description(clienttranslate('You must draw a card'))
         ->descriptionmyturn(clienttranslate('You must draw a card (special draw)')) // TODO revise after tests
@@ -92,13 +95,13 @@ $machinestates = [
             "actDrawFromDeck",
         ])
         ->transitions([
-            "specialDrawAnotherCard" => 31,
-            "drawAnotherCard" => 3,
-            "playCards" => 4,
-            "storyCheck" => 5,
+            "specialDrawAnotherCard" => TWDState\ST_SPECIAL_DRAW,
+            "drawAnotherCard" => TWDState\ST_DRAW_CARDS,
+            "playCards" => TWDState\ST_PLAY_CARDS,
+            "storyCheck" => TWDState\ST_STORY_CHECK,
         ])
         ->build(),
-    4 => GameStateBuilder::create()
+    TWDState\ST_PLAY_CARDS => GameStateBuilder::create()
         ->name('playCards')
         ->description(clienttranslate('You must play cards'))
         ->descriptionmyturn(clienttranslate('You must play cards'))
@@ -111,33 +114,33 @@ $machinestates = [
             "actFlipRessource",// TODO remove after tests
         ])
         ->transitions([
-            "keepPlaying" => 4,
-            "drawCards" => 3,
-            "specialDrawCards" => 31,
-            "storyCheck" => 5,
-            "gameEnd" => 99
+            "keepPlaying" => TWDState\ST_PLAY_CARDS,
+            "drawCards" => TWDState\ST_DRAW_CARDS,
+            "specialDrawCards" => TWDState\ST_SPECIAL_DRAW,
+            "storyCheck" => TWDState\ST_STORY_CHECK,
+            "gameEnd" => TWDState\ST_GAME_END
         ])
         ->build(),
-    5 => GameStateBuilder::create()
+    TWDState\ST_STORY_CHECK => GameStateBuilder::create()
         ->name('storyCheck')
         ->description(clienttranslate('Story will be checked'))
         ->type(StateType::GAME)
         ->action('stStoryCheck')
         ->transitions([
-            "" => 6
+            "" => TWDState\ST_STORY_CHECK_STEP
         ])
         ->build(),
-    6 => GameStateBuilder::create()
+    TWDState\ST_STORY_CHECK_STEP => GameStateBuilder::create()
         ->name('storyCheckStep')
         ->description(clienttranslate('Story check step'))
         ->type(StateType::GAME)
         ->action('stStoryCheckStep')
         ->transitions([
-            "playerChoice" => 7,
-            "gameCheck" => 8
+            "playerChoice" => TWDState\ST_STORY_PLAYER_CHOICE,
+            "gameCheck" => TWDState\ST_STORY_CHECK_GAME
         ])
         ->build(),
-    7 => GameStateBuilder::create()
+    TWDState\ST_STORY_PLAYER_CHOICE => GameStateBuilder::create()
         ->name('storyCheckPlayerChoice')
         ->description(clienttranslate('Story check player choice'))
         ->type(StateType::ACTIVE_PLAYER)
@@ -146,23 +149,23 @@ $machinestates = [
             "actPutCharacterInPlay",
         ])
         ->transitions([
-            "" => 8
+            "" => TWDState\ST_STORY_CHECK_GAME
         ])
         ->build(),
-    8 => GameStateBuilder::create()
+    TWDState\ST_STORY_CHECK_GAME => GameStateBuilder::create()
         ->name('storyCheckGame')
         ->description(clienttranslate('Story check game win/loss'))
         ->type(StateType::GAME)
         ->action('stStoryCheckGameWinLoss')
         ->transitions([
-            "nextStep" => 6,
-            "gameEnd" => 99
+            "nextStep" => TWDState\ST_STORY_CHECK_STEP,
+            "gameEnd" => TWDState\ST_GAME_END
         ])
         ->build(),
 
     // Final state.
     // Please do not modify (and do not overload action/args methods).
-    99 => GameStateBuilder::create()
+    TWDState\ST_GAME_END => GameStateBuilder::create()
         ->name('gameEnd')
         ->description(clienttranslate('End of game'))
         ->type(StateType::MANAGER)
