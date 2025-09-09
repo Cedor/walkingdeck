@@ -22,10 +22,10 @@ class TWDDisaster
         'nbr' => 2
       ];
     }
-    $this->game->getDisaster()->createCards($disasters, "deck");
+    $this->game->getDisaster()->createCards($disasters, 'deck');
     $this->game->getDisaster()->shuffle('deck');
     $blanks = ['type' => 7, 'type_arg' => 0, 'nbr' => 2];
-    $this->game->getDisaster()->createCards([$blanks], "reserve");
+    $this->game->getDisaster()->createCards([$blanks], 'reserve');
   }
   public function getExtendedCardInfo(int $type): array
   {

@@ -49,125 +49,125 @@
 */
 
 //    !! It is not a good idea to modify this file when a game is running !!
-require_once('modules/php/TWDConstants.inc.php');
+require_once("modules/php/TWDConstants.inc.php");
 use Bga\Games\TheWalkingDeck\TWDState;
-use Bga\Games\TheWalkingDeck;
+use Bga\Games\TheWalkingDeck\TWDTransition;
 use Bga\GameFramework\GameStateBuilder;
 use Bga\GameFramework\StateType;
 
 $machinestates = [
 
     // ID=2 => your first state
-    TWDState\ST_PROTAGONIST_SELECTION => GameStateBuilder::create()
+    TWDState\ProtagonistSelection => GameStateBuilder::create()
         ->name('protagonistSelection')
-        ->description(clienttranslate('You must pick a protagonist'))
-        ->descriptionmyturn(clienttranslate('You must pick a protagonist'))
+        ->description(clienttranslate("You must pick a protagonist"))
+        ->descriptionmyturn(clienttranslate("You must pick a protagonist"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            "actPlayProtagonistCard",
+            'actPlayProtagonistCard',
         ])
         ->transitions([
-            "" => TWDState\ST_DRAW_CARDS,
+            TWDTransition\DefaultTransition => TWDState\DrawCards,
         ])
         ->build(),
-    TWDState\ST_DRAW_CARDS => GameStateBuilder::create()
+    TWDState\DrawCards => GameStateBuilder::create()
         ->name('drawCards')
-        ->description(clienttranslate('You must draw cards'))
-        ->descriptionmyturn(clienttranslate('You must draw cards'))
+        ->description(clienttranslate("You must draw cards"))
+        ->descriptionmyturn(clienttranslate("You must draw cards"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            "actDrawFromDeck",
-            "actDrawFromDisasterBag",// TODO remove after tests
+            'actDrawFromDeck',
+            'actDrawFromDisasterBag',// TODO remove after tests
         ])
         ->transitions([
-            "drawAnotherCard" => TWDState\ST_DRAW_CARDS,
-            "specialDraw" => TWDState\ST_SPECIAL_DRAW,
-            "playCards" => TWDState\ST_PLAY_CARDS,
-            "storyCheck" => TWDState\ST_STORY_CHECK,
+            TWDTransition\DrawCards => TWDState\DrawCards,
+            TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
+            TWDTransition\PlayCards => TWDState\PlayCards,
+            TWDTransition\StoryCheck => TWDState\StoryCheck,
         ])
         ->build(),
-    TWDState\ST_SPECIAL_DRAW => GameStateBuilder::create()
+    TWDState\AdditionalDraw => GameStateBuilder::create()
         ->name('specialDraw')
-        ->description(clienttranslate('You must draw a card'))
-        ->descriptionmyturn(clienttranslate('You must draw a card (special draw)')) // TODO revise after tests
+        ->description(clienttranslate("You must draw a card"))
+        ->descriptionmyturn(clienttranslate("You must draw a card (special draw)")) // TODO revise after tests
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            "actDrawFromDeck",
+            'actDrawFromDeck',
         ])
         ->transitions([
-            "specialDrawAnotherCard" => TWDState\ST_SPECIAL_DRAW,
-            "drawAnotherCard" => TWDState\ST_DRAW_CARDS,
-            "playCards" => TWDState\ST_PLAY_CARDS,
-            "storyCheck" => TWDState\ST_STORY_CHECK,
+            TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
+            TWDTransition\DrawCards => TWDState\DrawCards,
+            TWDTransition\PlayCards => TWDState\PlayCards,
+            TWDTransition\StoryCheck => TWDState\StoryCheck,
         ])
         ->build(),
-    TWDState\ST_PLAY_CARDS => GameStateBuilder::create()
-        ->name('playCards')
-        ->description(clienttranslate('You must play cards'))
-        ->descriptionmyturn(clienttranslate('You must play cards'))
+    TWDState\PlayCards => GameStateBuilder::create()
+        ->name(TWDTransition\PlayCards)
+        ->description(clienttranslate("You must play cards"))
+        ->descriptionmyturn(clienttranslate("You must play cards"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            "actPlayCard",
-            "actPass",
-            "actGoToStoryCheck",// TODO remove after tests
-            "actDrawFromDisasterBag",// TODO remove after tests
-            "actFlipRessource",// TODO remove after tests
+            'actPlayCard',
+            'actPass',
+            'actGoToStoryCheck',// TODO remove after tests
+            'actDrawFromDisasterBag',// TODO remove after tests
+            'actFlipRessource',// TODO remove after tests
         ])
         ->transitions([
-            "keepPlaying" => TWDState\ST_PLAY_CARDS,
-            "drawCards" => TWDState\ST_DRAW_CARDS,
-            "specialDrawCards" => TWDState\ST_SPECIAL_DRAW,
-            "storyCheck" => TWDState\ST_STORY_CHECK,
-            "gameEnd" => TWDState\ST_GAME_END
+            TWDTransition\PlayCards => TWDState\PlayCards,
+            TWDTransition\DrawCards => TWDState\DrawCards,
+            TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
+            TWDTransition\StoryCheck => TWDState\StoryCheck,
+            TWDTransition\GameEnd => TWDState\GameEnd
         ])
         ->build(),
-    TWDState\ST_STORY_CHECK => GameStateBuilder::create()
+    TWDState\StoryCheck => GameStateBuilder::create()
         ->name('storyCheck')
-        ->description(clienttranslate('Story will be checked'))
+        ->description(clienttranslate("Story will be checked"))
         ->type(StateType::GAME)
         ->action('stStoryCheck')
         ->transitions([
-            "" => TWDState\ST_STORY_CHECK_STEP
+            TWDTransition\DefaultTransition => TWDState\StoryCheckStep
         ])
         ->build(),
-    TWDState\ST_STORY_CHECK_STEP => GameStateBuilder::create()
+    TWDState\StoryCheckStep => GameStateBuilder::create()
         ->name('storyCheckStep')
-        ->description(clienttranslate('Story check step'))
+        ->description(clienttranslate("Story check step"))
         ->type(StateType::GAME)
         ->action('stStoryCheckStep')
         ->transitions([
-            "playerChoice" => TWDState\ST_STORY_PLAYER_CHOICE,
-            "gameCheck" => TWDState\ST_STORY_CHECK_GAME
+            'playerChoice' => TWDState\StoryPlayerChoice,
+            'gameCheck' => TWDState\StoryCheckWinLoss
         ])
         ->build(),
-    TWDState\ST_STORY_PLAYER_CHOICE => GameStateBuilder::create()
+    TWDState\StoryPlayerChoice => GameStateBuilder::create()
         ->name('storyCheckPlayerChoice')
-        ->description(clienttranslate('Story check player choice'))
+        ->description(clienttranslate("Story check player choice"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
-            "actStoryCheckPlayerChoice",
-            "actPutCharacterInPlay",
+            'actStoryCheckPlayerChoice',
+            'actPutCharacterInPlay',
         ])
         ->transitions([
-            "" => TWDState\ST_STORY_CHECK_GAME
+            TWDTransition\DefaultTransition => TWDState\StoryCheckWinLoss
         ])
         ->build(),
-    TWDState\ST_STORY_CHECK_GAME => GameStateBuilder::create()
+    TWDState\StoryCheckWinLoss => GameStateBuilder::create()
         ->name('storyCheckGame')
-        ->description(clienttranslate('Story check game win/loss'))
+        ->description(clienttranslate("Story check game win/loss"))
         ->type(StateType::GAME)
         ->action('stStoryCheckGameWinLoss')
         ->transitions([
-            "nextStep" => TWDState\ST_STORY_CHECK_STEP,
-            "gameEnd" => TWDState\ST_GAME_END
+            'nextStep' => TWDState\StoryCheckStep,
+            'gameEnd' => TWDState\GameEnd
         ])
         ->build(),
 
     // Final state.
     // Please do not modify (and do not overload action/args methods).
-    TWDState\ST_GAME_END => GameStateBuilder::create()
+    TWDState\GameEnd => GameStateBuilder::create()
         ->name('gameEnd')
-        ->description(clienttranslate('End of game'))
+        ->description(clienttranslate("End of game"))
         ->type(StateType::MANAGER)
         ->action('stGameEnd')
         ->args('argGameEnd')

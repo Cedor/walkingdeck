@@ -6,7 +6,7 @@ namespace Bga\Games\TheWalkingDeck;
 class TWDTransitionStack
 {
   protected $game;
-  
+
   public function __construct($game)
   {
     $this->game = $game;
@@ -15,9 +15,9 @@ class TWDTransitionStack
   public function pushTransition($transition)
   {
     switch ($transition) {
-      case TWDTransition\playCards:
-      case TWDTransition\drawSpecialCards:
-      case TWDTransition\drawCards:
+      case TWDTransition\PlayCards:
+      case TWDTransition\AdditionalDrawCards:
+      case TWDTransition\DrawCards:
         break;
       default:
         throw new \BgaUserException("Unknown transition to push : " . $transition);
@@ -37,13 +37,12 @@ class TWDTransitionStack
       return null;
     } else {
       $this->game->DbQuery("DELETE FROM `twd_game_transition` WHERE `index` = $top");
-      return $top["transition_name"];
+      return $top['transition_name'];
     }
   }
 
   public function getCurrentTransition()
   {
-    $top = $this->game->getUniqueValueFromDB("SELECT `transition_name` FROM `twd_game_transition` HAVING MAX(`index`)");
-    return $top;
+    return $this->game->getUniqueValueFromDB("SELECT `transition_name` FROM `twd_game_transition` HAVING MAX(`index`)");
   }
 }
