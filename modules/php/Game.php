@@ -100,32 +100,32 @@ class Game extends \Table
         $this->setGameStateValue('gamePhase', $phase);
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function getAdditionalDraws(): int
     {
         return intval($this->getGameStateValue('additionalDraws'));
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function setAdditionalDraws(int $nb): void
     {
         $this->setGameStateValue('additionalDraws', $nb < 0 ? 0 : $nb);
         if ($nb < 0) throw new \BgaUserException($this->_("Illegal call to setAdditionalDraws with") . $nb);
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function increaseAdditionalDraws($nb = 1): void
     {
         $this->setAdditionalDraws($this->getAdditionalDraws() + $nb);
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function decreaseAdditionalDraws(): void
     {
         $this->setAdditionalDraws($this->getAdditionalDraws() - 1);
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function getAdditionalDrawsCall(): string
     {
         $val = intval($this->getGameStateValue('additionalDrawsCall'));
@@ -144,7 +144,7 @@ class Game extends \Table
         return $nextState;
     }
 
-    // TODO rewrite State Stack
+    // STATESTACK rewrite State Stack
     private function setAdditionalDrawsCall(string $nextState): void
     {
         $val = 0;
@@ -167,7 +167,7 @@ class Game extends \Table
 
     private function setLossCondition(array $card): int
     {
-        // TODO: implement loss condition check
+        // WINLOSS implement loss condition check
         $card_type = intval($card['type']);
         $card_type_arg = intval($card['type_arg']);
         if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
@@ -255,7 +255,7 @@ class Game extends \Table
             case 'draw':
                 $numCards = intval($consequence['number']);
                 $this->increaseAdditionalDraws($numCards);
-                $this->setAdditionalDrawsCall(TWDTransition\PlayCards); // TODO rewrite State Stack
+                $this->setAdditionalDrawsCall(TWDTransition\PlayCards); // STATESTACK rewrite State Stack
                 $nextState = TWDTransition\AdditionalDrawCards;
                 break;
             case 'consume':
@@ -271,17 +271,17 @@ class Game extends \Table
                         $nextState = 'checkLoss';
                         break;
                     case 'character':
-                        // TODO implement bury character
+                        // CONS implement bury character
                         break;
                     case 'topCard':
-                        // TODO implement bury top card
+                        // CONS implement bury top card
                         break;
                     default:
                         throw new \BgaUserException($this->_("Illegal call to bury with ") . $consequence['bury']);
                 }
                 break;
             case 'bite':
-                // TODO implement bite damage (phase 2 only)
+                // CONS implement bite damage (phase 2 only)
                 break;
             case 'none':
                 //nothing to do
@@ -303,7 +303,7 @@ class Game extends \Table
         $nextState = 'pass';
         if ($consequence && $consequence['action']) {
             if ($consequence['action'] == 'multiple' && isset($consequence['number'])) {
-                // TODO remove after implementation
+                // CONS remove after implementation
                 // temporary disable multiple actions
                 $this->notify->all('unmanagedAction', \clienttranslate("Multiple actions not yet implemented, skipping all actions"), array('card' => $card));
                 return 'pass';
@@ -437,7 +437,7 @@ class Game extends \Table
             //we are in the additional draw state
             $this->decreaseAdditionalDraws();
         }
-        if ($cardPicked['special_draw'] == 1) { // TODO rewrite State Stack
+        if ($cardPicked['special_draw'] == 1) { // STATESTACK rewrite State Stack
             $this->increaseAdditionalDraws();
             if (!$additionalDraws) { //we were in a regular draw, we need to save current state
                 $this->setAdditionalDrawsCall(TWDTransition\DrawCards);
@@ -472,17 +472,17 @@ class Game extends \Table
             } else {
                 $this->gamestate->nextState(TWDTransition\PlayCards);
             }
-        } else if ($additionalDraws) { // TODO rewrite State Stack
+        } else if ($additionalDraws) { // STATESTACK rewrite State Stack
             // we come from an additional draw state
             $nextState = $this->getAdditionalDrawsCall();
             if ($this->getAdditionalDraws() > 0) {
                 // we still have additionals draws
                 $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
                 //else return to previous situation
-            } else if ($nextState == TWDTransition\PlayCards || $this->deckManager->countCardInLocation(TWDLocation\Hand) >= 3) { // TODO rewrite State Stack
+            } else if ($nextState == TWDTransition\PlayCards || $this->deckManager->countCardInLocation(TWDLocation\Hand) >= 3) { // STATESTACK rewrite State Stack
                 $this->setAdditionalDrawsCall('none');
                 $this->gamestate->nextState(TWDTransition\PlayCards);
-            } else { // TODO rewrite State Stack
+            } else { // STATESTACK rewrite State Stack
                 $this->setAdditionalDrawsCall('none');
                 $this->gamestate->nextState(TWDTransition\DrawCards);
             }
@@ -514,7 +514,7 @@ class Game extends \Table
      */
     public function actStoryCheckPlayerChoice(int $card_id = null): void
     {
-        // TODO remove after tests
+        // TEST remove after tests
         $this->notify->all('actionPicked', \clienttranslate("You have picked an action"), array());
         $this->gamestate->nextState(TWDTransition\DefaultTransition);
     }
@@ -526,7 +526,7 @@ class Game extends \Table
      */
     public function actDrawFromDisasterBag(): void
     {
-        // TODO replace with exception
+        // CONS replace with exception
         $shuffle = false;
         if ($this->disasterManager->countCardInLocation('hand') != 0) {
             $this->disasterManager->moveAllCardsInLocation('hand', 'deck');
@@ -589,7 +589,7 @@ class Game extends \Table
      */
     public function getGameProgression()
     {
-        // TODO: compute and return the game progression
+        // SCORE compute and return the game progression
 
         return 0;
     }
@@ -620,7 +620,7 @@ class Game extends \Table
      */
     public function stStoryCheckStep(): void
     {
-        //TODO remove after tests
+        // TEST remove after tests
         $needPlayerInput = true;
 
         // Go to following game state
@@ -632,7 +632,7 @@ class Game extends \Table
 
     private function checkWin(): bool
     {
-        // TODO: implement win condition check
+        // WINLOSS implement win condition check
         return false;
     }
     private function isLossReached(): bool
@@ -654,8 +654,8 @@ class Game extends \Table
      */
     public function stStoryCheckGameWinLoss(): void
     {
-        $win = $this->checkWin(); // TODO: check win condition
-        $loss = $this->isLossReached(); // TODO: check loss condition
+        $win = $this->checkWin(); // WINLOSS check win condition
+        $loss = $this->isLossReached(); // WINLOSS check loss condition
 
         // Go to following game state
         if ($loss) {
@@ -664,7 +664,7 @@ class Game extends \Table
         } else if ($win) {
             $this->gamestate->nextState(TWDTransition\GameEnd);
         } else {
-            // TODO remove after tests
+            // TEST remove after tests
             $this->notify->all('keepPlaying', \clienttranslate("You have picked an action"));
             $this->gamestate->nextState('nextStep');
         }
@@ -732,7 +732,6 @@ class Game extends \Table
             "SELECT `player_id` `id`, `player_score` `score` FROM `player`"
         );
 
-        // TODO: Gather all information about current game situation (visible by player $current_player_id).
         // Cards in player hand
         $result['hand'] = $this->deckManager->getCardsInLocation('hand');
 
@@ -831,8 +830,6 @@ class Game extends \Table
         // Dummy content.
         // $this->initStat("table", "table_teststat1", 0);
         // $this->initStat("player", "player_teststat1", 0);
-
-        // TODO: Setup the initial game situation here.
 
         // Create the decks.
         $this->deckManager->createCards();

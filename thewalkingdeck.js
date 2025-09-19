@@ -200,7 +200,7 @@ define([
         slotClasses: ["twd-card-slot"],
         mapCardToSlot: (card) => "A",
       });
-      // TODO remove
+      // TEST remove
       this.protagonistSlot.onCardAdded = (card) => {
         console.log("Card added to protagonist slot", card);
       };
@@ -212,25 +212,30 @@ define([
 
       // Create memory pile
       this.memory = new BgaCards.Deck(this.cardsManager, document.getElementById("memory"), {
-        //TODO cardClickEventFilter: "all",
+        //TEST remove
+        // cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
         },
       });
-      //TODO this.memory.setSelectionMode("single");
+      //TEST remove
+      // this.memory.setSelectionMode("single");
       // create graveyard pile
       this.graveyard = new BgaCards.Deck(this.cardsManager, document.getElementById("graveyard"), {
-        // TODO cardClickEventFilter: "all",
+        // TEST remove
+        // cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
         },
       });
-      // TODO this.graveyard.setSelectionMode("single");
+      // TEST remove
+      // this.graveyard.setSelectionMode("single");
       // create escaped pile
       this.escaped = new BgaCards.AllVisibleDeck(this.cardsManager, document.getElementById("escaped"), {
-        //TODO cardClickEventFilter: "all",
+        // TEST remove
+        // cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
@@ -238,7 +243,6 @@ define([
         },
         direction: "horizontal",
       });
-      //TODO this.escaped.setSelectionMode("multiple");
 
       // Create ressources
       this.ressourcesManager = new BgaCards.Manager({
@@ -485,7 +489,7 @@ define([
               id: "pass_button",
               color: "secondary",
             });
-            // TODO remove after tests
+            // TEST remove after tests
             this.statusBar.addActionButton(
               _("Story Check"),
               () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
@@ -689,11 +693,10 @@ define([
 
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
-      // TODO send action to server
       this.bgaPerformAction("actFlipRessource", { token_id: token.id });
     },
 
-    // TODO allowing only in phase 2
+    // PHASE2 allowing only in phase 2
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
       if (this.gamePhase == 2) {
@@ -701,7 +704,7 @@ define([
       }
     },
 
-    // TODO rework
+    // PHASE2 rework
     onCharactersWrapClick: function () {
       console.log("onCharactersWrapClick");
       let card = this.hand.getSelection()[0];
@@ -767,7 +770,7 @@ define([
         this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
       }
     },
-    // TODO Remove
+    // PHASE2 Remove
     notif_disasterShuffledBack: function (args) {
       console.log("notif_disasterShuffledBack");
       console.log(args);

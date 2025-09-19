@@ -77,7 +77,7 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
-            'actDrawFromDisasterBag',// TODO remove after tests
+            'actDrawFromDisasterBag',// TEST remove after tests
         ])
         ->transitions([
             TWDTransition\DrawCards => TWDState\DrawCards,
@@ -89,7 +89,7 @@ $machinestates = [
     TWDState\AdditionalDraw => GameStateBuilder::create()
         ->name('specialDraw')
         ->description(clienttranslate("You must draw a card"))
-        ->descriptionmyturn(clienttranslate("You must draw a card (special draw)")) // TODO revise after tests
+        ->descriptionmyturn(clienttranslate("You must draw a card (special draw)")) // CONS revise after tests
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
@@ -109,9 +109,9 @@ $machinestates = [
         ->possibleactions([
             'actPlayCard',
             'actPass',
-            'actGoToStoryCheck',// TODO remove after tests
-            'actDrawFromDisasterBag',// TODO remove after tests
-            'actFlipRessource',// TODO remove after tests
+            'actGoToStoryCheck',// TEST remove after tests
+            'actDrawFromDisasterBag',// TEST remove after tests
+            'actFlipRessource',// TEST remove after tests
         ])
         ->transitions([
             TWDTransition\PlayCards => TWDState\PlayCards,
