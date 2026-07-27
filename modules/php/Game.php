@@ -22,6 +22,7 @@ namespace Bga\Games\TheWalkingDeck;
 
 use Bga\Games\TheWalkingDeck\Constants\CardType;
 use Bga\Games\TheWalkingDeck\Constants\EventType;
+use Bga\Games\TheWalkingDeck\Constants\GameStep;
 use Bga\Games\TheWalkingDeck\Constants\Location;
 use Bga\Games\TheWalkingDeck\Constants\Rules;
 use Bga\Games\TheWalkingDeck\Constants\Transition;
@@ -260,15 +261,17 @@ class Game extends \Bga\GameFramework\Table
 
     private function getDefaultPhase1Transition(): string
     {
+        $handSize = $this->deckManager->countCardInLocation(Location::HAND);
+
         if ($this->availableDraws() === 0) {
-            return $this->deckManager->countCardInLocation(Location::HAND) === 0
+            return $handSize === 0
                 ? Transition::STORY_CHECK
                 : Transition::PLAY_CARDS;
         }
 
-        return $this->deckManager->countCardInLocation(Location::HAND) >= Rules::HAND_SIZE
-            ? Transition::PLAY_CARDS
-            : Transition::DRAW_CARDS;
+        return $handSize === 0
+            ? Transition::DRAW_CARDS
+            : Transition::PLAY_CARDS;
     }
 
     /**
@@ -528,6 +531,14 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actDrawFromDeck(string $location): void
     {
+        $this->checkAction('actDrawFromDeck');
+
+        $isAdditionalDraw = $this->gamestate->getCurrentMainStateId() === GameStep::ADDITIONAL_DRAW;
+        $handSize = $this->deckManager->countCardInLocation(Location::HAND);
+        if (!$isAdditionalDraw && $handSize > 1) {
+            throw new UserException(\clienttranslate("You can't draw with more than one card in hand."));
+        }
+
         if ($this->deckManager->countCardInLocation($location) == 0) {
             throw new UserException(new NotificationMessage(
                 \clienttranslate('Illegal move: no card left in ${location}'),

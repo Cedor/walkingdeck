@@ -424,6 +424,10 @@ define([
           this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
           break;
         case "playCards":
+          if (this.hand.getCardCount() <= 1) {
+            this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
+            this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
+          }
           if (this.hand.getCardCount() < 3) {
             document.getElementById("pass_button").style.visibility = "visible";
           } else {
@@ -463,6 +467,8 @@ define([
           this.stateConnectors = [];
           break;
         case "playCards":
+          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
+          this.stateConnectors = [];
           break;
         case "dummy":
           break;
