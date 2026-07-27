@@ -4,8 +4,18 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
 
-class TWDEventStack
+final class TWDEventStack
 {
+    private const SUPPORTED_TYPES = [
+        TWDEventType\Consequence,
+        TWDEventType\DrawCard,
+        TWDEventType\SpecialDraw,
+        TWDEventType\AdditionalDraw,
+        TWDEventType\PlayCard,
+        TWDEventType\NextState,
+        TWDEventType\ForcePass,
+    ];
+
     private Game $game;
 
     public function __construct(Game $game)
@@ -15,19 +25,7 @@ class TWDEventStack
 
     public function pushEvent(string $type, array $parameters = []): void
     {
-        $allowedTypes = [
-            TWDEventType\Consequence,
-            TWDEventType\DrawCard,
-            TWDEventType\SpecialDraw,
-            TWDEventType\AdditionalDraw,
-            TWDEventType\PlayCard,
-            TWDEventType\NextState,
-            TWDEventType\ForcePass,
-        ];
-
-        if (!in_array($type, $allowedTypes, true)) {
-            throw new \BgaUserException("Unknown event type: $type");
-        }
+        $this->assertSupportedType($type);
 
         $escapedType = $this->game->escapeStringForDB($type);
         $encodedParameters = json_encode($parameters, JSON_THROW_ON_ERROR);
@@ -52,12 +50,30 @@ class TWDEventStack
             return null;
         }
 
+        $type = strval($event['event_type']);
+        $this->assertSupportedType($type);
+
+        $parameters = [];
+        if ($event['event_parameters'] !== null) {
+            $decodedParameters = json_decode(
+                $event['event_parameters'],
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+
+            if (!is_array($decodedParameters)) {
+                throw new \BgaSystemException(
+                    "Invalid parameters for event {$event['event_id']}"
+                );
+            }
+            $parameters = $decodedParameters;
+        }
+
         return [
             'id' => intval($event['event_id']),
-            'type' => $event['event_type'],
-            'parameters' => $event['event_parameters'] === null
-                ? []
-                : json_decode($event['event_parameters'], true, 512, JSON_THROW_ON_ERROR),
+            'type' => $type,
+            'parameters' => $parameters,
         ];
     }
 
@@ -78,6 +94,17 @@ class TWDEventStack
 
     public function isEmpty(): bool
     {
-        return $this->getCurrentEvent() === null;
+        return intval(
+            $this->game->getUniqueValueFromDB(
+                "SELECT COUNT(*) FROM `twd_event_stack`"
+            )
+        ) === 0;
+    }
+
+    private function assertSupportedType(string $type): void
+    {
+        if (!in_array($type, self::SUPPORTED_TYPES, true)) {
+            throw new \BgaSystemException("Unknown event type: $type");
+        }
     }
 }
