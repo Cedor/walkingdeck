@@ -68,12 +68,6 @@ CREATE TABLE IF NOT EXISTS `twd_disaster_info` (
   PRIMARY KEY (`card_type`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
-CREATE TABLE IF NOT EXISTS `twd_game_transition` (
-  `index` int(10) unsigned NOT NULL,
-  `transition_name` varchar(64) NOT NULL,
-  PRIMARY KEY (`index`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8;
-
 CREATE TABLE IF NOT EXISTS `twd_event_stack` (
   `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `event_type` varchar(64) NOT NULL,

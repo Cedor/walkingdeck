@@ -53,8 +53,6 @@ class Game extends \Table
             'ressource1' => 13,
             'ressource2' => 14,
             'ressource3' => 15,
-            'additionalDraws' => 16, // additional draws given by cards (default init to 0)
-            'additionalDrawsCall' => 17 // 1 return to draw state, 2 return to play state (default init to 0)
         ]);
 
         $this->cards = $this->getNew("module.common.deck");
@@ -100,71 +98,6 @@ class Game extends \Table
     private function setGamePhase(int $phase): void
     {
         $this->setGameStateValue('gamePhase', $phase);
-    }
-
-    // STATESTACK rewrite State Stack
-    private function getAdditionalDraws(): int
-    {
-        return intval($this->getGameStateValue('additionalDraws'));
-    }
-
-    // STATESTACK rewrite State Stack
-    private function setAdditionalDraws(int $nb): void
-    {
-        $this->setGameStateValue('additionalDraws', $nb < 0 ? 0 : $nb);
-        if ($nb < 0) throw new \BgaUserException($this->_("Illegal call to setAdditionalDraws with") . $nb);
-    }
-
-    // STATESTACK rewrite State Stack
-    private function increaseAdditionalDraws($nb = 1): void
-    {
-        $this->setAdditionalDraws($this->getAdditionalDraws() + $nb);
-    }
-
-    // STATESTACK rewrite State Stack
-    private function decreaseAdditionalDraws(): void
-    {
-        $this->setAdditionalDraws($this->getAdditionalDraws() - 1);
-    }
-
-    // STATESTACK rewrite State Stack
-    private function getAdditionalDrawsCall(): string
-    {
-        $val = intval($this->getGameStateValue('additionalDrawsCall'));
-        $nextState = TWDTransition\DefaultTransition;
-        switch ($val) {
-            case 1:
-                $nextState = TWDTransition\DrawCards;
-                break;
-            case 2:
-                $nextState = TWDTransition\PlayCards;
-                break;
-            default:
-                $nextState = 'none';
-                break;
-        }
-        return $nextState;
-    }
-
-    // STATESTACK rewrite State Stack
-    private function setAdditionalDrawsCall(string $nextState): void
-    {
-        $val = 0;
-        switch ($nextState) {
-            case TWDTransition\DrawCards:
-                $val = 1;
-                break;
-            case TWDTransition\PlayCards:
-                $val = 2;
-                break;
-            case 'none':
-                $val = 0;
-                break;
-            default:
-                throw new \BgaUserException($this->_("Illegal value for additionalDrawsCall: ") . $nextState);
-        }
-
-        $this->setGameStateValue('additionalDrawsCall', $val);
     }
 
     private function setLossCondition(array $card): int
@@ -530,8 +463,9 @@ class Game extends \Table
      */
     public function actPass(bool $force = false): void
     {
-        if ($force && $this->deckManager->countCardInLocation(TWDLocation\Hand) > 2 && $this->getAdditionalDraws() == 0)
+        if ($force && $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize) {
             throw new \BgaUserException($this->_("You can't pass, play some cards first."));
+        }
 
         $this->gamestate->nextState(TWDTransition\Phase1);
     }
@@ -922,10 +856,6 @@ class Game extends \Table
         $this->setGameStateInitialValue('gamePhase', 1);
         // Loss condition : number of buried events (default 5)
         $this->setGameStateInitialValue('lossCondition', 5);
-        // additional draws given by cards
-        $this->setGameStateInitialValue('additionalDraws', 0);
-        $this->setGameStateInitialValue('additionalDrawsCall', 0);
-
         // Init game statistics.
         //
         // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
