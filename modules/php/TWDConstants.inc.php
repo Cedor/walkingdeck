@@ -2,16 +2,23 @@
 // TWDConstants.inc.php
 declare(strict_types=1);
 
+namespace Bga\Games\TheWalkingDeck {
+  const TWDHandSize = 3;
+}
+
 namespace Bga\Games\TheWalkingDeck\TWDState {
   // States
   const ProtagonistSelection = 2;
-  const DrawCards = 3;
-  const AdditionalDraw = 31;
-  const PlayCards = 4;
+  const Phase1 = 3;
+  const DrawCards = 31;
+  const AdditionalDraw = 32;
+  const PlayCards = 33;
+  const Consequence1 = 34;
+  const PlayerChoice1 = 35;
   const StoryCheck = 5;
-  const StoryCheckStep = 6;
-  const StoryPlayerChoice = 7;
-  const StoryCheckWinLoss = 8;
+  const StoryCheckStep = 51;
+  const StoryPlayerChoice = 52;
+  const StoryCheckWinLoss = 53;
   const GameEnd = 99;
 }
 
@@ -24,10 +31,13 @@ namespace Bga\Games\TheWalkingDeck\TWDCardType {
 
 namespace Bga\Games\TheWalkingDeck\TWDTransition {
   // Transitions
+  const Phase1 = 'phase1';
   const DrawCards = 'drawCards';
   const PlayCards = 'playCards';
   const AdditionalDrawCards = 'additionalDrawCards';
   const StoryCheck = 'storyCheck';
+  const Consequence = 'consequence';
+  const PlayerChoice = 'playerChoice';
   const DefaultTransition = '';
   const GameEnd = 'gameEnd';
 }
