@@ -577,7 +577,7 @@ define([
 
     moveCardToLocation: async function (card, destination, source = "hand", special = false) {
       console.log("moveCardToLocation", card, destination, source);
-      if (!card || !location) return;
+      if (!card || !destination) return;
       let settings = { fromStock: this.getLocation(source) };
       switch (destination) {
         case "graveyard":

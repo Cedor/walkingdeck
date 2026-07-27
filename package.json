@@ -1,0 +1,11 @@
+{
+  "name": "the-walking-deck-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Automated client-side tests for The Walking Deck.",
+  "scripts": {
+    "lint": "node --check thewalkingdeck.js && node scripts/validate-json.mjs",
+    "test": "node --test tests/js/*.test.js"
+  }
+}
