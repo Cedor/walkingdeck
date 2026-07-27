@@ -40,6 +40,7 @@ class Game extends \Table
     protected $deckManager;
     protected $ressources;
     protected $disasterManager;
+    protected $eventStack;
 
     public function __construct()
     {
@@ -63,6 +64,7 @@ class Game extends \Table
         $this->disaster = $this->getNew("module.common.deck");
         $this->disaster->init('twd_disaster');
         $this->disasterManager = new TWDDisaster($this);
+        $this->eventStack = new TWDEventStack($this);
 
         /* example of notification decorator.
         // automatically complete notification args when needed
@@ -188,33 +190,144 @@ class Game extends \Table
      */
     public function stPhase1Switch(): void
     {
+        while (!$this->eventStack->isEmpty()) {
+            $event = $this->eventStack->getCurrentEvent();
+            if ($event === null) {
+                throw new \BgaSystemException('Event stack changed unexpectedly');
+            }
+
+            switch ($event['type']) {
+                case TWDEventType\NextState:
+                    $transition = $event['parameters']['transition'] ?? null;
+                    $this->assertPhase1Transition($transition);
+                    $this->popEvent($event['id']);
+                    $this->gamestate->nextState($transition);
+                    return;
+
+                case TWDEventType\ForcePass:
+                case TWDEventType\DrawCard:
+                    $this->popEvent($event['id']);
+                    if ($this->availableDraws() > 0) {
+                        $this->gamestate->nextState(TWDTransition\DrawCards);
+                        return;
+                    }
+                    break;
+
+                case TWDEventType\SpecialDraw:
+                    $this->popEvent($event['id']);
+                    if ($this->availableDraws() > 0) {
+                        $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
+                        return;
+                    }
+                    break;
+
+                case TWDEventType\AdditionalDraw:
+                    $this->popEvent($event['id']);
+                    if ($this->availableDraws() > 0) {
+                        $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
+                        return;
+                    }
+                    break;
+
+                case TWDEventType\PlayCard:
+                    $this->popEvent($event['id']);
+                    $this->gamestate->nextState(TWDTransition\PlayCards);
+                    return;
+
+                case TWDEventType\Consequence:
+                    $cardId = intval($event['parameters']['cardId'] ?? 0);
+                    $color = strval($event['parameters']['color'] ?? '');
+                    $card = $this->deckManager->getCard($cardId);
+                    if (!$card || !in_array($color, ['black', 'white', 'grey'], true)) {
+                        throw new \BgaSystemException(
+                            "Invalid consequence event {$event['id']}"
+                        );
+                    }
+
+                    $outcome = $this->applyConsequences($card, $color);
+                    $this->popEvent($event['id']);
+
+                    if ($outcome['checkLoss'] && $this->isLossReached()) {
+                        $this->notify->all(
+                            'gameLoss',
+                            \clienttranslate('You lost the game')
+                        );
+                        $this->gamestate->nextState(TWDTransition\GameEnd);
+                        return;
+                    }
+
+                    if ($outcome['additionalDraws'] > 0) {
+                        $this->pushAdditionalDrawEvents(
+                            $outcome['additionalDraws'],
+                            TWDTransition\PlayCards
+                        );
+                    }
+                    if ($outcome['forcePass']) {
+                        $this->eventStack->pushEvent(TWDEventType\ForcePass);
+                    }
+                    break;
+
+                default:
+                    throw new \BgaSystemException(
+                        "Unhandled event type: {$event['type']}"
+                    );
+            }
+        }
+
+        $this->gamestate->nextState($this->getDefaultPhase1Transition());
+        return;
+    }
+
+    private function assertPhase1Transition($transition): void
+    {
+        $allowedTransitions = [
+            TWDTransition\DrawCards,
+            TWDTransition\AdditionalDrawCards,
+            TWDTransition\PlayCards,
+            TWDTransition\StoryCheck,
+            TWDTransition\GameEnd,
+        ];
+
+        if (!is_string($transition) || !in_array($transition, $allowedTransitions, true)) {
+            throw new \BgaSystemException('Invalid Phase1 transition');
+        }
+    }
+
+    private function popEvent(int $expectedId): void
+    {
+        $poppedEvent = $this->eventStack->popEvent();
+        if ($poppedEvent === null || $poppedEvent['id'] !== $expectedId) {
+            throw new \BgaSystemException('Unexpected event popped from stack');
+        }
+    }
+
+    private function pushAdditionalDrawEvents(int $number, string $returnTransition): void
+    {
+        if ($number < 1) {
+            throw new \BgaSystemException('Additional draw count must be positive');
+        }
+        $this->assertPhase1Transition($returnTransition);
+
+        $this->eventStack->pushEvent(
+            TWDEventType\NextState,
+            ['transition' => $returnTransition]
+        );
+        for ($i = 0; $i < $number; $i++) {
+            $this->eventStack->pushEvent(TWDEventType\AdditionalDraw);
+        }
+    }
+
+    private function getDefaultPhase1Transition(): string
+    {
         if ($this->availableDraws() === 0) {
-            $nextState = $this->deckManager->countCardInLocation(TWDLocation\Hand) === 0
+            return $this->deckManager->countCardInLocation(TWDLocation\Hand) === 0
                 ? TWDTransition\StoryCheck
                 : TWDTransition\PlayCards;
-            $this->gamestate->nextState($nextState);
-            return;
         }
 
-        if ($this->getAdditionalDraws() > 0) {
-            $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
-            return;
-        }
-
-        $additionalDrawsCall = $this->getAdditionalDrawsCall();
-        if ($additionalDrawsCall === TWDTransition\PlayCards) {
-            $this->setAdditionalDrawsCall('none');
-            $this->gamestate->nextState(TWDTransition\PlayCards);
-            return;
-        }
-        if ($additionalDrawsCall === TWDTransition\DrawCards) {
-            $this->setAdditionalDrawsCall('none');
-        }
-
-        $nextState = $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize
+        return $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize
             ? TWDTransition\PlayCards
             : TWDTransition\DrawCards;
-        $this->gamestate->nextState($nextState);
     }
 
     /**
@@ -226,8 +339,6 @@ class Game extends \Table
     {
         $card = $this->deckManager->getCard($card_id);
         $card_name = '';
-        $forcePass = false;
-        $nextState = 'pass';
         if ($card && $card['location'] == TWDLocation\Hand && ($card['type'] == TWDCardType\Rural || $card['type'] == TWDCardType\Urban) && $this->cardCanBePlayedInLocation($card, $location)) { // card can be played
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
@@ -237,35 +348,31 @@ class Game extends \Table
                 'destination' => $location,
                 'source' => TWDLocation\Hand
             ));
-            // now determine next step
+
+            $consequenceColor = null;
             switch ($location) {
                 case TWDLocation\Memory:
                     $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply white consequences"), array(
                         'card' => $card,
                     ));
-                    $nextState = $this->applyConsequences($card, 'white');
+                    $consequenceColor = 'white';
                     break;
                 case TWDLocation\Escaped:
                     $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply black consequences"), array(
                         'card' => $card,
                     ));
-                    $nextState = $this->applyConsequences($card, 'black');
+                    $consequenceColor = 'black';
+                    break;
             }
-            // go to next step
-            switch ($nextState) {
-                case TWDTransition\AdditionalDrawCards:
-                case 'forcePass':
-                    $forcePass = true;
-                case 'checkLoss':
-                    if ($this->isLossReached()) { // if loss is reached, got to end state and break execution
-                        $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
-                        $this->gamestate->nextState(TWDTransition\GameEnd);
-                        break;
-                    } // else continue to next turn/action
-                case 'pass':
-                default:
-                    $this->actPass($forcePass);
+
+            if ($consequenceColor !== null) {
+                $this->eventStack->pushEvent(TWDEventType\Consequence, [
+                    'cardId' => intval($card['id']),
+                    'color' => $consequenceColor,
+                ]);
             }
+
+            $this->gamestate->nextState(TWDTransition\Phase1);
         } else {
             throw new \BgaUserException($this->_('Illegal Move: ') . "$card_name ($card_id) cannot be played from hand to location $location");
         }
@@ -288,15 +395,21 @@ class Game extends \Table
      * Parse and execute ONE consequence array
      * This is THE function that handles the consequences of card actions
      */
-    private function applyConsequence(array $consequence, array $card): string
+    private function applyConsequence(array $consequence, array $card): array
     {
-        $nextState = 'pass';
+        $outcome = [
+            'additionalDraws' => 0,
+            'forcePass' => false,
+            'checkLoss' => false,
+        ];
+
         switch ($consequence['action']) {
             case 'draw':
                 $numCards = intval($consequence['number']);
-                $this->increaseAdditionalDraws($numCards);
-                $this->setAdditionalDrawsCall(TWDTransition\PlayCards); // STATESTACK rewrite State Stack
-                $nextState = TWDTransition\AdditionalDrawCards;
+                if ($numCards < 1) {
+                    throw new \BgaSystemException('Invalid consequence draw count');
+                }
+                $outcome['additionalDraws'] = $numCards;
                 break;
             case 'consume':
                 $this->ressources->consumeRessources($consequence['ressource']);
@@ -308,7 +421,7 @@ class Game extends \Table
                 switch ($consequence['bury']) {
                     case 'this':
                         $this->moveCard(intval($card['id']), TWDLocation\Graveyard);
-                        $nextState = 'checkLoss';
+                        $outcome['checkLoss'] = true;
                         break;
                     case 'character':
                         // CONS implement bury character
@@ -323,7 +436,11 @@ class Game extends \Table
             case 'bite':
                 // CONS implement bite damage (phase 2 only)
                 break;
+            case 'forcePass':
+                $outcome['forcePass'] = true;
+                break;
             case 'none':
+            case 'nothing':
                 //nothing to do
                 break;
             default:
@@ -331,42 +448,55 @@ class Game extends \Table
                 $action = $consequence ? $consequence['action'] : 'none';
                 $this->notify->all('unmanagedAction', \clienttranslate("Unmanaged action: $action"), array("card" => $card));
         }
-        return $nextState;
+        return $outcome;
     }
+
     /**
      * Parse and execute the array of consequences
      */
-    private function applyConsequences(array $card, string $color): string
+    private function applyConsequences(array $card, string $color): array
     {
-        // Apply the consequence of the card based on its color
         $consequence = $card['consequence_' . $color];
-        $nextState = 'pass';
-        if ($consequence && $consequence['action']) {
-            if ($consequence['action'] == 'multiple' && isset($consequence['number'])) {
-                // CONS remove after implementation
-                // temporary disable multiple actions
-                $this->notify->all('unmanagedAction', \clienttranslate("Multiple actions not yet implemented, skipping all actions"), array('card' => $card));
-                return 'pass';
-                for ($i = 0; $i < intval($consequence['number']); $i++) {
-                    if (isset($consequence[strval($i)])) {
-                        $nextState = $this->applyConsequence($consequence[strval($i)], $card);
-                        if ($nextState == 'additionalDraws') {
-                            // we have to stop here, we will continue later
-                            break;
-                        }
-                    }
-                }
-            } else {
-                $action = $consequence ? $consequence['action'] : 'none';
-                $this->notify->all('applyingConsequence', \clienttranslate("Applying consequence: $action"), array('card' => $card));
-                $nextState = $this->applyConsequence($consequence, $card);
-                $this->notify->all('appliedConsequence', \clienttranslate("Going for next state: $nextState"), array('card' => $card));
-            }
-        } else {
-            $action = $consequence ? $consequence['action'] : 'none';
-            $this->notify->all('unmanagedAction', \clienttranslate("Unmanaged action: $action"), array('card' => $card));
+        $outcome = [
+            'additionalDraws' => 0,
+            'forcePass' => false,
+            'checkLoss' => false,
+        ];
+
+        if (!$consequence || !isset($consequence['action'])) {
+            return $outcome;
         }
-        return $nextState;
+
+        $consequences = [$consequence];
+        if ($consequence['action'] === 'multiple') {
+            $consequences = [];
+            $number = intval($consequence['number'] ?? 0);
+            for ($i = 0; $i < $number; $i++) {
+                $key = strval($i);
+                if (!isset($consequence[$key]) || !is_array($consequence[$key])) {
+                    throw new \BgaSystemException(
+                        "Missing consequence $key for card {$card['id']}"
+                    );
+                }
+                $consequences[] = $consequence[$key];
+            }
+        }
+
+        foreach ($consequences as $currentConsequence) {
+            $action = strval($currentConsequence['action'] ?? 'none');
+            $this->notify->all(
+                'applyingConsequence',
+                \clienttranslate("Applying consequence: $action"),
+                ['card' => $card]
+            );
+
+            $currentOutcome = $this->applyConsequence($currentConsequence, $card);
+            $outcome['additionalDraws'] += $currentOutcome['additionalDraws'];
+            $outcome['forcePass'] = $outcome['forcePass'] || $currentOutcome['forcePass'];
+            $outcome['checkLoss'] = $outcome['checkLoss'] || $currentOutcome['checkLoss'];
+        }
+
+        return $outcome;
     }
 
     private function consequenceCanBeResolved(array $card): bool
@@ -447,16 +577,7 @@ class Game extends \Table
         // pick the card
         $cardPicked = $this->deckManager->pickCard($location, 0);
 
-        $additionalDraws = ($this->getAdditionalDraws() > 0);
-        if ($additionalDraws) {
-            //we are in the additional draw state
-            $this->decreaseAdditionalDraws();
-        }
-        if ($cardPicked['special_draw'] == 1) { // STATESTACK rewrite State Stack
-            $this->increaseAdditionalDraws();
-            if (!$additionalDraws) { //we were in a regular draw, we need to save current state
-                $this->setAdditionalDrawsCall(TWDTransition\DrawCards);
-            }
+        if ($cardPicked['special_draw'] == 1) {
             $cardId = intval($cardPicked['id']);
             $destination = TWDLocation\Memory;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
@@ -467,6 +588,7 @@ class Game extends \Table
                 'destination' => $destination,
                 'special' => true
             ));
+            $this->eventStack->pushEvent(TWDEventType\SpecialDraw);
         } else {
             $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == TWDLocation\Rural ? "Rural" : "Urban") . " deck"), array(
                 'card' => $cardPicked,

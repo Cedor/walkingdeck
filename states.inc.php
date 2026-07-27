@@ -80,6 +80,7 @@ $machinestates = [
             TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
             TWDTransition\PlayCards => TWDState\PlayCards,
             TWDTransition\StoryCheck => TWDState\StoryCheck,
+            TWDTransition\GameEnd => TWDState\GameEnd,
         ])
         ->build(),
     TWDState\DrawCards => GameStateBuilder::create()
