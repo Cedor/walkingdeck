@@ -67,7 +67,19 @@ $machinestates = [
             'actPlayProtagonistCard',
         ])
         ->transitions([
-            TWDTransition\DefaultTransition => TWDState\DrawCards,
+            TWDTransition\DefaultTransition => TWDState\Phase1,
+        ])
+        ->build(),
+    TWDState\Phase1 => GameStateBuilder::create()
+        ->name(TWDTransition\Phase1)
+        ->description(clienttranslate(''))
+        ->type(StateType::GAME)
+        ->action('stPhase1Switch')
+        ->transitions([
+            TWDTransition\DrawCards => TWDState\DrawCards,
+            TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
+            TWDTransition\PlayCards => TWDState\PlayCards,
+            TWDTransition\StoryCheck => TWDState\StoryCheck,
         ])
         ->build(),
     TWDState\DrawCards => GameStateBuilder::create()
@@ -84,6 +96,7 @@ $machinestates = [
             TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
             TWDTransition\PlayCards => TWDState\PlayCards,
             TWDTransition\StoryCheck => TWDState\StoryCheck,
+            TWDTransition\Phase1 => TWDState\Phase1,
         ])
         ->build(),
     TWDState\AdditionalDraw => GameStateBuilder::create()
@@ -99,6 +112,7 @@ $machinestates = [
             TWDTransition\DrawCards => TWDState\DrawCards,
             TWDTransition\PlayCards => TWDState\PlayCards,
             TWDTransition\StoryCheck => TWDState\StoryCheck,
+            TWDTransition\Phase1 => TWDState\Phase1,
         ])
         ->build(),
     TWDState\PlayCards => GameStateBuilder::create()
@@ -118,6 +132,7 @@ $machinestates = [
             TWDTransition\DrawCards => TWDState\DrawCards,
             TWDTransition\AdditionalDrawCards => TWDState\AdditionalDraw,
             TWDTransition\StoryCheck => TWDState\StoryCheck,
+            TWDTransition\Phase1 => TWDState\Phase1,
             TWDTransition\GameEnd => TWDState\GameEnd
         ])
         ->build(),

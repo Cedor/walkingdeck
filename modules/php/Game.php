@@ -177,6 +177,46 @@ class Game extends \Table
         return $lossCon;
     }
 
+    private function availableDraws(): int
+    {
+        return $this->deckManager->countCardInLocation(TWDLocation\Rural)
+            + $this->deckManager->countCardInLocation(TWDLocation\Urban);
+    }
+
+    /**
+     * Select the next player action during phase one.
+     */
+    public function stPhase1Switch(): void
+    {
+        if ($this->availableDraws() === 0) {
+            $nextState = $this->deckManager->countCardInLocation(TWDLocation\Hand) === 0
+                ? TWDTransition\StoryCheck
+                : TWDTransition\PlayCards;
+            $this->gamestate->nextState($nextState);
+            return;
+        }
+
+        if ($this->getAdditionalDraws() > 0) {
+            $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
+            return;
+        }
+
+        $additionalDrawsCall = $this->getAdditionalDrawsCall();
+        if ($additionalDrawsCall === TWDTransition\PlayCards) {
+            $this->setAdditionalDrawsCall('none');
+            $this->gamestate->nextState(TWDTransition\PlayCards);
+            return;
+        }
+        if ($additionalDrawsCall === TWDTransition\DrawCards) {
+            $this->setAdditionalDrawsCall('none');
+        }
+
+        $nextState = $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize
+            ? TWDTransition\PlayCards
+            : TWDTransition\DrawCards;
+        $this->gamestate->nextState($nextState);
+    }
+
     /**
      * Player action, play a card from hand
      *
@@ -360,35 +400,10 @@ class Game extends \Table
      */
     public function actPass(bool $force = false): void
     {
-        /* Check board state 
-            if both decks empty
-            then if hand = 0 then start story check else return to same state et play a card
-            else start new turn
-        */
         if ($force && $this->deckManager->countCardInLocation(TWDLocation\Hand) > 2 && $this->getAdditionalDraws() == 0)
             throw new \BgaUserException($this->_("You can't pass, play some cards first."));
-        if ($this->deckManager->countCardInLocation(TWDLocation\Rural) == 0 && $this->deckManager->countCardInLocation(TWDLocation\Urban) == 0) {
-            if ($this->deckManager->countCardInLocation(TWDLocation\Hand) == 0)
-                // start story check
-                $this->gamestate->nextState(TWDTransition\StoryCheck);
-            else {
-                // keep playing (even with additional draws)
-                $this->gamestate->nextState(TWDTransition\PlayCards);
-            }
-        } else {
-            if ($this->deckManager->countCardInLocation(TWDLocation\Hand) == 0 || $force) {
-                // go draw again
-                if ($this->getAdditionalDraws() > 0) {
-                    // we have additional draws to do
-                    $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
-                } else {
-                    $this->gamestate->nextState(TWDTransition\DrawCards);
-                }
-            } else {
-                // stay in same state
-                $this->gamestate->nextState(TWDTransition\PlayCards);
-            }
-        }
+
+        $this->gamestate->nextState(TWDTransition\Phase1);
     }
 
     /**
@@ -459,41 +474,7 @@ class Game extends \Table
                 'destination' => TWDLocation\Hand
             ));
         }
-        $this->checkHand($additionalDraws);
-    }
-
-    private function checkHand(bool $additionalDraws = false): void
-    {
-        if ($this->deckManager->countCardInLocation(TWDLocation\Rural) == 0 && $this->deckManager->countCardInLocation(TWDLocation\Urban) == 0) {
-            // no matter which state we're in, there is no card left to draw
-            if ($this->deckManager->countCardInLocation(TWDLocation\Hand) == 0) {
-                // no card in hand, go to story check (very rare situation)
-                $this->gamestate->nextState(TWDTransition\StoryCheck);
-            } else {
-                $this->gamestate->nextState(TWDTransition\PlayCards);
-            }
-        } else if ($additionalDraws) { // STATESTACK rewrite State Stack
-            // we come from an additional draw state
-            $nextState = $this->getAdditionalDrawsCall();
-            if ($this->getAdditionalDraws() > 0) {
-                // we still have additionals draws
-                $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
-                //else return to previous situation
-            } else if ($nextState == TWDTransition\PlayCards || $this->deckManager->countCardInLocation(TWDLocation\Hand) >= 3) { // STATESTACK rewrite State Stack
-                $this->setAdditionalDrawsCall('none');
-                $this->gamestate->nextState(TWDTransition\PlayCards);
-            } else { // STATESTACK rewrite State Stack
-                $this->setAdditionalDrawsCall('none');
-                $this->gamestate->nextState(TWDTransition\DrawCards);
-            }
-        } else {
-            // we are in regular draw situation
-            if ($this->deckManager->countCardInLocation(TWDLocation\Hand) >= 3) {
-                $this->gamestate->nextState(TWDTransition\PlayCards);
-            } else {
-                $this->gamestate->nextState(TWDTransition\DrawCards);
-            }
-        }
+        $this->gamestate->nextState(TWDTransition\Phase1);
     }
 
     /**
