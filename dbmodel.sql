@@ -74,6 +74,13 @@ CREATE TABLE IF NOT EXISTS `twd_game_transition` (
   PRIMARY KEY (`index`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8;
 
+CREATE TABLE IF NOT EXISTS `twd_event_stack` (
+  `event_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `event_type` varchar(64) NOT NULL,
+  `event_parameters` JSON DEFAULT NULL,
+  PRIMARY KEY (`event_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
+
 -- Create all the cards info
 INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`) VALUES
 (1, '1', 1, 'Aenor', 0, 0, NULL, NULL, NULL, 0),

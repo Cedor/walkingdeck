@@ -45,3 +45,13 @@ namespace Bga\Games\TheWalkingDeck\TWDLocation {
   const Done = 'done';
   const Protagonist = 'protagonist';
 }
+
+namespace Bga\Games\TheWalkingDeck\TWDEventType {
+  const Consequence = 'consequence';
+  const DrawCard = 'drawCard';
+  const SpecialDraw = 'specialDraw';
+  const AdditionalDraw = 'additionalDraw';
+  const PlayCard = 'playCard';
+  const NextState = 'nextState';
+  const ForcePass = 'forcePass';
+}
