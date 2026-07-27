@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
 
+use Bga\Games\TheWalkingDeck\Constants\EventType;
 use Bga\GameFramework\SystemException;
 
 final class TWDEventStack
 {
     private const SUPPORTED_TYPES = [
-        TWDEventType\Consequence,
-        TWDEventType\DrawCard,
-        TWDEventType\SpecialDraw,
-        TWDEventType\AdditionalDraw,
-        TWDEventType\PlayCard,
-        TWDEventType\NextState,
-        TWDEventType\ForcePass,
+        EventType::CONSEQUENCE,
+        EventType::DRAW_CARD,
+        EventType::SPECIAL_DRAW,
+        EventType::ADDITIONAL_DRAW,
+        EventType::PLAY_CARD,
+        EventType::NEXT_STATE,
+        EventType::FORCE_PASS,
     ];
 
     private Game $game;

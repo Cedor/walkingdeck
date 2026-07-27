@@ -2,6 +2,9 @@
 
 namespace Bga\Games\TheWalkingDeck;
 
+use Bga\Games\TheWalkingDeck\Constants\CardType;
+use Bga\Games\TheWalkingDeck\Constants\Location;
+
 class TWDDeck
 {
   protected $game;
@@ -98,10 +101,10 @@ class TWDDeck
   {
     $faketype = '';
     switch ($card['type']) {
-      case TWDCardType\Protagonist:
+      case CardType::PROTAGONIST:
         $faketype = '4';
         break;
-      case TWDCardType\Urban:
+      case CardType::URBAN:
         $faketype = '5';
         break;
       default:
@@ -128,21 +131,21 @@ class TWDDeck
     $rural = [];
     foreach ($cardInfo as $card) {
       switch ($card['card_type']) {
-        case TWDCardType\Protagonist: // protagonist
+        case CardType::PROTAGONIST: // protagonist
           $prota[] = ['type' => $card['card_type'], 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
           break;
-        case TWDCardType\Rural: // rural
+        case CardType::RURAL: // rural
           $rural[] = ['type' => $card['card_type'], 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
           break;
-        case TWDCardType\Urban: // urban
+        case CardType::URBAN: // urban
           $urban[] = ['type' => $card['card_type'], 'type_arg' => $card['card_type_arg'], 'nbr' => 1];
           break;
       }
     }
-    $this->game->getCardManager()->createCards($prota, TWDLocation\Hand);
-    $this->game->getCardManager()->createCards($rural, TWDLocation\Rural);
-    $this->game->getCardManager()->shuffle(TWDLocation\Rural);
-    $this->game->getCardManager()->createCards($urban, TWDLocation\Urban);
-    $this->game->getCardManager()->shuffle(TWDLocation\Urban);
+    $this->game->getCardManager()->createCards($prota, Location::HAND);
+    $this->game->getCardManager()->createCards($rural, Location::RURAL);
+    $this->game->getCardManager()->shuffle(Location::RURAL);
+    $this->game->getCardManager()->createCards($urban, Location::URBAN);
+    $this->game->getCardManager()->shuffle(Location::URBAN);
   }
 }

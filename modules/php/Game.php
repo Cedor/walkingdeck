@@ -20,6 +20,11 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
 
+use Bga\Games\TheWalkingDeck\Constants\CardType;
+use Bga\Games\TheWalkingDeck\Constants\EventType;
+use Bga\Games\TheWalkingDeck\Constants\Location;
+use Bga\Games\TheWalkingDeck\Constants\Rules;
+use Bga\Games\TheWalkingDeck\Constants\Transition;
 use Bga\GameFramework\NotificationMessage;
 use Bga\GameFramework\SystemException;
 use Bga\GameFramework\UserException;
@@ -117,8 +122,8 @@ class Game extends \Bga\GameFramework\Table
 
     private function availableDraws(): int
     {
-        return $this->deckManager->countCardInLocation(TWDLocation\Rural)
-            + $this->deckManager->countCardInLocation(TWDLocation\Urban);
+        return $this->deckManager->countCardInLocation(Location::RURAL)
+            + $this->deckManager->countCardInLocation(Location::URBAN);
     }
 
     /**
@@ -133,44 +138,44 @@ class Game extends \Bga\GameFramework\Table
             }
 
             switch ($event['type']) {
-                case TWDEventType\NextState:
+                case EventType::NEXT_STATE:
                     $transition = $event['parameters']['transition'] ?? null;
                     $this->assertPhase1Transition($transition);
                     $this->popEvent($event['id']);
                     $this->gamestate->nextState($transition);
                     return;
 
-                case TWDEventType\ForcePass:
-                case TWDEventType\DrawCard:
+                case EventType::FORCE_PASS:
+                case EventType::DRAW_CARD:
                     $this->popEvent($event['id']);
                     if ($this->availableDraws() > 0) {
-                        $this->gamestate->nextState(TWDTransition\DrawCards);
+                        $this->gamestate->nextState(Transition::DRAW_CARDS);
                         return;
                     }
                     break;
 
-                case TWDEventType\SpecialDraw:
+                case EventType::SPECIAL_DRAW:
                     $this->popEvent($event['id']);
                     if ($this->availableDraws() > 0) {
-                        $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
+                        $this->gamestate->nextState(Transition::ADDITIONAL_DRAW_CARDS);
                         return;
                     }
                     break;
 
-                case TWDEventType\AdditionalDraw:
+                case EventType::ADDITIONAL_DRAW:
                     $this->popEvent($event['id']);
                     if ($this->availableDraws() > 0) {
-                        $this->gamestate->nextState(TWDTransition\AdditionalDrawCards);
+                        $this->gamestate->nextState(Transition::ADDITIONAL_DRAW_CARDS);
                         return;
                     }
                     break;
 
-                case TWDEventType\PlayCard:
+                case EventType::PLAY_CARD:
                     $this->popEvent($event['id']);
-                    $this->gamestate->nextState(TWDTransition\PlayCards);
+                    $this->gamestate->nextState(Transition::PLAY_CARDS);
                     return;
 
-                case TWDEventType\Consequence:
+                case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
                     $card = $this->deckManager->getCard($cardId);
@@ -188,18 +193,18 @@ class Game extends \Bga\GameFramework\Table
                             'gameLoss',
                             \clienttranslate('You lost the game')
                         );
-                        $this->gamestate->nextState(TWDTransition\GameEnd);
+                        $this->gamestate->nextState(Transition::GAME_END);
                         return;
                     }
 
                     if ($outcome['additionalDraws'] > 0) {
                         $this->pushAdditionalDrawEvents(
                             $outcome['additionalDraws'],
-                            TWDTransition\PlayCards
+                            Transition::PLAY_CARDS
                         );
                     }
                     if ($outcome['forcePass']) {
-                        $this->eventStack->pushEvent(TWDEventType\ForcePass);
+                        $this->eventStack->pushEvent(EventType::FORCE_PASS);
                     }
                     break;
 
@@ -217,11 +222,11 @@ class Game extends \Bga\GameFramework\Table
     private function assertPhase1Transition($transition): void
     {
         $allowedTransitions = [
-            TWDTransition\DrawCards,
-            TWDTransition\AdditionalDrawCards,
-            TWDTransition\PlayCards,
-            TWDTransition\StoryCheck,
-            TWDTransition\GameEnd,
+            Transition::DRAW_CARDS,
+            Transition::ADDITIONAL_DRAW_CARDS,
+            Transition::PLAY_CARDS,
+            Transition::STORY_CHECK,
+            Transition::GAME_END,
         ];
 
         if (!is_string($transition) || !in_array($transition, $allowedTransitions, true)) {
@@ -245,25 +250,25 @@ class Game extends \Bga\GameFramework\Table
         $this->assertPhase1Transition($returnTransition);
 
         $this->eventStack->pushEvent(
-            TWDEventType\NextState,
+            EventType::NEXT_STATE,
             ['transition' => $returnTransition]
         );
         for ($i = 0; $i < $number; $i++) {
-            $this->eventStack->pushEvent(TWDEventType\AdditionalDraw);
+            $this->eventStack->pushEvent(EventType::ADDITIONAL_DRAW);
         }
     }
 
     private function getDefaultPhase1Transition(): string
     {
         if ($this->availableDraws() === 0) {
-            return $this->deckManager->countCardInLocation(TWDLocation\Hand) === 0
-                ? TWDTransition\StoryCheck
-                : TWDTransition\PlayCards;
+            return $this->deckManager->countCardInLocation(Location::HAND) === 0
+                ? Transition::STORY_CHECK
+                : Transition::PLAY_CARDS;
         }
 
-        return $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize
-            ? TWDTransition\PlayCards
-            : TWDTransition\DrawCards;
+        return $this->deckManager->countCardInLocation(Location::HAND) >= Rules::HAND_SIZE
+            ? Transition::PLAY_CARDS
+            : Transition::DRAW_CARDS;
     }
 
     /**
@@ -275,25 +280,25 @@ class Game extends \Bga\GameFramework\Table
     {
         $card = $this->deckManager->getCard($card_id);
         $card_name = '';
-        if ($card && $card['location'] == TWDLocation\Hand && ($card['type'] == TWDCardType\Rural || $card['type'] == TWDCardType\Urban) && $this->cardCanBePlayedInLocation($card, $location)) { // card can be played
+        if ($card && $card['location'] == Location::HAND && ($card['type'] == CardType::RURAL || $card['type'] == CardType::URBAN) && $this->cardCanBePlayedInLocation($card, $location)) { // card can be played
             $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
             $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
             $this->notify->all('cardMoved', \clienttranslate("Card $card_name played from hand to $location"), array(
                 'card' => $card,
                 'destination' => $location,
-                'source' => TWDLocation\Hand
+                'source' => Location::HAND
             ));
 
             $consequenceColor = null;
             switch ($location) {
-                case TWDLocation\Memory:
+                case Location::MEMORY:
                     $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply white consequences"), array(
                         'card' => $card,
                     ));
                     $consequenceColor = 'white';
                     break;
-                case TWDLocation\Escaped:
+                case Location::ESCAPED:
                     $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply black consequences"), array(
                         'card' => $card,
                     ));
@@ -302,13 +307,13 @@ class Game extends \Bga\GameFramework\Table
             }
 
             if ($consequenceColor !== null) {
-                $this->eventStack->pushEvent(TWDEventType\Consequence, [
+                $this->eventStack->pushEvent(EventType::CONSEQUENCE, [
                     'cardId' => intval($card['id']),
                     'color' => $consequenceColor,
                 ]);
             }
 
-            $this->gamestate->nextState(TWDTransition\Phase1);
+            $this->gamestate->nextState(Transition::PHASE_1);
         } else {
             throw new UserException(new NotificationMessage(
                 \clienttranslate('Illegal move: ${card_name} (${card_id}) cannot be played from hand to location ${location}'),
@@ -363,7 +368,7 @@ class Game extends \Bga\GameFramework\Table
             case 'bury':
                 switch ($consequence['bury']) {
                     case 'this':
-                        $this->moveCard(intval($card['id']), TWDLocation\Graveyard);
+                        $this->moveCard(intval($card['id']), Location::GRAVEYARD);
                         $outcome['checkLoss'] = true;
                         break;
                     case 'character':
@@ -456,13 +461,13 @@ class Game extends \Bga\GameFramework\Table
     private function cardCanBePlayedInLocation(array $card, string $location): bool
     {
         switch ($location) {
-            case TWDLocation\CharactersInPlay:
+            case Location::CHARACTERS_IN_PLAY:
                 return $card['is_character'] == '1';
                 break;
-            case TWDLocation\Memory:
+            case Location::MEMORY:
                 return $card['consequence_white'] || $card['consequence_grey'];
                 break;
-            case TWDLocation\Escaped:
+            case Location::ESCAPED:
                 return $card['consequence_black'] && $this->consequenceCanBeResolved($card);
                 break;
         }
@@ -476,11 +481,11 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actPass(bool $force = false): void
     {
-        if ($force && $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize) {
+        if ($force && $this->deckManager->countCardInLocation(Location::HAND) >= Rules::HAND_SIZE) {
             throw new UserException(\clienttranslate("You can't pass, play some cards first."));
         }
 
-        $this->gamestate->nextState(TWDTransition\Phase1);
+        $this->gamestate->nextState(Transition::PHASE_1);
     }
 
     /**
@@ -491,15 +496,15 @@ class Game extends \Bga\GameFramework\Table
     public function actPlayProtagonistCard(int $card_id): void
     {
         $card = $this->deckManager->getCard($card_id);
-        if (intval($card['type']) == TWDCardType\Protagonist && $card['location'] == TWDLocation\Hand && $this->deckManager->countCardInLocation(TWDLocation\Protagonist) == 0) {
-            $this->deckManager->moveCard($card_id, TWDLocation\Protagonist);
+        if (intval($card['type']) == CardType::PROTAGONIST && $card['location'] == Location::HAND && $this->deckManager->countCardInLocation(Location::PROTAGONIST) == 0) {
+            $this->deckManager->moveCard($card_id, Location::PROTAGONIST);
             $card = $this->deckManager->getCard($card_id);
             $difficulty = intval($card['type_arg']);
             $this->setDifficulty($difficulty);
             $cardname = $card['card_name'];
             //set loss condition
             $lossCon = $this->setLossCondition($card);
-            $this->deckManager->moveAllCardsInLocation(TWDLocation\Hand, TWDLocation\Discard);
+            $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
             $this->notify->all('protagonistCardPlayed', \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
                 'card' => $card,
                 'difficulty' => $difficulty,
@@ -513,7 +518,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         // at the end of the action, move to the next state
-        $this->gamestate->nextState(TWDTransition\DefaultTransition);
+        $this->gamestate->nextState(Transition::DEFAULT);
     }
 
     /**
@@ -534,7 +539,7 @@ class Game extends \Bga\GameFramework\Table
 
         if ($cardPicked['special_draw'] == 1) {
             $cardId = intval($cardPicked['id']);
-            $destination = TWDLocation\Memory;
+            $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all('cardMoved', \clienttranslate("Special draw triggered by card " . $card['card_name']), array(
@@ -543,15 +548,15 @@ class Game extends \Bga\GameFramework\Table
                 'destination' => $destination,
                 'special' => true
             ));
-            $this->eventStack->pushEvent(TWDEventType\SpecialDraw);
+            $this->eventStack->pushEvent(EventType::SPECIAL_DRAW);
         } else {
-            $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == TWDLocation\Rural ? "Rural" : "Urban") . " deck"), array(
+            $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == Location::RURAL ? "Rural" : "Urban") . " deck"), array(
                 'card' => $cardPicked,
                 'source' => $location,
-                'destination' => TWDLocation\Hand
+                'destination' => Location::HAND
             ));
         }
-        $this->gamestate->nextState(TWDTransition\Phase1);
+        $this->gamestate->nextState(Transition::PHASE_1);
     }
 
     /**
@@ -562,7 +567,7 @@ class Game extends \Bga\GameFramework\Table
     public function actGoToStoryCheck(): void
     {
 
-        $this->gamestate->nextState(TWDTransition\StoryCheck);
+        $this->gamestate->nextState(Transition::STORY_CHECK);
     }
 
     /**
@@ -574,7 +579,7 @@ class Game extends \Bga\GameFramework\Table
     {
         // TEST remove after tests
         $this->notify->all('actionPicked', \clienttranslate("You have picked an action"), array());
-        $this->gamestate->nextState(TWDTransition\DefaultTransition);
+        $this->gamestate->nextState(Transition::DEFAULT);
     }
 
     /**
@@ -607,7 +612,7 @@ class Game extends \Bga\GameFramework\Table
     {
         $card = $this->deckManager->getCard($card_id);
         $card_name = '';
-        if ($card && $card['location'] == TWDLocation\Hand &&  $this->cardCanBePlayedInLocation($card, $location)) {
+        if ($card && $card['location'] == Location::HAND &&  $this->cardCanBePlayedInLocation($card, $location)) {
             $this->deckManager->moveCard($card_id, 'characters');
             $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
@@ -671,14 +676,14 @@ class Game extends \Bga\GameFramework\Table
         static::DbQuery(
             "UPDATE card  SET card_location_arg = - card_location_arg WHERE card_location = 'memory'"
         );
-        $memoryFakeTop =  $this->deckManager->generateFakeCard($this->deckManager->getCardOnTop(TWDLocation\Memory));
+        $memoryFakeTop =  $this->deckManager->generateFakeCard($this->deckManager->getCardOnTop(Location::MEMORY));
 
         // notify
         $this->notify->all('storyCheckStarted', \clienttranslate("Story check started"), array(
             'memoryTopCard' => $memoryFakeTop
         ));
         // Go to following game state
-        $this->gamestate->nextState(TWDTransition\DefaultTransition);
+        $this->gamestate->nextState(Transition::DEFAULT);
     }
 
     /**
@@ -703,7 +708,7 @@ class Game extends \Bga\GameFramework\Table
     }
     private function isLossReached(): bool
     {
-        $graveyardNb = $this->deckManager->countCardInLocation(TWDLocation\Graveyard);
+        $graveyardNb = $this->deckManager->countCardInLocation(Location::GRAVEYARD);
         return $graveyardNb >= intval($this->getGameStateValue('lossCondition'));
     }
 
@@ -711,7 +716,7 @@ class Game extends \Bga\GameFramework\Table
     {
         if ($this->isLossReached()) {
             $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
-            $this->gamestate->nextState(TWDTransition\GameEnd);
+            $this->gamestate->nextState(Transition::GAME_END);
         }
     }
 
@@ -726,9 +731,9 @@ class Game extends \Bga\GameFramework\Table
         // Go to following game state
         if ($loss) {
             $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
-            $this->gamestate->nextState(TWDTransition\GameEnd);
+            $this->gamestate->nextState(Transition::GAME_END);
         } else if ($win) {
-            $this->gamestate->nextState(TWDTransition\GameEnd);
+            $this->gamestate->nextState(Transition::GAME_END);
         } else {
             // TEST remove after tests
             $this->notify->all('keepPlaying', \clienttranslate("You have picked an action"));
@@ -802,17 +807,17 @@ class Game extends \Bga\GameFramework\Table
         $result['hand'] = $this->deckManager->getCardsInLocation('hand');
 
         // Cards played on the table
-        $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(TWDLocation\Protagonist);
+        $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
         $gamePhase = $this->getGameStateValue('gamePhase');
-        $memoryTop = $this->deckManager->getCardOnTop(TWDLocation\Memory);
+        $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
         $result['memoryTop'] = $gamePhase == 1 ? $memoryTop :  $this->deckManager->generateFakeCard($memoryTop);
-        $result['memoryNb'] = $this->deckManager->countCardInLocation(TWDLocation\Memory);
-        $result['escaped'] = $this->deckManager->getCardsInLocation(TWDLocation\Escaped, null, 'location_arg');
-        $result['graveyardNb'] = $this->deckManager->countCardInLocation(TWDLocation\Graveyard);
-        $graveyardTop = $this->deckManager->getCardOnTop(TWDLocation\Graveyard);
+        $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
+        $result['escaped'] = $this->deckManager->getCardsInLocation(Location::ESCAPED, null, 'location_arg');
+        $result['graveyardNb'] = $this->deckManager->countCardInLocation(Location::GRAVEYARD);
+        $graveyardTop = $this->deckManager->getCardOnTop(Location::GRAVEYARD);
         $result['graveyardTop'] = $graveyardTop ?  $this->deckManager->generateFakeCard($graveyardTop) : null;
-        $result['ruralDeckNb'] = $this->deckManager->countCardInLocation(TWDLocation\Rural);
-        $result['urbanDeckNb'] = $this->deckManager->countCardInLocation(TWDLocation\Urban);
+        $result['ruralDeckNb'] = $this->deckManager->countCardInLocation(Location::RURAL);
+        $result['urbanDeckNb'] = $this->deckManager->countCardInLocation(Location::URBAN);
 
         // ressources
         $result['ressources'] = $this->ressources->getRessources();
