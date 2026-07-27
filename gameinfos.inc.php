@@ -63,11 +63,11 @@ $gameinfos = [
     // Allow to rank solo games for games where it's the only available mode (ex: Orchard). Should be left to false for games where solo mode exists in addition to multiple players mode.
     'solo_mode_ranked' => true,
 
-    // Game is "beta". A game MUST set is_beta=1 when published on BGA for the first time, and must remains like this until all bugs are fixed.
-    'is_beta' => 1,
-
     // Is this game cooperative (all players wins together or loose together)
     'is_coop' => 0,
+
+    // Convert PHP warnings into exceptions so they cannot silently corrupt the game flow.
+    'exception_on_warning' => true,
 
     // Language dependency. If false or not set, there is no language dependency. If true, all players at the table must speak the same language.
     // If an array of shortcode languages such as array( 1 => 'en', 2 => 'fr', 3 => 'it' ) then all players at the table must speak the same language, and this language must be one of the listed languages.

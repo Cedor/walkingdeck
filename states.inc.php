@@ -177,15 +177,5 @@ $machinestates = [
             'nextStep' => TWDState\StoryCheckStep,
             'gameEnd' => TWDState\GameEnd
         ])
-        ->build(),
-
-    // Final state.
-    // Please do not modify (and do not overload action/args methods).
-    TWDState\GameEnd => GameStateBuilder::create()
-        ->name('gameEnd')
-        ->description(clienttranslate("End of game"))
-        ->type(StateType::MANAGER)
-        ->action('stGameEnd')
-        ->args('argGameEnd')
         ->build()
 ];

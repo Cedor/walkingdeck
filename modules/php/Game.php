@@ -20,9 +20,11 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
 
-require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
+use Bga\GameFramework\NotificationMessage;
+use Bga\GameFramework\SystemException;
+use Bga\GameFramework\UserException;
 
-class Game extends \Table
+class Game extends \Bga\GameFramework\Table
 {
     /**
      * Your global variables labels:
@@ -55,12 +57,10 @@ class Game extends \Table
             'ressource3' => 15,
         ]);
 
-        $this->cards = $this->getNew("module.common.deck");
-        $this->cards->init('twd_card');
+        $this->cards = $this->bga->deckFactory->createDeck('twd_card');
         $this->deckManager = new TWDDeck($this);
         $this->ressources = new TWDRessources($this);
-        $this->disaster = $this->getNew("module.common.deck");
-        $this->disaster->init('twd_disaster');
+        $this->disaster = $this->bga->deckFactory->createDeck('twd_disaster');
         $this->disasterManager = new TWDDisaster($this);
         $this->eventStack = new TWDEventStack($this);
 
@@ -106,7 +106,10 @@ class Game extends \Table
         $card_type = intval($card['type']);
         $card_type_arg = intval($card['type_arg']);
         if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
-            throw new \BgaUserException($this->_("Illegal call to setLossCondition with $card"));
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('Illegal call to setLossCondition with card ${card_id}'),
+                ['card_id' => $card['id'] ?? 'unknown']
+            ));
         $lossCon = intval($card['losscon']);
         $this->setGameStateValue('lossCondition', $lossCon);
         return $lossCon;
@@ -126,7 +129,7 @@ class Game extends \Table
         while (!$this->eventStack->isEmpty()) {
             $event = $this->eventStack->getCurrentEvent();
             if ($event === null) {
-                throw new \BgaSystemException('Event stack changed unexpectedly');
+                throw new SystemException('Event stack changed unexpectedly');
             }
 
             switch ($event['type']) {
@@ -172,7 +175,7 @@ class Game extends \Table
                     $color = strval($event['parameters']['color'] ?? '');
                     $card = $this->deckManager->getCard($cardId);
                     if (!$card || !in_array($color, ['black', 'white', 'grey'], true)) {
-                        throw new \BgaSystemException(
+                        throw new SystemException(
                             "Invalid consequence event {$event['id']}"
                         );
                     }
@@ -201,7 +204,7 @@ class Game extends \Table
                     break;
 
                 default:
-                    throw new \BgaSystemException(
+                    throw new SystemException(
                         "Unhandled event type: {$event['type']}"
                     );
             }
@@ -222,7 +225,7 @@ class Game extends \Table
         ];
 
         if (!is_string($transition) || !in_array($transition, $allowedTransitions, true)) {
-            throw new \BgaSystemException('Invalid Phase1 transition');
+            throw new SystemException('Invalid Phase1 transition');
         }
     }
 
@@ -230,14 +233,14 @@ class Game extends \Table
     {
         $poppedEvent = $this->eventStack->popEvent();
         if ($poppedEvent === null || $poppedEvent['id'] !== $expectedId) {
-            throw new \BgaSystemException('Unexpected event popped from stack');
+            throw new SystemException('Unexpected event popped from stack');
         }
     }
 
     private function pushAdditionalDrawEvents(int $number, string $returnTransition): void
     {
         if ($number < 1) {
-            throw new \BgaSystemException('Additional draw count must be positive');
+            throw new SystemException('Additional draw count must be positive');
         }
         $this->assertPhase1Transition($returnTransition);
 
@@ -307,7 +310,14 @@ class Game extends \Table
 
             $this->gamestate->nextState(TWDTransition\Phase1);
         } else {
-            throw new \BgaUserException($this->_('Illegal Move: ') . "$card_name ($card_id) cannot be played from hand to location $location");
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('Illegal move: ${card_name} (${card_id}) cannot be played from hand to location ${location}'),
+                [
+                    'card_name' => $card_name,
+                    'card_id' => $card_id,
+                    'location' => $location,
+                ]
+            ));
         }
     }
 
@@ -340,7 +350,7 @@ class Game extends \Table
             case 'draw':
                 $numCards = intval($consequence['number']);
                 if ($numCards < 1) {
-                    throw new \BgaSystemException('Invalid consequence draw count');
+                    throw new SystemException('Invalid consequence draw count');
                 }
                 $outcome['additionalDraws'] = $numCards;
                 break;
@@ -363,7 +373,10 @@ class Game extends \Table
                         // CONS implement bury top card
                         break;
                     default:
-                        throw new \BgaUserException($this->_("Illegal call to bury with ") . $consequence['bury']);
+                        throw new UserException(new NotificationMessage(
+                            \clienttranslate('Illegal call to bury with ${bury}'),
+                            ['bury' => $consequence['bury']]
+                        ));
                 }
                 break;
             case 'bite':
@@ -407,7 +420,7 @@ class Game extends \Table
             for ($i = 0; $i < $number; $i++) {
                 $key = strval($i);
                 if (!isset($consequence[$key]) || !is_array($consequence[$key])) {
-                    throw new \BgaSystemException(
+                    throw new SystemException(
                         "Missing consequence $key for card {$card['id']}"
                     );
                 }
@@ -464,7 +477,7 @@ class Game extends \Table
     public function actPass(bool $force = false): void
     {
         if ($force && $this->deckManager->countCardInLocation(TWDLocation\Hand) >= TWDHandSize) {
-            throw new \BgaUserException($this->_("You can't pass, play some cards first."));
+            throw new UserException(\clienttranslate("You can't pass, play some cards first."));
         }
 
         $this->gamestate->nextState(TWDTransition\Phase1);
@@ -492,7 +505,12 @@ class Game extends \Table
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
             ));
-        } else throw new \BgaUserException($this->_("Illegal Move: you plays $card_id from Hand to protagonist slot"));
+        } else {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('Illegal move: card ${card_id} cannot be played from hand to the protagonist slot'),
+                ['card_id' => $card_id]
+            ));
+        }
 
         // at the end of the action, move to the next state
         $this->gamestate->nextState(TWDTransition\DefaultTransition);
@@ -506,7 +524,10 @@ class Game extends \Table
     public function actDrawFromDeck(string $location): void
     {
         if ($this->deckManager->countCardInLocation($location) == 0) {
-            throw new \BgaUserException($this->_("Illegal Move: No card left in $location"));
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('Illegal move: no card left in ${location}'),
+                ['location' => $location]
+            ));
         }
         // pick the card
         $cardPicked = $this->deckManager->pickCard($location, 0);
@@ -594,7 +615,15 @@ class Game extends \Table
                 'card' => $card,
                 'location' => $location
             ));
-        } else throw new \BgaUserException($this->_("Illegal Move: Trying to play card $card_id ") . $card["is_character"]);
+        } else {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('Illegal move: cannot play card ${card_id} (character: ${is_character})'),
+                [
+                    'card_id' => $card_id,
+                    'is_character' => $card['is_character'] ?? 'unknown',
+                ]
+            ));
+        }
     }
 
     /**
@@ -803,16 +832,6 @@ class Game extends \Table
     }
 
     /**
-     * Returns the game name.
-     *
-     * IMPORTANT: Please do not modify.
-     */
-    protected function getGameName()
-    {
-        return 'thewalkingdeck';
-    }
-
-    /**
      * This method is called only once, when a new game is launched. In this method, you must setup the game
      *  according to the game rules, so that the game is ready to be played.
      */
@@ -914,6 +933,6 @@ class Game extends \Table
             return;
         }
 
-        throw new \feException("Zombie mode not supported at this game state: \"{$state_name}\".");
+        throw new SystemException("Zombie mode not supported at this game state: \"{$state_name}\".");
     }
 }

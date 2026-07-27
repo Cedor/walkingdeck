@@ -2,8 +2,6 @@
 
 namespace Bga\Games\TheWalkingDeck;
 
-require_once(APP_GAMEMODULE_PATH . "module/table/table.game.php");
-
 class TWDDeck
 {
   protected $game;

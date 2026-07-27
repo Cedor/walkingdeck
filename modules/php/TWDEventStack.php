@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck;
 
+use Bga\GameFramework\SystemException;
+
 final class TWDEventStack
 {
     private const SUPPORTED_TYPES = [
@@ -63,7 +65,7 @@ final class TWDEventStack
             );
 
             if (!is_array($decodedParameters)) {
-                throw new \BgaSystemException(
+                throw new SystemException(
                     "Invalid parameters for event {$event['event_id']}"
                 );
             }
@@ -104,7 +106,7 @@ final class TWDEventStack
     private function assertSupportedType(string $type): void
     {
         if (!in_array($type, self::SUPPORTED_TYPES, true)) {
-            throw new \BgaSystemException("Unknown event type: $type");
+            throw new SystemException("Unknown event type: $type");
         }
     }
 }
