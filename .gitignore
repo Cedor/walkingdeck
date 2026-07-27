@@ -10,4 +10,10 @@
 # Built Visual Studio Code Extensions
 *.vsix
 
+# Local test dependencies and generated reports
+/vendor/
+/node_modules/
+/build/
+/.phpunit.result.cache
+
 

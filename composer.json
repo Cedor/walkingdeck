@@ -1,0 +1,27 @@
+{
+    "name": "studio-kabo/the-walking-deck",
+    "description": "Automated test tooling for The Walking Deck Board Game Arena implementation.",
+    "license": "proprietary",
+    "type": "project",
+    "require-dev": {
+        "phpunit/phpunit": "^9.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bga\\Games\\TheWalkingDeck\\": "modules/php/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bga\\Games\\TheWalkingDeck\\Tests\\": "tests/php/"
+        }
+    },
+    "scripts": {
+        "lint": "@php scripts/lint-php.php",
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-clover build/coverage.xml"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
