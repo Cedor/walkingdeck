@@ -122,8 +122,7 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actPlayCard',
-            'actDrawFromDeck',
-            'actPass',
+            'actRefillHand',
             'actGoToStoryCheck',// TEST remove after tests
             'actDrawFromDisasterBag',// TEST remove after tests
             'actFlipRessource',// TEST remove after tests

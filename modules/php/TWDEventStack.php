@@ -16,7 +16,6 @@ final class TWDEventStack
         EventType::ADDITIONAL_DRAW,
         EventType::PLAY_CARD,
         EventType::NEXT_STATE,
-        EventType::FORCE_PASS,
     ];
 
     private Game $game;

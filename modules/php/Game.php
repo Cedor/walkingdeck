@@ -127,6 +127,12 @@ class Game extends \Bga\GameFramework\Table
             + $this->deckManager->countCardInLocation(Location::URBAN);
     }
 
+    private function canContinueNormalDraw(): bool
+    {
+        return $this->availableDraws() > 0
+            && $this->deckManager->countCardInLocation(Location::HAND) < Rules::HAND_SIZE;
+    }
+
     /**
      * Select the next player action during phase one.
      */
@@ -146,13 +152,13 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState($transition);
                     return;
 
-                case EventType::FORCE_PASS:
                 case EventType::DRAW_CARD:
-                    $this->popEvent($event['id']);
-                    if ($this->availableDraws() > 0) {
+                    // Keep this event on the stack for the whole normal refill.
+                    if ($this->canContinueNormalDraw()) {
                         $this->gamestate->nextState(Transition::DRAW_CARDS);
                         return;
                     }
+                    $this->popEvent($event['id']);
                     break;
 
                 case EventType::SPECIAL_DRAW:
@@ -204,8 +210,8 @@ class Game extends \Bga\GameFramework\Table
                             Transition::PLAY_CARDS
                         );
                     }
-                    if ($outcome['forcePass']) {
-                        $this->eventStack->pushEvent(EventType::FORCE_PASS);
+                    if ($outcome['startNormalDraw']) {
+                        $this->eventStack->pushEvent(EventType::DRAW_CARD);
                     }
                     break;
 
@@ -216,7 +222,11 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
-        $this->gamestate->nextState($this->getDefaultPhase1Transition());
+        $defaultTransition = $this->getDefaultPhase1Transition();
+        if ($defaultTransition === Transition::DRAW_CARDS) {
+            $this->eventStack->pushEvent(EventType::DRAW_CARD);
+        }
+        $this->gamestate->nextState($defaultTransition);
         return;
     }
 
@@ -350,7 +360,7 @@ class Game extends \Bga\GameFramework\Table
     {
         $outcome = [
             'additionalDraws' => 0,
-            'forcePass' => false,
+            'startNormalDraw' => false,
             'checkLoss' => false,
         ];
 
@@ -391,7 +401,7 @@ class Game extends \Bga\GameFramework\Table
                 // CONS implement bite damage (phase 2 only)
                 break;
             case 'forcePass':
-                $outcome['forcePass'] = true;
+                $outcome['startNormalDraw'] = true;
                 break;
             case 'none':
             case 'nothing':
@@ -413,7 +423,7 @@ class Game extends \Bga\GameFramework\Table
         $consequence = $card['consequence_' . $color];
         $outcome = [
             'additionalDraws' => 0,
-            'forcePass' => false,
+            'startNormalDraw' => false,
             'checkLoss' => false,
         ];
 
@@ -446,7 +456,7 @@ class Game extends \Bga\GameFramework\Table
 
             $currentOutcome = $this->applyConsequence($currentConsequence, $card);
             $outcome['additionalDraws'] += $currentOutcome['additionalDraws'];
-            $outcome['forcePass'] = $outcome['forcePass'] || $currentOutcome['forcePass'];
+            $outcome['startNormalDraw'] = $outcome['startNormalDraw'] || $currentOutcome['startNormalDraw'];
             $outcome['checkLoss'] = $outcome['checkLoss'] || $currentOutcome['checkLoss'];
         }
 
@@ -478,16 +488,23 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Player action, pass turn (only allowed if cards in decks), auto call when hand is empty
+     * Player action: start the normal refill when exactly one card remains.
+     * An empty hand starts the same refill automatically in stPhase1Switch().
      *
      * @throws BgaUserException
      */
-    public function actPass(bool $force = false): void
+    public function actRefillHand(): void
     {
-        if ($force && $this->deckManager->countCardInLocation(Location::HAND) >= Rules::HAND_SIZE) {
-            throw new UserException(\clienttranslate("You can't pass, play some cards first."));
+        $this->checkAction('actRefillHand');
+
+        if ($this->deckManager->countCardInLocation(Location::HAND) !== 1) {
+            throw new UserException(\clienttranslate("You can only refill with exactly one card in hand."));
+        }
+        if ($this->availableDraws() === 0) {
+            throw new UserException(\clienttranslate("You can't refill because there are no cards left to draw."));
         }
 
+        $this->eventStack->pushEvent(EventType::DRAW_CARD);
         $this->gamestate->nextState(Transition::PHASE_1);
     }
 
@@ -535,8 +552,8 @@ class Game extends \Bga\GameFramework\Table
 
         $isAdditionalDraw = $this->gamestate->getCurrentMainStateId() === GameStep::ADDITIONAL_DRAW;
         $handSize = $this->deckManager->countCardInLocation(Location::HAND);
-        if (!$isAdditionalDraw && $handSize > 1) {
-            throw new UserException(\clienttranslate("You can't draw with more than one card in hand."));
+        if (!$isAdditionalDraw && $handSize >= Rules::HAND_SIZE) {
+            throw new UserException(\clienttranslate("You can't draw with a full hand."));
         }
 
         if ($this->deckManager->countCardInLocation($location) == 0) {
@@ -548,7 +565,8 @@ class Game extends \Bga\GameFramework\Table
         // pick the card
         $cardPicked = $this->deckManager->pickCard($location, 0);
 
-        if ($cardPicked['special_draw'] == 1) {
+        $isSpecialDraw = $cardPicked['special_draw'] == 1;
+        if ($isSpecialDraw) {
             $cardId = intval($cardPicked['id']);
             $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
@@ -559,7 +577,6 @@ class Game extends \Bga\GameFramework\Table
                 'destination' => $destination,
                 'special' => true
             ));
-            $this->eventStack->pushEvent(EventType::SPECIAL_DRAW);
         } else {
             $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == Location::RURAL ? "Rural" : "Urban") . " deck"), array(
                 'card' => $cardPicked,
@@ -567,6 +584,12 @@ class Game extends \Bga\GameFramework\Table
                 'destination' => Location::HAND
             ));
         }
+
+        if ($isSpecialDraw) {
+            // Resolve the special draw first, then resume any pending normal refill.
+            $this->eventStack->pushEvent(EventType::SPECIAL_DRAW);
+        }
+
         $this->gamestate->nextState(Transition::PHASE_1);
     }
 

@@ -424,14 +424,10 @@ define([
           this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
           break;
         case "playCards":
-          if (this.hand.getCardCount() <= 1) {
-            this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
-            this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
-          }
-          if (this.hand.getCardCount() < 3) {
-            document.getElementById("pass_button").style.visibility = "visible";
+          if (this.hand.getCardCount() === 1) {
+            document.getElementById("refill_hand_button").style.visibility = "visible";
           } else {
-            document.getElementById("pass_button").style.visibility = "hidden";
+            document.getElementById("refill_hand_button").style.visibility = "hidden";
           }
           break;
         case "storyCheck":
@@ -467,8 +463,6 @@ define([
           this.stateConnectors = [];
           break;
         case "playCards":
-          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
-          this.stateConnectors = [];
           break;
         case "dummy":
           break;
@@ -491,8 +485,8 @@ define([
             }).style.visibility = "hidden";
             break;
           case "playCards":
-            this.statusBar.addActionButton(_("Pass"), () => this.bgaPerformAction("actPass", { force: true }), {
-              id: "pass_button",
+            this.statusBar.addActionButton(_("Refill hand"), () => this.bgaPerformAction("actRefillHand"), {
+              id: "refill_hand_button",
               color: "secondary",
             });
             // TEST remove after tests

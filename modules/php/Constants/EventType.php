@@ -12,5 +12,4 @@ final class EventType
     public const ADDITIONAL_DRAW = 'additionalDraw';
     public const PLAY_CARD = 'playCard';
     public const NEXT_STATE = 'nextState';
-    public const FORCE_PASS = 'forcePass';
 }
