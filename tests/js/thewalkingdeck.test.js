@@ -258,4 +258,29 @@ describe("notifications", () => {
     assert.equal(destination.addCard.calls[0][0], card);
     assert.equal(destination.addCard.calls[0][1].fromStock, source);
   });
+
+  it("reveals and installs the current Story Check card", async () => {
+    const memory = {
+      setCardNumber: spy(),
+      addCard: spy(async () => undefined),
+      removeAll: spy(),
+    };
+    const storyCurrent = {
+      addCard: spy(async () => undefined),
+    };
+    const context = { memory, storyCurrent };
+    const card = { id: 21 };
+    const memoryTopCard = { id: "fake-top-card" };
+
+    await game.notif_storyCardRevealed.call(context, {
+      card,
+      memoryTopCard,
+      memoryNb: 2,
+    });
+
+    assert.equal(storyCurrent.addCard.calls[0][0], card);
+    assert.equal(storyCurrent.addCard.calls[0][1].fromStock, memory);
+    assert.equal(memory.setCardNumber.calls[0][0], 2);
+    assert.equal(memory.addCard.calls[0][0], memoryTopCard);
+  });
 });

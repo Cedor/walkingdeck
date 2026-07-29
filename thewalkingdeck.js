@@ -100,6 +100,10 @@ define([
               </div>
             </div>
             <div id="story_organiser">
+              <div id="story_current_wrap" class="characters-slot-wrap">
+                <b>${_("Current Story Card")}</b>
+                <div id="story_current"></div>
+              </div>
               <div id="characters_wrap" class="characters-slot-wrap">
                 <b>${_("Characters")}</b>
                 <div id="characters"></div>
@@ -349,6 +353,15 @@ define([
         direction: "row",
         center: false,
       });
+      this.storyCurrent = new BgaCards.SlotStock(
+        this.cardsManager,
+        document.getElementById("story_current"),
+        {
+          slotsIds: ["current"],
+          slotClasses: ["twd-card-slot"],
+          mapCardToSlot: () => "current",
+        }
+      );
 
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
@@ -411,6 +424,9 @@ define([
       console.log("Characters gamedatas", this.gamedatas.charactersInPlay);
       for (let character in this.gamedatas.charactersInPlay) {
         this.characters.addCard(this.gamedatas.charactersInPlay[character]);
+      }
+      if (this.gamedatas.storyCurrent) {
+        this.storyCurrent.addCard(this.gamedatas.storyCurrent);
       }
 
       // Setup connections
@@ -606,6 +622,8 @@ define([
           return this.urbanDeck;
         case "brainstorm":
           return this.brainstorm;
+        case "story_current":
+          return this.storyCurrent;
         default:
           console.log("Unknown location: " + location);
           return null;
@@ -667,6 +685,7 @@ define([
           break;
         case "escaped":
         case "hand":
+        case "story_current":
           break;
         case "brainstorm":
           break;
@@ -919,11 +938,30 @@ define([
     notif_storyCheckStarted: function (args) {
       console.log("notif_storyCheckStarted");
       console.log(args);
-      this.memory.addCard(args.memoryTopCard, {
-        fadeIn: true,
-        autoupdateCardNumber: false,
-        autoRemovePreviousCards: true,
-      });
+      document.getElementById("story_organiser").style.display = "block";
+      if (args.memoryTopCard) {
+        this.memory.addCard(args.memoryTopCard, {
+          fadeIn: true,
+          autoupdateCardNumber: false,
+          autoRemovePreviousCards: true,
+        });
+      }
+    },
+    notif_storyCardResolved: async function (args) {
+      await this.storyCurrent.removeCard(args.card);
+    },
+    notif_storyCardRevealed: async function (args) {
+      await this.storyCurrent.addCard(args.card, { fromStock: this.memory });
+      this.memory.setCardNumber(args.memoryNb);
+      if (args.memoryTopCard) {
+        await this.memory.addCard(args.memoryTopCard, {
+          autoupdateCardNumber: false,
+          autoRemovePreviousCards: true,
+        });
+      } else {
+        this.memory.removeAll();
+        this.memory.setCardNumber(0);
+      }
     },
     notif_ressourceFlipped: function (args) {
       console.log("notif_ressourceFlipped");

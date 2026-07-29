@@ -329,6 +329,38 @@ final class GameRulesTest extends TestCase
         self::assertTrue($this->invoke('isLossReached'));
     }
 
+    public function testStoryCheckWinsWhenMemoryAndCurrentCardAreEmpty(): void
+    {
+        $deckManager = new class {
+            public array $cardsByLocation = [];
+
+            public function countCardInLocation(string $location): int
+            {
+                return count($this->cardsByLocation[$location] ?? []);
+            }
+
+            public function getCardOnTop(string $location): ?array
+            {
+                $cards = $this->cardsByLocation[$location] ?? [];
+                return $cards ? end($cards) : null;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+
+        self::assertTrue($this->invoke('checkWin'));
+
+        $deckManager->cardsByLocation[Location::STORY_CURRENT] = [
+            ['id' => 7],
+        ];
+        self::assertFalse($this->invoke('checkWin'));
+
+        $deckManager->cardsByLocation[Location::STORY_CURRENT] = [];
+        $deckManager->cardsByLocation[Location::MEMORY] = [
+            ['id' => 8],
+        ];
+        self::assertFalse($this->invoke('checkWin'));
+    }
+
     public function testInvalidProtagonistCannotSetLossCondition(): void
     {
         $this->expectException(UserException::class);

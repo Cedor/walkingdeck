@@ -986,6 +986,12 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actGoToStoryCheck(): void
     {
+        $this->checkAction('actGoToStoryCheck');
+        if (intval($this->getGameStateValue('gamePhase')) !== 1) {
+            throw new UserException(
+                \clienttranslate('Story Check has already started')
+            );
+        }
 
         $this->gamestate->nextState(Transition::STORY_CHECK);
     }
@@ -997,8 +1003,32 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actStoryCheckPlayerChoice(int $card_id = null): void
     {
-        // TEST remove after tests
-        $this->notify->all('actionPicked', \clienttranslate("You have picked an action"), array());
+        $this->checkAction('actStoryCheckPlayerChoice');
+
+        $currentCard = $this->getCurrentStoryCard();
+        if ($currentCard === null) {
+            throw new UserException(
+                \clienttranslate('There is no current Story Check card')
+            );
+        }
+        if ($card_id !== null && $card_id !== intval($currentCard['id'])) {
+            throw new UserException(
+                \clienttranslate('This is not the current Story Check card')
+            );
+        }
+
+        $this->deckManager->moveCard(
+            intval($currentCard['id']),
+            Location::DONE
+        );
+        $this->notify->all(
+            'storyCardResolved',
+            \clienttranslate('${card_name} has been resolved'),
+            [
+                'card' => $currentCard,
+                'card_name' => $currentCard['card_name'],
+            ]
+        );
         $this->gamestate->nextState(Transition::DEFAULT);
     }
 
@@ -1090,18 +1120,30 @@ class Game extends \Bga\GameFramework\Table
      */
     public function stStoryCheck(): void
     {
-        // Starting this point, whe enter the second phase of the game
-        $this->setGamePhase(2);
-        // be parse memory in reverse order
-        static::DbQuery(
-            "UPDATE card  SET card_location_arg = - card_location_arg WHERE card_location = 'memory'"
-        );
-        $memoryFakeTop =  $this->deckManager->generateFakeCard($this->deckManager->getCardOnTop(Location::MEMORY));
+        $isStartingStoryCheck = intval(
+            $this->getGameStateValue('gamePhase')
+        ) !== 2;
+        if ($isStartingStoryCheck) {
+            $this->setGamePhase(2);
+            static::DbQuery(
+                "UPDATE card
+                 SET card_location_arg = - card_location_arg
+                 WHERE card_location = 'memory'"
+            );
+        }
 
-        // notify
-        $this->notify->all('storyCheckStarted', \clienttranslate("Story check started"), array(
-            'memoryTopCard' => $memoryFakeTop
-        ));
+        $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
+        $memoryFakeTop = $memoryTop === null
+            ? null
+            : $this->deckManager->generateFakeCard($memoryTop);
+
+        if ($isStartingStoryCheck) {
+            $this->notify->all(
+                'storyCheckStarted',
+                \clienttranslate("Story check started"),
+                ['memoryTopCard' => $memoryFakeTop]
+            );
+        }
         // Go to following game state
         $this->gamestate->nextState(Transition::DEFAULT);
     }
@@ -1111,20 +1153,62 @@ class Game extends \Bga\GameFramework\Table
      */
     public function stStoryCheckStep(): void
     {
-        // TEST remove after tests
-        $needPlayerInput = true;
+        $currentCard = $this->getCurrentStoryCard();
+        if ($currentCard === null) {
+            $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
+            if ($memoryTop !== null) {
+                $cardId = intval($memoryTop['id']);
+                $this->deckManager->moveCard(
+                    $cardId,
+                    Location::STORY_CURRENT
+                );
+                $currentCard = $this->deckManager->getCard($cardId);
+                $nextMemoryTop = $this->deckManager->getCardOnTop(
+                    Location::MEMORY
+                );
+                $this->notify->all(
+                    'storyCardRevealed',
+                    \clienttranslate('${card_name} is the current Story Check card'),
+                    [
+                        'card' => $currentCard,
+                        'card_name' => $currentCard['card_name'],
+                        'memoryTopCard' => $nextMemoryTop === null
+                            ? null
+                            : $this->deckManager->generateFakeCard(
+                                $nextMemoryTop
+                            ),
+                        'memoryNb' => $this->deckManager->countCardInLocation(
+                            Location::MEMORY
+                        ),
+                    ]
+                );
+                $currentCard = $this->getCurrentStoryCard();
+            }
+        }
 
-        // Go to following game state
-        if ($needPlayerInput)
+        if ($currentCard !== null) {
             $this->gamestate->nextState('playerChoice');
-        else
+        } else {
             $this->gamestate->nextState('gameCheck');
+        }
+    }
+
+    public function argStoryCheckPlayerChoice(): array
+    {
+        return [
+            'currentCard' => $this->getCurrentStoryCard(),
+        ];
+    }
+
+    private function getCurrentStoryCard(): ?array
+    {
+        return $this->deckManager->getCardOnTop(Location::STORY_CURRENT);
     }
 
     private function checkWin(): bool
     {
-        // WINLOSS implement win condition check
-        return false;
+        return $this->deckManager->countCardInLocation(Location::MEMORY) === 0
+            && $this->getCurrentStoryCard() === null;
     }
     private function isLossReached(): bool
     {
@@ -1153,6 +1237,10 @@ class Game extends \Bga\GameFramework\Table
             $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
             $this->gamestate->nextState(Transition::GAME_END);
         } else if ($win) {
+            $this->notify->all(
+                'gameWin',
+                \clienttranslate("You won the game")
+            );
             $this->gamestate->nextState(Transition::GAME_END);
         } else {
             // TEST remove after tests
@@ -1230,8 +1318,11 @@ class Game extends \Bga\GameFramework\Table
         $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
         $gamePhase = $this->getGameStateValue('gamePhase');
         $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
-        $result['memoryTop'] = $gamePhase == 1 ? $memoryTop :  $this->deckManager->generateFakeCard($memoryTop);
+        $result['memoryTop'] = $gamePhase == 1 || $memoryTop === null
+            ? $memoryTop
+            : $this->deckManager->generateFakeCard($memoryTop);
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
+        $result['storyCurrent'] = $this->getCurrentStoryCard();
         $result['escaped'] = $this->deckManager->getCardsInLocation(Location::ESCAPED, null, 'location_arg');
         $result['graveyardNb'] = $this->deckManager->countCardInLocation(Location::GRAVEYARD);
         $graveyardTop = $this->deckManager->getCardOnTop(Location::GRAVEYARD);
