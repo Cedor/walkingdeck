@@ -16,4 +16,6 @@ final class Location
     public const CHARACTERS_IN_PLAY = 'characters';
     public const DONE = 'done';
     public const PROTAGONIST = 'protagonist';
+    public const BRAINSTORM_RURAL = 'brainstorm_rural';
+    public const BRAINSTORM_URBAN = 'brainstorm_urban';
 }

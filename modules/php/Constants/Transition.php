@@ -14,6 +14,8 @@ final class Transition
     public const CONSEQUENCE = 'consequence';
     public const PLAYER_CHOICE = 'playerChoice';
     public const AVOID_ZOMBIE_CHOICE = 'avoidZombieChoice';
+    public const BRAINSTORM_DECK_CHOICE = 'brainstormDeckChoice';
+    public const BRAINSTORM_REORDER = 'brainstormReorder';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';
 }

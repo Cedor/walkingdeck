@@ -200,6 +200,28 @@ describe("player actions", () => {
 
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
+
+  it("starts brainstorm with the selected deck", () => {
+    const context = { bgaPerformAction: spy() };
+
+    game.onBrainstormRuralDeckClick.call(context);
+    game.onBrainstormUrbanDeckClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actStartBrainstorm");
+    assert.equal(context.bgaPerformAction.calls[0][1].location, "deck_rural");
+    assert.equal(context.bgaPerformAction.calls[1][0], "actStartBrainstorm");
+    assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
+  });
+
+  it("reads brainstorm cards from left to right", () => {
+    const ids = game.getBrainstormCardIds([
+      { id: "twd-card-8" },
+      { id: "twd-card-3" },
+      { id: "twd-card-11" },
+    ]);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(ids)), [8, 3, 11]);
+  });
 });
 
 describe("notifications", () => {

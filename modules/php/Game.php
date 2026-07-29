@@ -204,6 +204,30 @@ class Game extends \Bga\GameFramework\Table
                         return;
                     }
 
+                    if ($outcome['brainstorm']) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                        ) {
+                            throw new SystemException(
+                                'brainstorm cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        if (count($this->getBrainstormAvailableDecks()) > 0) {
+                            $this->eventStack->pushEvent(
+                                EventType::NEXT_STATE,
+                                ['transition' => Transition::PLAY_CARDS]
+                            );
+                            $this->gamestate->nextState(
+                                Transition::BRAINSTORM_DECK_CHOICE
+                            );
+                            return;
+                        }
+                    }
+
                     $hasEscapeChoice = $outcome['escapeTallaChoice']
                         || $outcome['avoidZombieChoice'];
                     if ($hasEscapeChoice) {
@@ -395,6 +419,7 @@ class Game extends \Bga\GameFramework\Table
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'brainstorm' => false,
         ];
 
         switch ($consequence['action']) {
@@ -438,6 +463,9 @@ class Game extends \Bga\GameFramework\Table
                 break;
             case 'escapeTalla':
                 $outcome['escapeTallaChoice'] = true;
+                break;
+            case 'brainstorm':
+                $outcome['brainstorm'] = true;
                 break;
             case 'avoid':
                 switch ($consequence['avoid'] ?? null) {
@@ -485,6 +513,7 @@ class Game extends \Bga\GameFramework\Table
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'brainstorm' => false,
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -520,6 +549,7 @@ class Game extends \Bga\GameFramework\Table
             $outcome['checkLoss'] = $outcome['checkLoss'] || $currentOutcome['checkLoss'];
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
             $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
+            $outcome['brainstorm'] = $outcome['brainstorm'] || $currentOutcome['brainstorm'];
         }
 
         return $outcome;
@@ -665,6 +695,182 @@ class Game extends \Bga\GameFramework\Table
         );
 
         $this->gamestate->nextState(Transition::PHASE_1);
+    }
+
+    private function getBrainstormAvailableDecks(): array
+    {
+        return array_values(array_filter(
+            [Location::RURAL, Location::URBAN],
+            function (string $location): bool {
+                return $this->deckManager->countCardInLocation($location) > 0;
+            }
+        ));
+    }
+
+    public function argBrainstormDeckChoice(): array
+    {
+        return [
+            'availableDecks' => $this->getBrainstormAvailableDecks(),
+        ];
+    }
+
+    public function actStartBrainstorm(string $location): void
+    {
+        $this->checkAction('actStartBrainstorm');
+
+        if (!in_array($location, $this->getBrainstormAvailableDecks(), true)) {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('You cannot brainstorm this deck'),
+                ['location' => $location]
+            ));
+        }
+
+        $brainstormLocation = $this->getBrainstormLocationForDeck($location);
+        $cards = $this->deckManager->getCardsOnTop(3, $location);
+        foreach ($cards as $position => $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->moveCard(
+                $cardId,
+                $brainstormLocation,
+                $position
+            );
+            $card = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is revealed for brainstorm'),
+                [
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'destination' => 'brainstorm',
+                    'source' => $location,
+                ]
+            );
+        }
+
+        $this->gamestate->nextState(Transition::BRAINSTORM_REORDER);
+    }
+
+    public function argBrainstormReorder(): array
+    {
+        $brainstormLocation = $this->getCurrentBrainstormLocation();
+        if ($brainstormLocation === null) {
+            throw new SystemException('No cards are available for brainstorm');
+        }
+
+        return [
+            'cards' => $this->deckManager->getCardsInLocation(
+                $brainstormLocation,
+                null,
+                'location_arg'
+            ),
+            'source' => $this->getDeckForBrainstormLocation(
+                $brainstormLocation
+            ),
+        ];
+    }
+
+    public function actConfirmBrainstorm(string $card_ids): void
+    {
+        $this->checkAction('actConfirmBrainstorm');
+
+        try {
+            $orderedCardIds = json_decode(
+                $card_ids,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid brainstorm card order')
+            );
+        }
+        if (!is_array($orderedCardIds)) {
+            throw new UserException(
+                \clienttranslate('Invalid brainstorm card order')
+            );
+        }
+        $orderedCardIds = array_map('intval', $orderedCardIds);
+
+        $brainstormLocation = $this->getCurrentBrainstormLocation();
+        if ($brainstormLocation === null) {
+            throw new SystemException('No brainstorm is in progress');
+        }
+        $cards = $this->deckManager->getCardsInLocation($brainstormLocation);
+        $actualCardIds = array_map('intval', array_column($cards, 'id'));
+        $submittedIds = $orderedCardIds;
+        sort($actualCardIds);
+        sort($submittedIds);
+        if (
+            count($orderedCardIds) < 1
+            || count($orderedCardIds) > 3
+            || $actualCardIds !== $submittedIds
+        ) {
+            throw new UserException(
+                \clienttranslate('The brainstorm card order is invalid')
+            );
+        }
+
+        $source = $this->getDeckForBrainstormLocation($brainstormLocation);
+        foreach (array_reverse($orderedCardIds) as $cardId) {
+            $this->deckManager->insertCardOnExtremePosition(
+                $cardId,
+                $source,
+                true
+            );
+            $card = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is returned after brainstorm'),
+                [
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'destination' => $source,
+                    'source' => 'brainstorm',
+                ]
+            );
+        }
+
+        $this->gamestate->nextState(Transition::PHASE_1);
+    }
+
+    private function getBrainstormLocationForDeck(string $location): string
+    {
+        switch ($location) {
+            case Location::RURAL:
+                return Location::BRAINSTORM_RURAL;
+            case Location::URBAN:
+                return Location::BRAINSTORM_URBAN;
+            default:
+                throw new SystemException('Invalid brainstorm source deck');
+        }
+    }
+
+    private function getDeckForBrainstormLocation(string $location): string
+    {
+        switch ($location) {
+            case Location::BRAINSTORM_RURAL:
+                return Location::RURAL;
+            case Location::BRAINSTORM_URBAN:
+                return Location::URBAN;
+            default:
+                throw new SystemException('Invalid brainstorm location');
+        }
+    }
+
+    private function getCurrentBrainstormLocation(): ?string
+    {
+        $locations = array_values(array_filter(
+            [Location::BRAINSTORM_RURAL, Location::BRAINSTORM_URBAN],
+            function (string $location): bool {
+                return $this->deckManager->countCardInLocation($location) > 0;
+            }
+        ));
+        if (count($locations) > 1) {
+            throw new SystemException('Multiple brainstorms are in progress');
+        }
+
+        return $locations[0] ?? null;
     }
 
     /**
@@ -1032,6 +1238,14 @@ class Game extends \Bga\GameFramework\Table
         $result['graveyardTop'] = $graveyardTop ?  $this->deckManager->generateFakeCard($graveyardTop) : null;
         $result['ruralDeckNb'] = $this->deckManager->countCardInLocation(Location::RURAL);
         $result['urbanDeckNb'] = $this->deckManager->countCardInLocation(Location::URBAN);
+        $brainstormLocation = $this->getCurrentBrainstormLocation();
+        $result['brainstorm'] = $brainstormLocation === null
+            ? []
+            : $this->deckManager->getCardsInLocation(
+                $brainstormLocation,
+                null,
+                'location_arg'
+            );
 
         // ressources
         $result['ressources'] = $this->ressources->getRessources();

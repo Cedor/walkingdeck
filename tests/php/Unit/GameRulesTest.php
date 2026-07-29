@@ -113,6 +113,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'brainstorm' => false,
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -130,6 +131,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => true,
             'avoidZombieChoice' => false,
+            'brainstorm' => false,
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -149,7 +151,44 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
+            'brainstorm' => false,
         ], $this->invoke('applyConsequences', [$card, 'black']));
+    }
+
+    public function testBrainstormRequestsDeckSelection(): void
+    {
+        $card = [
+            'id' => 25,
+            'consequence_white' => ['action' => 'brainstorm'],
+        ];
+
+        self::assertSame([
+            'additionalDraws' => 0,
+            'startNormalDraw' => false,
+            'checkLoss' => false,
+            'escapeTallaChoice' => false,
+            'avoidZombieChoice' => false,
+            'brainstorm' => true,
+        ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testBrainstormOnlyOffersNonEmptyDecks(): void
+    {
+        $this->setProperty('deckManager', new class {
+            public function countCardInLocation(string $location): int
+            {
+                return $location === Location::URBAN ? 2 : 0;
+            }
+        });
+
+        self::assertSame(
+            [Location::URBAN],
+            $this->invoke('getBrainstormAvailableDecks')
+        );
+        self::assertSame(
+            [Location::URBAN],
+            $this->invoke('argBrainstormDeckChoice')['availableDecks']
+        );
     }
 
     public function testZombieOrDieRequestsAChoiceWhenAZombieIsInHand(): void
@@ -176,6 +215,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
+            'brainstorm' => false,
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -223,6 +263,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => true,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'brainstorm' => false,
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,
