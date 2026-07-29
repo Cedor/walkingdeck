@@ -81,6 +81,14 @@ class TWDDeck
     $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
     return array_merge($card, $card_info);
   }
+  public function getCardsOnTop(int $number, string $location): array
+  {
+    $cards = $this->game->getCardManager()->getCardsOnTop($number, $location);
+    return array_values(array_map(function ($card) {
+      $card_info = $this->getExtendedCardInfo($card['type'], $card['type_arg']);
+      return array_merge($card, $card_info);
+    }, $cards ?? []));
+  }
   public function countCardInLocation(string $location, ?int $location_arg = null): int
   {
     return $this->game->getCardManager()->countCardInLocation($location, $location_arg);

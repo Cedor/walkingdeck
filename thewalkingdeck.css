@@ -254,3 +254,29 @@
   background-position-x: -528px;
   background-position-y: 0px;
 }
+
+#brainstorm_wrap {
+  display: none;
+}
+
+#brainstorm {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  min-height: 179px;
+  padding: 12px;
+}
+
+.brainstorm-help {
+  margin: 6px 0 10px;
+  font-style: italic;
+}
+
+#brainstorm .twd-card {
+  cursor: grab;
+}
+
+#brainstorm .twd-card.twd-brainstorm-dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}

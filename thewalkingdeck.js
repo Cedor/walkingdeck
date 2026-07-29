@@ -115,6 +115,14 @@ define([
             <div id="hand"></div>
           </div>`
       );
+      document.getElementById("game_play_area").insertAdjacentHTML(
+        "beforeend",
+        `<div id="brainstorm_wrap" class="whiteblock">
+            <b>${_("Brainstorm")}</b>
+            <div class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
+            <div id="brainstorm"></div>
+          </div>`
+      );
 
       // create the animation manager, and bind it to the `game.bgaAnimationsActive()` function
       this.animationManager = new BgaAnimations.Manager({
@@ -243,6 +251,13 @@ define([
         },
         direction: "horizontal",
       });
+      this.brainstorm = new BgaCards.LineStock(
+        this.cardsManager,
+        document.getElementById("brainstorm"),
+        {
+          cardClickEventFilter: "all",
+        }
+      );
 
       // Create ressources
       this.ressourcesManager = new BgaCards.Manager({
@@ -374,6 +389,7 @@ define([
       }
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
+      for (var i in this.gamedatas.brainstorm) this.brainstorm.addCard(this.gamedatas.brainstorm[i]);
 
       // Ressources gamedatas
       console.log("Ressources gamedatas", this.gamedatas.ressources);
@@ -433,6 +449,26 @@ define([
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
           this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
           break;
+        case "brainstormDeckChoice":
+          const brainstormChoiceArgs = args.args || args;
+          this.brainstormAvailableDecks = brainstormChoiceArgs.availableDecks || [];
+          if (this.brainstormAvailableDecks.includes("deck_urban")) {
+            document.getElementById("deck_urban").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.urbanDeck, "onCardClick", this, "onBrainstormUrbanDeckClick")
+            );
+          }
+          if (this.brainstormAvailableDecks.includes("deck_rural")) {
+            document.getElementById("deck_rural").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.ruralDeck, "onCardClick", this, "onBrainstormRuralDeckClick")
+            );
+          }
+          break;
+        case "brainstormReorder":
+          document.getElementById("brainstorm_wrap").style.display = "block";
+          this.prepareBrainstormReorder((args.args || args).cards || []);
+          break;
         case "playCards":
           if (this.hand.getCardCount() === 1) {
             document.getElementById("refill_hand_button").style.visibility = "visible";
@@ -479,6 +515,16 @@ define([
           this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
           this.stateConnectors = [];
           break;
+        case "brainstormDeckChoice":
+          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
+          this.stateConnectors = [];
+          document.getElementById("deck_urban").classList.remove("twd-highlight");
+          document.getElementById("deck_rural").classList.remove("twd-highlight");
+          break;
+        case "brainstormReorder":
+          this.disableBrainstormReorder();
+          document.getElementById("brainstorm_wrap").style.display = "none";
+          break;
         case "playCards":
           break;
         case "dummy":
@@ -520,6 +566,12 @@ define([
               color: "primary",
             }).style.visibility = "hidden";
             break;
+          case "brainstormReorder":
+            this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
+              id: "confirm_brainstorm",
+              color: "primary",
+            });
+            break;
           case "storyCheckPlayerChoice":
             this.statusBar.addActionButton(_("Choose"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
               color: "secondary",
@@ -552,6 +604,8 @@ define([
           return this.ruralDeck;
         case "deck_urban":
           return this.urbanDeck;
+        case "brainstorm":
+          return this.brainstorm;
         default:
           console.log("Unknown location: " + location);
           return null;
@@ -613,6 +667,12 @@ define([
           break;
         case "escaped":
         case "hand":
+          break;
+        case "brainstorm":
+          break;
+        case "deck_rural":
+        case "deck_urban":
+          card = this.generateFakeCard(card);
           break;
         default:
           console.log("Unknown/Illegal destination for card movement", destination);
@@ -697,6 +757,73 @@ define([
     onUrbanDeckCardClick: function (card) {
       console.log("onUrbanDeckCardClick");
       this.bgaPerformAction("actDrawFromDeck", { location: "deck_urban" });
+    },
+
+    onBrainstormRuralDeckClick: function () {
+      this.bgaPerformAction("actStartBrainstorm", { location: "deck_rural" });
+    },
+
+    onBrainstormUrbanDeckClick: function () {
+      this.bgaPerformAction("actStartBrainstorm", { location: "deck_urban" });
+    },
+
+    prepareBrainstormReorder: async function (cards) {
+      document.getElementById("brainstorm_wrap").style.display = "block";
+      for (const card of cards) {
+        await this.brainstorm.addCard(card);
+      }
+
+      const container = document.getElementById("brainstorm");
+      container.querySelectorAll(".twd-card").forEach((cardElement) => {
+        cardElement.draggable = true;
+        cardElement.ondragstart = () => {
+          this.brainstormDraggedCardId = cardElement.id;
+          cardElement.classList.add("twd-brainstorm-dragging");
+        };
+        cardElement.ondragend = () => {
+          this.brainstormDraggedCardId = null;
+          cardElement.classList.remove("twd-brainstorm-dragging");
+        };
+        cardElement.ondragover = (event) => {
+          event.preventDefault();
+          const dragged = document.getElementById(this.brainstormDraggedCardId);
+          if (!dragged || dragged === cardElement) return;
+
+          const bounds = cardElement.getBoundingClientRect();
+          const insertAfter = event.clientX > bounds.left + bounds.width / 2;
+          container.insertBefore(
+            dragged,
+            insertAfter ? cardElement.nextSibling : cardElement
+          );
+        };
+      });
+    },
+
+    disableBrainstormReorder: function () {
+      document.querySelectorAll("#brainstorm .twd-card").forEach((cardElement) => {
+        cardElement.draggable = false;
+        cardElement.ondragstart = null;
+        cardElement.ondragend = null;
+        cardElement.ondragover = null;
+      });
+      this.brainstormDraggedCardId = null;
+    },
+
+    confirmBrainstorm: function () {
+      const orderedCardIds = this.getBrainstormCardIds(
+        document.querySelectorAll("#brainstorm .twd-card")
+      );
+      if (orderedCardIds.length > 0) {
+        this.bgaPerformAction("actConfirmBrainstorm", {
+          card_ids: JSON.stringify(orderedCardIds),
+        });
+      }
+    },
+
+    getBrainstormCardIds: function (cardElements) {
+      return Array.from(cardElements).map((cardElement) =>
+        parseInt(cardElement.id.replace("twd-card-", ""))
+      );
     },
 
     onEscapedClick: function () {
@@ -845,6 +972,9 @@ define([
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
       console.log(args);
+      if (args.destination === "brainstorm") {
+        document.getElementById("brainstorm_wrap").style.display = "block";
+      }
       await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
     },
   });

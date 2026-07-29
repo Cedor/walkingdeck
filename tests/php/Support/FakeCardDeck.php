@@ -42,6 +42,15 @@ final class FakeCardDeck
         return $cards ? end($cards) : null;
     }
 
+    public function getCardsOnTop(int $number, string $location): array
+    {
+        $cards = $this->getCardsInLocation($location);
+        usort($cards, static function (array $left, array $right): int {
+            return $right['location_arg'] <=> $left['location_arg'];
+        });
+        return array_slice($cards, 0, $number);
+    }
+
     public function countCardInLocation(string $location, ?int $locationArg = null): int
     {
         return count($this->getCardsInLocation($location, $locationArg));

@@ -81,6 +81,7 @@ $machinestates = [
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
             Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
+            Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
@@ -160,6 +161,32 @@ $machinestates = [
         ->args('argAvoidZombieChoice')
         ->possibleactions([
             'actEscapeZombie',
+        ])
+        ->transitions([
+            Transition::PHASE_1 => GameStep::PHASE_1,
+        ])
+        ->build(),
+    GameStep::BRAINSTORM_DECK_CHOICE => GameStateBuilder::create()
+        ->name('brainstormDeckChoice')
+        ->description(clienttranslate('You must choose a deck for brainstorm'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck for brainstorm'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argBrainstormDeckChoice')
+        ->possibleactions([
+            'actStartBrainstorm',
+        ])
+        ->transitions([
+            Transition::BRAINSTORM_REORDER => GameStep::BRAINSTORM_REORDER,
+        ])
+        ->build(),
+    GameStep::BRAINSTORM_REORDER => GameStateBuilder::create()
+        ->name('brainstormReorder')
+        ->description(clienttranslate('You must reorder the brainstorm cards'))
+        ->descriptionmyturn(clienttranslate('You must reorder the brainstorm cards'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argBrainstormReorder')
+        ->possibleactions([
+            'actConfirmBrainstorm',
         ])
         ->transitions([
             Transition::PHASE_1 => GameStep::PHASE_1,
