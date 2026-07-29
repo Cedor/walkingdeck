@@ -11,7 +11,7 @@ final class GameStep
     public const DRAW_CARDS = 31;
     public const ADDITIONAL_DRAW = 32;
     public const PLAY_CARDS = 33;
-    public const CONSEQUENCE_1 = 34;
+    public const AVOID_ZOMBIE_CHOICE = 34;
     public const PLAYER_CHOICE_1 = 35;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;

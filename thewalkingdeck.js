@@ -419,10 +419,11 @@ define([
           this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
         case "escapeTallaChoice":
+        case "avoidZombieChoice":
           const escapeTallaArgs = args.args || args;
-          this.escapeTallaChoiceActive = true;
+          this.zombieEscapeChoiceActive = true;
           this.escapeTallaMemoryAvailable = Boolean(escapeTallaArgs.canChooseMemory);
-          this.hand.onSelectionChange = this.onEscapeTallaSelectionChange;
+          this.hand.onSelectionChange = this.onZombieEscapeSelectionChange;
           if (this.escapeTallaMemoryAvailable) {
             document.getElementById("memory").classList.add("twd-highlight");
           }
@@ -467,7 +468,8 @@ define([
           this.hand.onSelectionChange = null;
           break;
         case "escapeTallaChoice":
-          this.escapeTallaChoiceActive = false;
+        case "avoidZombieChoice":
+          this.zombieEscapeChoiceActive = false;
           this.escapeTallaMemoryAvailable = false;
           this.hand.onSelectionChange = null;
           document.getElementById("memory").classList.remove("twd-highlight");
@@ -512,8 +514,9 @@ define([
             );
             break;
           case "escapeTallaChoice":
-            this.statusBar.addActionButton(_("Confirm choice"), () => this.confirmEscapeTallaChoice(), {
-              id: "confirm_escape_talla",
+          case "avoidZombieChoice":
+            this.statusBar.addActionButton(_("Confirm choice"), () => this.confirmZombieEscapeChoice(), {
+              id: "confirm_escape_zombie",
               color: "primary",
             }).style.visibility = "hidden";
             break;
@@ -671,18 +674,18 @@ define([
       }
     },
 
-    onEscapeTallaSelectionChange: function (selection) {
-      const button = document.getElementById("confirm_escape_talla");
+    onZombieEscapeSelectionChange: function (selection) {
+      const button = document.getElementById("confirm_escape_zombie");
       if (button) {
         const selectedCardIsZombie = selection[0] && Boolean(parseInt(selection[0].is_zombie));
         button.style.visibility = selectedCardIsZombie ? "visible" : "hidden";
       }
     },
 
-    confirmEscapeTallaChoice: function () {
+    confirmZombieEscapeChoice: function () {
       const card = this.hand.getSelection()[0];
       if (card && Boolean(parseInt(card.is_zombie))) {
-        this.bgaPerformAction("actEscapeTalla", { card_id: card.id });
+        this.bgaPerformAction("actEscapeZombie", { card_id: card.id });
       }
     },
 
@@ -708,7 +711,7 @@ define([
     },
     onMemoryClick: function () {
       console.log("onMemoryClick");
-      if (this.escapeTallaChoiceActive) {
+      if (this.zombieEscapeChoiceActive) {
         if (this.escapeTallaMemoryAvailable) {
           this.bgaPerformAction("actEscapeTallaFromMemory");
         }

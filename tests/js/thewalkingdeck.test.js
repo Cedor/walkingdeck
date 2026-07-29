@@ -160,9 +160,9 @@ describe("player actions", () => {
       bgaPerformAction: spy(),
     };
 
-    game.confirmEscapeTallaChoice.call(context);
+    game.confirmZombieEscapeChoice.call(context);
 
-    assert.equal(context.bgaPerformAction.calls[0][0], "actEscapeTalla");
+    assert.equal(context.bgaPerformAction.calls[0][0], "actEscapeZombie");
     assert.equal(context.bgaPerformAction.calls[0][1].card_id, 12);
   });
 
@@ -172,14 +172,14 @@ describe("player actions", () => {
       bgaPerformAction: spy(),
     };
 
-    game.confirmEscapeTallaChoice.call(context);
+    game.confirmZombieEscapeChoice.call(context);
 
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
   it("chooses the top card of memory during Tallahassee's consequence", () => {
     const context = {
-      escapeTallaChoiceActive: true,
+      zombieEscapeChoiceActive: true,
       escapeTallaMemoryAvailable: true,
       bgaPerformAction: spy(),
     };
@@ -191,7 +191,7 @@ describe("player actions", () => {
 
   it("ignores memory when it is empty during Tallahassee's consequence", () => {
     const context = {
-      escapeTallaChoiceActive: true,
+      zombieEscapeChoiceActive: true,
       escapeTallaMemoryAvailable: false,
       bgaPerformAction: spy(),
     };

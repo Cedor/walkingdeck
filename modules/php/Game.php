@@ -204,19 +204,33 @@ class Game extends \Bga\GameFramework\Table
                         return;
                     }
 
-                    if ($outcome['escapeTallaChoice']) {
+                    $hasEscapeChoice = $outcome['escapeTallaChoice']
+                        || $outcome['avoidZombieChoice'];
+                    if ($hasEscapeChoice) {
                         if ($outcome['additionalDraws'] > 0 || $outcome['startNormalDraw']) {
                             throw new SystemException(
-                                'escapeTalla cannot be combined with another deferred consequence'
+                                'An escape choice cannot be combined with another deferred consequence'
+                            );
+                        }
+                        if ($outcome['escapeTallaChoice'] && $outcome['avoidZombieChoice']) {
+                            throw new SystemException(
+                                'Multiple escape choices cannot be resolved together'
                             );
                         }
 
-                        if ($this->escapeTallaChoiceIsAvailable()) {
+                        $choiceIsAvailable = $outcome['escapeTallaChoice']
+                            ? $this->escapeTallaChoiceIsAvailable()
+                            : $this->zombieEscapeChoiceIsAvailable();
+                        if ($choiceIsAvailable) {
                             $this->eventStack->pushEvent(
                                 EventType::NEXT_STATE,
                                 ['transition' => Transition::PLAY_CARDS]
                             );
-                            $this->gamestate->nextState(Transition::PLAYER_CHOICE);
+                            $this->gamestate->nextState(
+                                $outcome['escapeTallaChoice']
+                                    ? Transition::PLAYER_CHOICE
+                                    : Transition::AVOID_ZOMBIE_CHOICE
+                            );
                             return;
                         }
                     }
@@ -380,6 +394,7 @@ class Game extends \Bga\GameFramework\Table
             'startNormalDraw' => false,
             'checkLoss' => false,
             'escapeTallaChoice' => false,
+            'avoidZombieChoice' => false,
         ];
 
         switch ($consequence['action']) {
@@ -424,6 +439,28 @@ class Game extends \Bga\GameFramework\Table
             case 'escapeTalla':
                 $outcome['escapeTallaChoice'] = true;
                 break;
+            case 'avoid':
+                switch ($consequence['avoid'] ?? null) {
+                    case 'zombie':
+                        $outcome['avoidZombieChoice'] = true;
+                        break;
+                    case 'zombieordie':
+                        if ($this->zombieEscapeChoiceIsAvailable()) {
+                            $outcome['avoidZombieChoice'] = true;
+                        } else {
+                            $this->moveCard(
+                                intval($card['id']),
+                                Location::GRAVEYARD
+                            );
+                            $outcome['checkLoss'] = true;
+                        }
+                        break;
+                    default:
+                        throw new SystemException(
+                            'Invalid avoid consequence target'
+                        );
+                }
+                break;
             case 'none':
             case 'nothing':
                 //nothing to do
@@ -447,6 +484,7 @@ class Game extends \Bga\GameFramework\Table
             'startNormalDraw' => false,
             'checkLoss' => false,
             'escapeTallaChoice' => false,
+            'avoidZombieChoice' => false,
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -481,6 +519,7 @@ class Game extends \Bga\GameFramework\Table
             $outcome['startNormalDraw'] = $outcome['startNormalDraw'] || $currentOutcome['startNormalDraw'];
             $outcome['checkLoss'] = $outcome['checkLoss'] || $currentOutcome['checkLoss'];
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
+            $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
         }
 
         return $outcome;
@@ -512,18 +551,29 @@ class Game extends \Bga\GameFramework\Table
 
     public function argEscapeTallaChoice(): array
     {
-        $zombies = $this->getEscapeTallaZombiesInHand();
+        return $this->getZombieEscapeChoiceArgs(true);
+    }
+
+    public function argAvoidZombieChoice(): array
+    {
+        return $this->getZombieEscapeChoiceArgs(false);
+    }
+
+    private function getZombieEscapeChoiceArgs(bool $canChooseMemory): array
+    {
+        $zombies = $this->getZombiesInHand();
 
         return [
             'playableCardsIds' => array_map(
                 'intval',
                 array_column($zombies, 'id')
             ),
-            'canChooseMemory' => $this->deckManager->getCardOnTop(Location::MEMORY) !== null,
+            'canChooseMemory' => $canChooseMemory
+                && $this->deckManager->getCardOnTop(Location::MEMORY) !== null,
         ];
     }
 
-    private function getEscapeTallaZombiesInHand(): array
+    private function getZombiesInHand(): array
     {
         return array_values(array_filter(
             $this->deckManager->getCardsInLocation(Location::HAND),
@@ -535,20 +585,25 @@ class Game extends \Bga\GameFramework\Table
 
     private function escapeTallaChoiceIsAvailable(): bool
     {
-        return count($this->getEscapeTallaZombiesInHand()) > 0
+        return $this->zombieEscapeChoiceIsAvailable()
             || $this->deckManager->getCardOnTop(Location::MEMORY) !== null;
     }
 
-    /**
-     * Resolve Tallahassee's white consequence by escaping one zombie from hand.
-     */
-    public function actEscapeTalla(int $card_id): void
+    private function zombieEscapeChoiceIsAvailable(): bool
     {
-        $this->checkAction('actEscapeTalla');
+        return count($this->getZombiesInHand()) > 0;
+    }
+
+    /**
+     * Resolve an escape consequence by choosing one zombie from hand.
+     */
+    public function actEscapeZombie(int $card_id): void
+    {
+        $this->checkAction('actEscapeZombie');
 
         $zombieCardIds = array_map(
             'intval',
-            array_column($this->getEscapeTallaZombiesInHand(), 'id')
+            array_column($this->getZombiesInHand(), 'id')
         );
         if (!in_array($card_id, $zombieCardIds, true)) {
             throw new UserException(new NotificationMessage(
@@ -557,9 +612,10 @@ class Game extends \Bga\GameFramework\Table
             ));
         }
 
-        $this->escapeCardForTallahassee(
+        $this->escapeCardForConsequence(
             $this->deckManager->getCard($card_id),
-            Location::HAND
+            Location::HAND,
+            \clienttranslate('${card_name} avoided danger and escaped')
         );
     }
 
@@ -577,10 +633,18 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        $this->escapeCardForTallahassee($card, Location::MEMORY);
+        $this->escapeCardForConsequence(
+            $card,
+            Location::MEMORY,
+            \clienttranslate('${card_name} escaped thanks to Tallahassee')
+        );
     }
 
-    private function escapeCardForTallahassee(array $card, string $source): void
+    private function escapeCardForConsequence(
+        array $card,
+        string $source,
+        string $message
+    ): void
     {
         $cardId = intval($card['id']);
         $this->deckManager->insertCardOnExtremePosition(
@@ -591,7 +655,7 @@ class Game extends \Bga\GameFramework\Table
         $card = $this->deckManager->getCard($cardId);
         $this->notify->all(
             'cardMoved',
-            \clienttranslate('${card_name} escaped thanks to Tallahassee'),
+            $message,
             [
                 'card' => $card,
                 'card_name' => $card['card_name'],

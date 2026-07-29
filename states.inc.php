@@ -80,6 +80,7 @@ $machinestates = [
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
             Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
+            Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
@@ -144,8 +145,21 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argEscapeTallaChoice')
         ->possibleactions([
-            'actEscapeTalla',
+            'actEscapeZombie',
             'actEscapeTallaFromMemory',
+        ])
+        ->transitions([
+            Transition::PHASE_1 => GameStep::PHASE_1,
+        ])
+        ->build(),
+    GameStep::AVOID_ZOMBIE_CHOICE => GameStateBuilder::create()
+        ->name('avoidZombieChoice')
+        ->description(clienttranslate('You must choose a zombie from your hand to escape'))
+        ->descriptionmyturn(clienttranslate('You must choose a zombie from your hand to escape'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argAvoidZombieChoice')
+        ->possibleactions([
+            'actEscapeZombie',
         ])
         ->transitions([
             Transition::PHASE_1 => GameStep::PHASE_1,

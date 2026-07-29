@@ -13,6 +13,7 @@ final class Transition
     public const STORY_CHECK = 'storyCheck';
     public const CONSEQUENCE = 'consequence';
     public const PLAYER_CHOICE = 'playerChoice';
+    public const AVOID_ZOMBIE_CHOICE = 'avoidZombieChoice';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';
 }
