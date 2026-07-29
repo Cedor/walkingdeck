@@ -79,6 +79,7 @@ $machinestates = [
             Transition::ADDITIONAL_DRAW_CARDS => GameStep::ADDITIONAL_DRAW,
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
+            Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
@@ -134,6 +135,20 @@ $machinestates = [
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
             Transition::PHASE_1 => GameStep::PHASE_1,
             Transition::GAME_END => GameStep::GAME_END
+        ])
+        ->build(),
+    GameStep::PLAYER_CHOICE_1 => GameStateBuilder::create()
+        ->name('escapeTallaChoice')
+        ->description(clienttranslate('You must choose a card from your hand to escape'))
+        ->descriptionmyturn(clienttranslate('You must choose a card from your hand to escape'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argEscapeTallaChoice')
+        ->possibleactions([
+            'actEscapeTalla',
+            'actEscapeTallaFromMemory',
+        ])
+        ->transitions([
+            Transition::PHASE_1 => GameStep::PHASE_1,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()

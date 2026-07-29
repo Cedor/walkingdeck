@@ -153,6 +153,53 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][1].card_id, 3);
     assert.equal(context.bgaPerformAction.calls[0][1].location, "memory");
   });
+
+  it("submits the card selected for Tallahassee's consequence", () => {
+    const context = {
+      hand: { getSelection: () => [{ id: 12, is_zombie: "1" }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmEscapeTallaChoice.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actEscapeTalla");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 12);
+  });
+
+  it("does not submit a non-zombie for Tallahassee's consequence", () => {
+    const context = {
+      hand: { getSelection: () => [{ id: 13, is_zombie: "0" }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmEscapeTallaChoice.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
+
+  it("chooses the top card of memory during Tallahassee's consequence", () => {
+    const context = {
+      escapeTallaChoiceActive: true,
+      escapeTallaMemoryAvailable: true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onMemoryClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actEscapeTallaFromMemory");
+  });
+
+  it("ignores memory when it is empty during Tallahassee's consequence", () => {
+    const context = {
+      escapeTallaChoiceActive: true,
+      escapeTallaMemoryAvailable: false,
+      bgaPerformAction: spy(),
+    };
+
+    game.onMemoryClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
 });
 
 describe("notifications", () => {

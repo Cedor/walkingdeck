@@ -418,6 +418,15 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = this.onProtagonistSelectionChange;
           break;
+        case "escapeTallaChoice":
+          const escapeTallaArgs = args.args || args;
+          this.escapeTallaChoiceActive = true;
+          this.escapeTallaMemoryAvailable = Boolean(escapeTallaArgs.canChooseMemory);
+          this.hand.onSelectionChange = this.onEscapeTallaSelectionChange;
+          if (this.escapeTallaMemoryAvailable) {
+            document.getElementById("memory").classList.add("twd-highlight");
+          }
+          break;
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -457,6 +466,12 @@ define([
         case "protagonistSelection":
           this.hand.onSelectionChange = null;
           break;
+        case "escapeTallaChoice":
+          this.escapeTallaChoiceActive = false;
+          this.escapeTallaMemoryAvailable = false;
+          this.hand.onSelectionChange = null;
+          document.getElementById("memory").classList.remove("twd-highlight");
+          break;
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
@@ -495,6 +510,12 @@ define([
               () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
               { color: "secondary" }
             );
+            break;
+          case "escapeTallaChoice":
+            this.statusBar.addActionButton(_("Confirm choice"), () => this.confirmEscapeTallaChoice(), {
+              id: "confirm_escape_talla",
+              color: "primary",
+            }).style.visibility = "hidden";
             break;
           case "storyCheckPlayerChoice":
             this.statusBar.addActionButton(_("Choose"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
@@ -650,6 +671,21 @@ define([
       }
     },
 
+    onEscapeTallaSelectionChange: function (selection) {
+      const button = document.getElementById("confirm_escape_talla");
+      if (button) {
+        const selectedCardIsZombie = selection[0] && Boolean(parseInt(selection[0].is_zombie));
+        button.style.visibility = selectedCardIsZombie ? "visible" : "hidden";
+      }
+    },
+
+    confirmEscapeTallaChoice: function () {
+      const card = this.hand.getSelection()[0];
+      if (card && Boolean(parseInt(card.is_zombie))) {
+        this.bgaPerformAction("actEscapeTalla", { card_id: card.id });
+      }
+    },
+
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
       this.bgaPerformAction("actDrawFromDeck", { location: "deck_rural" });
@@ -672,6 +708,13 @@ define([
     },
     onMemoryClick: function () {
       console.log("onMemoryClick");
+      if (this.escapeTallaChoiceActive) {
+        if (this.escapeTallaMemoryAvailable) {
+          this.bgaPerformAction("actEscapeTallaFromMemory");
+        }
+        return;
+      }
+
       let card = this.hand.getSelection()[0];
       if (card && this.canCardBePlayedInLocation(card, "memory")) {
         this.bgaPerformAction("actPlayCard", {
