@@ -215,6 +215,7 @@ $machinestates = [
         ->name('storyCheckPlayerChoice')
         ->description(clienttranslate("Story check player choice"))
         ->type(StateType::ACTIVE_PLAYER)
+        ->args('argStoryCheckPlayerChoice')
         ->possibleactions([
             'actStoryCheckPlayerChoice',
             'actPutCharacterInPlay',
