@@ -112,6 +112,7 @@ final class GameRulesTest extends TestCase
             'startNormalDraw' => true,
             'checkLoss' => false,
             'escapeTallaChoice' => false,
+            'avoidZombieChoice' => false,
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -128,7 +129,105 @@ final class GameRulesTest extends TestCase
             'startNormalDraw' => false,
             'checkLoss' => false,
             'escapeTallaChoice' => true,
+            'avoidZombieChoice' => false,
         ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testAvoidZombieRequestsAHandZombieChoice(): void
+    {
+        $card = [
+            'id' => 6,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'zombie',
+            ],
+        ];
+
+        self::assertSame([
+            'additionalDraws' => 0,
+            'startNormalDraw' => false,
+            'checkLoss' => false,
+            'escapeTallaChoice' => false,
+            'avoidZombieChoice' => true,
+        ], $this->invoke('applyConsequences', [$card, 'black']));
+    }
+
+    public function testZombieOrDieRequestsAChoiceWhenAZombieIsInHand(): void
+    {
+        $this->setProperty('deckManager', new class {
+            public function getCardsInLocation(string $location): array
+            {
+                return $location === Location::HAND
+                    ? [['id' => 12, 'is_zombie' => '1']]
+                    : [];
+            }
+        });
+        $card = [
+            'id' => 33,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'zombieordie',
+            ],
+        ];
+
+        self::assertSame([
+            'additionalDraws' => 0,
+            'startNormalDraw' => false,
+            'checkLoss' => false,
+            'escapeTallaChoice' => false,
+            'avoidZombieChoice' => true,
+        ], $this->invoke('applyConsequences', [$card, 'black']));
+    }
+
+    public function testZombieOrDieBuriesItsCardWithoutAZombieInHand(): void
+    {
+        $deckManager = new class {
+            public array $cards = [
+                33 => [
+                    'id' => 33,
+                    'location' => Location::ESCAPED,
+                    'card_name' => 'Domitille',
+                ],
+            ];
+
+            public function getCardsInLocation(string $location): array
+            {
+                return [];
+            }
+
+            public function getCard(int $cardId): array
+            {
+                return $this->cards[$cardId];
+            }
+
+            public function moveCard(
+                int $cardId,
+                string $location,
+                int $locationArg = 0
+            ): void {
+                $this->cards[$cardId]['location'] = $location;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $card = [
+            'id' => 33,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'zombieordie',
+            ],
+        ];
+
+        self::assertSame([
+            'additionalDraws' => 0,
+            'startNormalDraw' => false,
+            'checkLoss' => true,
+            'escapeTallaChoice' => false,
+            'avoidZombieChoice' => false,
+        ], $this->invoke('applyConsequences', [$card, 'black']));
+        self::assertSame(
+            Location::GRAVEYARD,
+            $deckManager->cards[33]['location']
+        );
     }
 
     public function testEscapeTallaChoiceRequiresAZombieOrMemoryCard(): void
@@ -159,6 +258,13 @@ final class GameRulesTest extends TestCase
         self::assertSame(
             [2],
             $this->invoke('argEscapeTallaChoice')['playableCardsIds']
+        );
+        self::assertSame(
+            [2],
+            $this->invoke('argAvoidZombieChoice')['playableCardsIds']
+        );
+        self::assertFalse(
+            $this->invoke('argAvoidZombieChoice')['canChooseMemory']
         );
 
         $deckManager->hand = [];
