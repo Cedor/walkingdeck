@@ -111,8 +111,62 @@ final class GameRulesTest extends TestCase
             'additionalDraws' => 2,
             'startNormalDraw' => true,
             'checkLoss' => false,
+            'escapeTallaChoice' => false,
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
+    }
+
+    public function testEscapeTallaRequestsAPlayerChoice(): void
+    {
+        $card = [
+            'id' => 10,
+            'consequence_white' => ['action' => 'escapeTalla'],
+        ];
+
+        self::assertSame([
+            'additionalDraws' => 0,
+            'startNormalDraw' => false,
+            'checkLoss' => false,
+            'escapeTallaChoice' => true,
+        ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testEscapeTallaChoiceRequiresAZombieOrMemoryCard(): void
+    {
+        $this->setProperty('deckManager', new class {
+            public array $hand = [];
+            public ?array $memoryTop = null;
+
+            public function getCardsInLocation(string $location): array
+            {
+                return $location === Location::HAND ? $this->hand : [];
+            }
+
+            public function getCardOnTop(string $location): ?array
+            {
+                return $location === Location::MEMORY ? $this->memoryTop : null;
+            }
+        });
+
+        self::assertFalse($this->invoke('escapeTallaChoiceIsAvailable'));
+
+        $deckManager = $this->getProperty('deckManager');
+        $deckManager->hand = [
+            ['id' => 1, 'is_zombie' => '0'],
+            ['id' => 2, 'is_zombie' => '1'],
+        ];
+        self::assertTrue($this->invoke('escapeTallaChoiceIsAvailable'));
+        self::assertSame(
+            [2],
+            $this->invoke('argEscapeTallaChoice')['playableCardsIds']
+        );
+
+        $deckManager->hand = [];
+        $deckManager->memoryTop = ['id' => 3];
+        self::assertTrue($this->invoke('escapeTallaChoiceIsAvailable'));
+        self::assertTrue(
+            $this->invoke('argEscapeTallaChoice')['canChooseMemory']
+        );
     }
 
     public function testLossConditionUsesGraveyardSize(): void
@@ -151,5 +205,12 @@ final class GameRulesTest extends TestCase
         $reflection = new ReflectionProperty(Game::class, $property);
         $reflection->setAccessible(true);
         $reflection->setValue($this->game, $value);
+    }
+
+    private function getProperty(string $property): object
+    {
+        $reflection = new ReflectionProperty(Game::class, $property);
+        $reflection->setAccessible(true);
+        return $reflection->getValue($this->game);
     }
 }
