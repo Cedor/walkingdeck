@@ -82,6 +82,7 @@ $machinestates = [
             Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
+            Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
@@ -208,7 +209,9 @@ $machinestates = [
         ->action('stStoryCheckStep')
         ->transitions([
             'playerChoice' => GameStep::STORY_PLAYER_CHOICE,
-            'gameCheck' => GameStep::STORY_CHECK_WIN_LOSS
+            'gameCheck' => GameStep::STORY_CHECK_WIN_LOSS,
+            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
     GameStep::STORY_PLAYER_CHOICE => GameStateBuilder::create()

@@ -134,7 +134,10 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Select the next player action during phase one.
+     * Resolve the shared event stack and resume the phase that queued it.
+     *
+     * The method keeps its phase-one name because it is the action of the
+     * existing PHASE_1 dispatcher state, which is also reused by Story Check.
      */
     public function stPhase1Switch(): void
     {
@@ -147,7 +150,7 @@ class Game extends \Bga\GameFramework\Table
             switch ($event['type']) {
                 case EventType::NEXT_STATE:
                     $transition = $event['parameters']['transition'] ?? null;
-                    $this->assertPhase1Transition($transition);
+                    $this->assertEventTransition($transition);
                     $this->popEvent($event['id']);
                     $this->gamestate->nextState($transition);
                     return;
@@ -217,10 +220,6 @@ class Game extends \Bga\GameFramework\Table
                         }
 
                         if (count($this->getBrainstormAvailableDecks()) > 0) {
-                            $this->eventStack->pushEvent(
-                                EventType::NEXT_STATE,
-                                ['transition' => Transition::PLAY_CARDS]
-                            );
                             $this->gamestate->nextState(
                                 Transition::BRAINSTORM_DECK_CHOICE
                             );
@@ -246,10 +245,6 @@ class Game extends \Bga\GameFramework\Table
                             ? $this->escapeTallaChoiceIsAvailable()
                             : $this->zombieEscapeChoiceIsAvailable();
                         if ($choiceIsAvailable) {
-                            $this->eventStack->pushEvent(
-                                EventType::NEXT_STATE,
-                                ['transition' => Transition::PLAY_CARDS]
-                            );
                             $this->gamestate->nextState(
                                 $outcome['escapeTallaChoice']
                                     ? Transition::PLAYER_CHOICE
@@ -260,10 +255,7 @@ class Game extends \Bga\GameFramework\Table
                     }
 
                     if ($outcome['additionalDraws'] > 0) {
-                        $this->pushAdditionalDrawEvents(
-                            $outcome['additionalDraws'],
-                            Transition::PLAY_CARDS
-                        );
+                        $this->pushAdditionalDrawEvents($outcome['additionalDraws']);
                     }
                     if ($outcome['startNormalDraw']) {
                         $this->eventStack->pushEvent(EventType::DRAW_CARD);
@@ -277,7 +269,7 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
-        $defaultTransition = $this->getDefaultPhase1Transition();
+        $defaultTransition = $this->getDefaultEventTransition();
         if ($defaultTransition === Transition::DRAW_CARDS) {
             $this->eventStack->pushEvent(EventType::DRAW_CARD);
         }
@@ -285,18 +277,19 @@ class Game extends \Bga\GameFramework\Table
         return;
     }
 
-    private function assertPhase1Transition($transition): void
+    private function assertEventTransition($transition): void
     {
         $allowedTransitions = [
             Transition::DRAW_CARDS,
             Transition::ADDITIONAL_DRAW_CARDS,
             Transition::PLAY_CARDS,
             Transition::STORY_CHECK,
+            Transition::STORY_CHECK_STEP,
             Transition::GAME_END,
         ];
 
         if (!is_string($transition) || !in_array($transition, $allowedTransitions, true)) {
-            throw new SystemException('Invalid Phase1 transition');
+            throw new SystemException('Invalid event return transition');
         }
     }
 
@@ -308,24 +301,22 @@ class Game extends \Bga\GameFramework\Table
         }
     }
 
-    private function pushAdditionalDrawEvents(int $number, string $returnTransition): void
+    private function pushAdditionalDrawEvents(int $number): void
     {
         if ($number < 1) {
             throw new SystemException('Additional draw count must be positive');
         }
-        $this->assertPhase1Transition($returnTransition);
-
-        $this->eventStack->pushEvent(
-            EventType::NEXT_STATE,
-            ['transition' => $returnTransition]
-        );
         for ($i = 0; $i < $number; $i++) {
             $this->eventStack->pushEvent(EventType::ADDITIONAL_DRAW);
         }
     }
 
-    private function getDefaultPhase1Transition(): string
+    private function getDefaultEventTransition(): string
     {
+        if (intval($this->getGameStateValue('gamePhase')) === 2) {
+            return Transition::STORY_CHECK_STEP;
+        }
+
         $handSize = $this->deckManager->countCardInLocation(Location::HAND);
 
         if ($this->availableDraws() === 0) {
@@ -337,6 +328,22 @@ class Game extends \Bga\GameFramework\Table
         return $handSize === 0
             ? Transition::DRAW_CARDS
             : Transition::PLAY_CARDS;
+    }
+
+    private function pushConsequenceEvent(
+        int $cardId,
+        string $color,
+        string $returnTransition
+    ): void {
+        $this->assertEventTransition($returnTransition);
+        $this->eventStack->pushEvent(
+            EventType::NEXT_STATE,
+            ['transition' => $returnTransition]
+        );
+        $this->eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => $cardId,
+            'color' => $color,
+        ]);
     }
 
     /**
@@ -375,10 +382,11 @@ class Game extends \Bga\GameFramework\Table
             }
 
             if ($consequenceColor !== null) {
-                $this->eventStack->pushEvent(EventType::CONSEQUENCE, [
-                    'cardId' => intval($card['id']),
-                    'color' => $consequenceColor,
-                ]);
+                $this->pushConsequenceEvent(
+                    intval($card['id']),
+                    $consequenceColor,
+                    Transition::PLAY_CARDS
+                );
             }
 
             $this->gamestate->nextState(Transition::PHASE_1);
@@ -1183,6 +1191,19 @@ class Game extends \Bga\GameFramework\Table
                     ]
                 );
                 $currentCard = $this->getCurrentStoryCard();
+                if ($currentCard === null) {
+                    throw new SystemException(
+                        'Story Check card could not be installed'
+                    );
+                }
+
+                $this->pushConsequenceEvent(
+                    intval($currentCard['id']),
+                    'grey',
+                    Transition::STORY_CHECK_STEP
+                );
+                $this->gamestate->nextState(Transition::PHASE_1);
+                return;
             }
         }
 

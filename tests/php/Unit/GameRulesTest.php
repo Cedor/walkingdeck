@@ -6,6 +6,7 @@ namespace Bga\Games\TheWalkingDeck\Tests\Unit;
 
 use Bga\GameFramework\UserException;
 use Bga\Games\TheWalkingDeck\Constants\Location;
+use Bga\Games\TheWalkingDeck\Constants\Transition;
 use Bga\Games\TheWalkingDeck\Game;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -361,6 +362,210 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('checkWin'));
     }
 
+    public function testStoryCheckAppliesGreyConsequenceOnlyWhenCardIsRevealed(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[16] = [
+            'id' => 16,
+            'location' => Location::MEMORY,
+            'location_arg' => 1,
+            'card_name' => 'RV',
+            'consequence_grey' => [
+                'action' => 'restore',
+                'ressource' => 'ressource2',
+            ],
+        ];
+        $ressources = new class {
+            public int $refillCount = 0;
+
+            public function refillRessources(string $ressource): void
+            {
+                $this->refillCount++;
+            }
+        };
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('ressources', $ressources);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stStoryCheckStep();
+        self::assertSame(0, $ressources->refillCount);
+        $this->game->stPhase1Switch();
+        $this->game->stStoryCheckStep();
+        $this->game->stStoryCheckStep();
+
+        self::assertSame(1, $ressources->refillCount);
+        self::assertSame(
+            Location::STORY_CURRENT,
+            $deckManager->cards[16]['location']
+        );
+        self::assertSame(
+            [
+                Transition::PHASE_1,
+                Transition::STORY_CHECK_STEP,
+                'playerChoice',
+                'playerChoice',
+            ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testGreyConsequenceCanBuryCurrentCardAndCauseImmediateLoss(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[7] = [
+            'id' => 7,
+            'location' => Location::MEMORY,
+            'location_arg' => 1,
+            'card_name' => 'Clown',
+            'consequence_grey' => [
+                'action' => 'bury',
+                'bury' => 'this',
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 1);
+
+        $this->game->stStoryCheckStep();
+        $this->game->stPhase1Switch();
+
+        self::assertSame(
+            Location::GRAVEYARD,
+            $deckManager->cards[7]['location']
+        );
+        self::assertSame(
+            [Transition::PHASE_1, Transition::GAME_END],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            'gameLoss',
+            end($this->game->notify->events)['type']
+        );
+    }
+
+    public function testDeferredGreyConsequenceReturnsToStoryCheck(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[6] = [
+            'id' => 6,
+            'location' => Location::MEMORY,
+            'location_arg' => 1,
+            'card_name' => 'Wolf Trap',
+            'consequence_grey' => [
+                'action' => 'avoid',
+                'avoid' => 'zombie',
+            ],
+        ];
+        $deckManager->cards[41] = [
+            'id' => 41,
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Zombie',
+            'is_zombie' => '1',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->game->stStoryCheckStep();
+        $this->game->stPhase1Switch();
+        $this->game->actEscapeZombie(41);
+        $this->game->stPhase1Switch();
+        $this->game->stStoryCheckStep();
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[41]['location']);
+        self::assertSame(
+            [
+                Transition::PHASE_1,
+                Transition::AVOID_ZOMBIE_CHOICE,
+                Transition::PHASE_1,
+                Transition::STORY_CHECK_STEP,
+                'playerChoice',
+            ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testDeferredBlackConsequenceReturnsToPlayCards(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[6] = [
+            'id' => 6,
+            'type' => '2',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Wolf Trap',
+            'is_character' => '0',
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'zombie',
+            ],
+            'consequence_white' => null,
+            'consequence_grey' => null,
+        ];
+        $deckManager->cards[41] = [
+            'id' => 41,
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Zombie',
+            'is_zombie' => '1',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->actPlayCard(6, Location::ESCAPED);
+        $this->game->stPhase1Switch();
+        $this->game->actEscapeZombie(41);
+        $this->game->stPhase1Switch();
+
+        self::assertSame(
+            [
+                Transition::PHASE_1,
+                Transition::AVOID_ZOMBIE_CHOICE,
+                Transition::PHASE_1,
+                Transition::PLAY_CARDS,
+            ],
+            $gamestate->transitions
+        );
+    }
+
     public function testInvalidProtagonistCannotSetLossCondition(): void
     {
         $this->expectException(UserException::class);
@@ -391,5 +596,41 @@ final class GameRulesTest extends TestCase
         $reflection = new ReflectionProperty(Game::class, $property);
         $reflection->setAccessible(true);
         return $reflection->getValue($this->game);
+    }
+
+    private function createEventStack(): object
+    {
+        return new class {
+            public array $events = [];
+            private int $nextId = 1;
+
+            public function pushEvent(
+                string $type,
+                array $parameters = []
+            ): void {
+                $this->events[] = [
+                    'id' => $this->nextId++,
+                    'type' => $type,
+                    'parameters' => $parameters,
+                ];
+            }
+
+            public function getCurrentEvent(): ?array
+            {
+                return $this->events
+                    ? $this->events[array_key_last($this->events)]
+                    : null;
+            }
+
+            public function popEvent(): ?array
+            {
+                return array_pop($this->events);
+            }
+
+            public function isEmpty(): bool
+            {
+                return $this->events === [];
+            }
+        };
     }
 }
