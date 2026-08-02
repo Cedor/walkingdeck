@@ -216,14 +216,16 @@ $machinestates = [
         ->build(),
     GameStep::STORY_PLAYER_CHOICE => GameStateBuilder::create()
         ->name('storyCheckPlayerChoice')
-        ->description(clienttranslate("Story check player choice"))
+        ->description(clienttranslate("${actplayer} must confirm the Story Check action"))
+        ->descriptionmyturn(clienttranslate("You must confirm the Story Check action"))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argStoryCheckPlayerChoice')
         ->possibleactions([
             'actStoryCheckPlayerChoice',
         ])
         ->transitions([
-            Transition::DEFAULT => GameStep::STORY_CHECK_WIN_LOSS
+            Transition::DEFAULT => GameStep::STORY_CHECK_WIN_LOSS,
+            Transition::PHASE_1 => GameStep::PHASE_1,
         ])
         ->build(),
     GameStep::STORY_CHECK_WIN_LOSS => GameStateBuilder::create()

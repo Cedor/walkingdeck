@@ -519,6 +519,10 @@ final class GameRulesTest extends TestCase
         $this->setProperty('deckManager', $deckManager);
         $this->game->gamestate = $gamestate;
 
+        self::assertSame(
+            'resolveCard',
+            $this->game->argStoryCheckPlayerChoice()['pendingAction']
+        );
         $this->game->actStoryCheckPlayerChoice(15);
 
         self::assertSame(Location::DONE, $deckManager->cards[15]['location']);
@@ -547,6 +551,10 @@ final class GameRulesTest extends TestCase
         $this->setProperty('deckManager', $deckManager);
         $this->game->gamestate = $gamestate;
 
+        self::assertSame(
+            'placeCharacter',
+            $this->game->argStoryCheckPlayerChoice()['pendingAction']
+        );
         $this->game->actStoryCheckPlayerChoice(8);
 
         self::assertSame(
@@ -595,8 +603,13 @@ final class GameRulesTest extends TestCase
 
         $this->game->stStoryCheckStep();
         self::assertSame(0, $ressources->refillCount);
+        self::assertSame(
+            'applyGreyConsequence',
+            $this->game->argStoryCheckPlayerChoice()['pendingAction']
+        );
+        $this->game->actStoryCheckPlayerChoice(16);
+        self::assertSame(0, $ressources->refillCount);
         $this->game->stPhase1Switch();
-        $this->game->stStoryCheckStep();
         $this->game->stStoryCheckStep();
 
         self::assertSame(1, $ressources->refillCount);
@@ -606,12 +619,16 @@ final class GameRulesTest extends TestCase
         );
         self::assertSame(
             [
+                'playerChoice',
                 Transition::PHASE_1,
                 Transition::STORY_CHECK_STEP,
                 'playerChoice',
-                'playerChoice',
             ],
             $gamestate->transitions
+        );
+        self::assertSame(
+            'resolveCard',
+            $this->game->argStoryCheckPlayerChoice()['pendingAction']
         );
     }
 
@@ -642,6 +659,7 @@ final class GameRulesTest extends TestCase
         $this->game->setGameStateValue('lossCondition', 1);
 
         $this->game->stStoryCheckStep();
+        $this->game->actStoryCheckPlayerChoice(7);
         $this->game->stPhase1Switch();
 
         self::assertSame(
@@ -649,7 +667,7 @@ final class GameRulesTest extends TestCase
             $deckManager->cards[7]['location']
         );
         self::assertSame(
-            [Transition::PHASE_1, Transition::GAME_END],
+            ['playerChoice', Transition::PHASE_1, Transition::GAME_END],
             $gamestate->transitions
         );
         self::assertSame(
@@ -687,6 +705,7 @@ final class GameRulesTest extends TestCase
         $this->game->setGameStateValue('lossCondition', 5);
 
         $this->game->stStoryCheckStep();
+        $this->game->actStoryCheckPlayerChoice(9);
         $this->game->stPhase1Switch();
         $this->game->stStoryCheckStep();
 
@@ -697,6 +716,7 @@ final class GameRulesTest extends TestCase
         );
         self::assertSame(
             [
+                'playerChoice',
                 Transition::PHASE_1,
                 Transition::STORY_CHECK_STEP,
                 'gameCheck',
@@ -739,6 +759,7 @@ final class GameRulesTest extends TestCase
         $this->game->setGameStateValue('gamePhase', 2);
 
         $this->game->stStoryCheckStep();
+        $this->game->actStoryCheckPlayerChoice(6);
         $this->game->stPhase1Switch();
         $this->game->actEscapeZombie(41);
         $this->game->stPhase1Switch();
@@ -747,6 +768,7 @@ final class GameRulesTest extends TestCase
         self::assertSame(Location::ESCAPED, $deckManager->cards[41]['location']);
         self::assertSame(
             [
+                'playerChoice',
                 Transition::PHASE_1,
                 Transition::AVOID_ZOMBIE_CHOICE,
                 Transition::PHASE_1,
