@@ -104,6 +104,41 @@ describe("card helpers", () => {
 });
 
 describe("player actions", () => {
+  for (const [pendingAction, expectedTitle] of [
+    ["applyGreyConsequence", "The grey consequence of ${card_name} will be applied"],
+    ["placeCharacter", "${card_name} will be placed in the Characters area"],
+    ["resolveCard", "${card_name} will be resolved"],
+  ]) {
+    it(`shows and submits the ${pendingAction} confirmation`, () => {
+      let confirmCallback;
+      const statusBar = {
+        setTitle: spy(),
+        addActionButton: spy((_label, callback) => {
+          confirmCallback = callback;
+          return { style: {} };
+        }),
+      };
+      const context = {
+        statusBar,
+        getActivePlayerId: () => 1,
+        isCurrentPlayerActive: () => true,
+        bgaPerformAction: spy(),
+      };
+
+      game.onUpdateActionButtons.call(context, "storyCheckPlayerChoice", {
+        currentCard: { id: 8, card_name: "Ellie and Joel" },
+        pendingAction,
+      });
+
+      assert.equal(statusBar.setTitle.calls[0][0], expectedTitle);
+      assert.equal(statusBar.setTitle.calls[0][1].card_name, "Ellie and Joel");
+      assert.equal(statusBar.addActionButton.calls[0][0], "Confirm");
+
+      confirmCallback();
+      assert.equal(context.bgaPerformAction.calls[0][0], "actStoryCheckPlayerChoice");
+    });
+  }
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },

@@ -1031,6 +1031,21 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $cardId = intval($currentCard['id']);
+        if ($this->getPendingStoryAction($currentCard) === 'applyGreyConsequence') {
+            $this->deckManager->moveCard(
+                $cardId,
+                Location::STORY_CURRENT,
+                1
+            );
+            $this->pushConsequenceEvent(
+                $cardId,
+                'grey',
+                Transition::STORY_CHECK_STEP
+            );
+            $this->gamestate->nextState(Transition::PHASE_1);
+            return;
+        }
+
         if ($this->cardCanBePlayedInLocation(
             $currentCard,
             Location::CHARACTERS_IN_PLAY
@@ -1190,12 +1205,7 @@ class Game extends \Bga\GameFramework\Table
                     );
                 }
 
-                $this->pushConsequenceEvent(
-                    intval($currentCard['id']),
-                    'grey',
-                    Transition::STORY_CHECK_STEP
-                );
-                $this->gamestate->nextState(Transition::PHASE_1);
+                $this->gamestate->nextState('playerChoice');
                 return;
             }
         }
@@ -1209,9 +1219,30 @@ class Game extends \Bga\GameFramework\Table
 
     public function argStoryCheckPlayerChoice(): array
     {
+        $currentCard = $this->getCurrentStoryCard();
         return [
-            'currentCard' => $this->getCurrentStoryCard(),
+            'currentCard' => $currentCard,
+            'pendingAction' => $currentCard === null
+                ? null
+                : $this->getPendingStoryAction($currentCard),
         ];
+    }
+
+    private function getPendingStoryAction(array $card): string
+    {
+        if (
+            intval($card['location_arg'] ?? 0) === 0
+            && !empty($card['consequence_grey'])
+        ) {
+            return 'applyGreyConsequence';
+        }
+
+        return $this->cardCanBePlayedInLocation(
+            $card,
+            Location::CHARACTERS_IN_PLAY
+        )
+            ? 'placeCharacter'
+            : 'resolveCard';
     }
 
     private function getCurrentStoryCard(): ?array

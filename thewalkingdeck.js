@@ -589,8 +589,23 @@ define([
             });
             break;
           case "storyCheckPlayerChoice":
-            this.statusBar.addActionButton(_("Choose"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
-              color: "secondary",
+            const storyArgs = args.args || args;
+            const storyCardName = storyArgs.currentCard?.card_name || _("the current card");
+            let storyTitle;
+            switch (storyArgs.pendingAction) {
+              case "applyGreyConsequence":
+                storyTitle = _("The grey consequence of ${card_name} will be applied");
+                break;
+              case "placeCharacter":
+                storyTitle = _("${card_name} will be placed in the Characters area");
+                break;
+              default:
+                storyTitle = _("${card_name} will be resolved");
+            }
+            this.statusBar.setTitle(storyTitle, { card_name: storyCardName });
+            this.statusBar.addActionButton(_("Confirm"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
+              id: "confirm_story_action",
+              color: "primary",
             });
             break;
         }
