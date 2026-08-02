@@ -16,5 +16,8 @@
 /build/
 /.phpunit.result.cache
 
+# Local BGA Studio credentials
+/.bga-sftp-password
+
 
 planTheWalkingDeck.prompt.md
