@@ -4,12 +4,20 @@ param(
     [int]$Port = 2022,
     [string]$UserName = 'Cedor',
     [string]$RemotePath = 'thewalkingdeck',
+    [string]$PasswordFile,
     [string]$WinScpDllPath
 )
 
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if ([string]::IsNullOrWhiteSpace($PasswordFile)) {
+    $PasswordFile = Join-Path $projectRoot '.bga-sftp-password'
+}
+elseif (-not [System.IO.Path]::IsPathRooted($PasswordFile)) {
+    $PasswordFile = Join-Path $projectRoot $PasswordFile
+}
+
 $directories = @(
     'doc'
     'img'
@@ -86,19 +94,34 @@ Vous pouvez aussi fournir son chemin avec -WinScpDllPath.
 
 Add-Type -Path (Resolve-Path $WinScpDllPath)
 
-$credential = Get-Credential `
-    -UserName $UserName `
-    -Message "Identifiants SFTP pour $HostName"
-if (-not $credential) {
-    throw 'Publication annulee : aucun identifiant fourni.'
+$sessionUserName = $UserName
+$securePassword = $null
+
+if (Test-Path -LiteralPath $PasswordFile -PathType Leaf) {
+    $password = (Get-Content -LiteralPath $PasswordFile -Raw).TrimEnd([char[]]"`r`n")
+    if (-not [string]::IsNullOrEmpty($password)) {
+        $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+        $password = $null
+    }
+}
+
+if ($null -eq $securePassword) {
+    $credential = Get-Credential `
+        -UserName $UserName `
+        -Message "Identifiants SFTP pour $HostName"
+    if (-not $credential) {
+        throw 'Publication annulee : aucun identifiant fourni.'
+    }
+    $sessionUserName = $credential.UserName
+    $securePassword = $credential.Password
 }
 
 $sessionOptions = [WinSCP.SessionOptions]@{
     Protocol = [WinSCP.Protocol]::Sftp
     HostName = $HostName
     PortNumber = $Port
-    UserName = $credential.UserName
-    SecurePassword = $credential.Password
+    UserName = $sessionUserName
+    SecurePassword = $securePassword
     SshHostKeyPolicy = [WinSCP.SshHostKeyPolicy]::AcceptNew
 }
 
