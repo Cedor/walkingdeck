@@ -173,7 +173,7 @@ define([
           }
         },
         isCardVisible: (card) => {
-          return card.type === "1" || card.type === "2" || card.type === "3";
+          return !card.face_down && (card.type === "1" || card.type === "2" || card.type === "3");
         },
         cardWidth: 127,
         cardHeight: 179,
@@ -725,7 +725,6 @@ define([
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
       dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
-      dojo.connect(document.getElementById("characters_wrap"), "onclick", this, "onCharactersWrapClick");
     },
 
     dispellHighlight: function () {
@@ -896,19 +895,6 @@ define([
       }
     },
 
-    // PHASE2 rework
-    onCharactersWrapClick: function () {
-      console.log("onCharactersWrapClick");
-      let card = this.hand.getSelection()[0];
-      console.log("Selected card in hand", card);
-      if (card) {
-        this.bgaPerformAction("actPutCharacterInPlay", {
-          card_id: card.id,
-          location: "characters",
-        });
-      } else console.log("No card selected");
-    },
-
     ///////////////////////////////////////////////////
     //// Reaction to cometD notifications
     setupNotifications: function () {
@@ -935,12 +921,12 @@ define([
       let destination = this.getLocation(args.destination);
       await destination.addCard(card, { fromStock: source });
     },
-    notif_storyCheckStarted: function (args) {
+    notif_storyCheckStarted: async function (args) {
       console.log("notif_storyCheckStarted");
       console.log(args);
       document.getElementById("story_organiser").style.display = "block";
       if (args.memoryTopCard) {
-        this.memory.addCard(args.memoryTopCard, {
+        await this.memory.addCard(args.memoryTopCard, {
           fadeIn: true,
           autoupdateCardNumber: false,
           autoRemovePreviousCards: true,
@@ -987,12 +973,12 @@ define([
       console.log(args);
       this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
     },
-    notif_characterPutInPlay: function (args) {
+    notif_characterPutInPlay: async function (args) {
       console.log("notif_characterPutInPlay");
       console.log(args);
       let card = args.card;
       if (card) {
-        this.characters.addCard(card);
+        await this.characters.addCard(card, { fromStock: this.storyCurrent });
       }
     },
     notif_ressourceConsumed: function (args) {

@@ -67,6 +67,48 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('canContinueNormalDraw'));
     }
 
+    public function testProtagonistSelectionStillStartsPhaseOne(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[2] = [
+            'id' => 2,
+            'type' => '1',
+            'type_arg' => '2',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Boris',
+            'losscon' => '5',
+        ];
+        $deckManager->cards[3] = [
+            'id' => 3,
+            'type' => '1',
+            'type_arg' => '3',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Adrien',
+            'losscon' => '4',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actPlayProtagonistCard(2);
+
+        self::assertSame(Location::PROTAGONIST, $deckManager->cards[2]['location']);
+        self::assertSame(Location::DISCARD, $deckManager->cards[3]['location']);
+        self::assertSame(2, $this->game->getGameStateValue('difficultyLevel'));
+        self::assertSame(5, $this->game->getGameStateValue('lossCondition'));
+        self::assertSame([Transition::DEFAULT], $gamestate->transitions);
+        self::assertSame('protagonistCardPlayed', end($this->game->notify->events)['type']);
+    }
+
     /**
      * @dataProvider cardLocationProvider
      */
@@ -362,6 +404,161 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('checkWin'));
     }
 
+    public function testStartingStoryCheckReversesTheMemoryTable(): void
+    {
+        $game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['DbQuery'])
+            ->getMock();
+        $game->expects(self::once())
+            ->method('DbQuery')
+            ->with(self::callback(static function (string $query): bool {
+                return strpos($query, 'UPDATE `twd_card`') !== false
+                    && strpos($query, '`card_location_arg` = - `card_location_arg`') !== false
+                    && strpos($query, "`card_location` = 'memory'") !== false;
+            }));
+        $deckManager = new class {
+            public function getCardOnTop(string $location): ?array
+            {
+                return [
+                    'id' => 18,
+                    'type' => '2',
+                    'type_arg' => '14',
+                    'location' => Location::MEMORY,
+                    'location_arg' => -1,
+                    'card_name' => 'Teddy Bear',
+                ];
+            }
+        };
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $game->notify = $this->game->notify;
+        $game->gamestate = $gamestate;
+        $reflection = new ReflectionProperty(Game::class, 'deckManager');
+        $reflection->setAccessible(true);
+        $reflection->setValue($game, $deckManager);
+        $game->setGameStateValue('gamePhase', 1);
+
+        $game->stStoryCheck();
+
+        self::assertSame(2, $game->getGameStateValue('gamePhase'));
+        self::assertSame([Transition::DEFAULT], $gamestate->transitions);
+        $notification = end($game->notify->events);
+        self::assertSame('storyCheckStarted', $notification['type']);
+        self::assertSame(18, $notification['arguments']['memoryTopCard']['id']);
+        self::assertSame('2', $notification['arguments']['memoryTopCard']['type']);
+        self::assertTrue($notification['arguments']['memoryTopCard']['face_down']);
+    }
+
+    public function testStoryRevealKeepsTheRealNextMemoryCardFaceDown(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[15] = [
+            'id' => 15,
+            'type' => '2',
+            'type_arg' => '11',
+            'location' => Location::MEMORY,
+            'location_arg' => 1,
+            'card_name' => 'Horse',
+        ];
+        $deckManager->cards[25] = [
+            'id' => 25,
+            'type' => '3',
+            'type_arg' => '3',
+            'location' => Location::MEMORY,
+            'location_arg' => 2,
+            'card_name' => 'Glenn',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stStoryCheckStep();
+
+        $notification = end($this->game->notify->events);
+        self::assertSame('storyCardRevealed', $notification['type']);
+        self::assertSame(25, $notification['arguments']['card']['id']);
+        self::assertFalse($notification['arguments']['card']['face_down']);
+        self::assertSame(15, $notification['arguments']['memoryTopCard']['id']);
+        self::assertSame('2', $notification['arguments']['memoryTopCard']['type']);
+        self::assertTrue($notification['arguments']['memoryTopCard']['face_down']);
+    }
+
+    public function testResolvedStoryCardMovesToDone(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[15] = [
+            'id' => 15,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Horse',
+            'is_character' => '0',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actStoryCheckPlayerChoice(15);
+
+        self::assertSame(Location::DONE, $deckManager->cards[15]['location']);
+        self::assertSame([Transition::DEFAULT], $gamestate->transitions);
+        self::assertSame('storyCardResolved', end($this->game->notify->events)['type']);
+    }
+
+    public function testResolvedStoryCharacterJoinsCharactersInPlay(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Ellie and Joel',
+            'is_character' => '1',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actStoryCheckPlayerChoice(8);
+
+        self::assertSame(
+            Location::CHARACTERS_IN_PLAY,
+            $deckManager->cards[8]['location']
+        );
+        self::assertSame([Transition::DEFAULT], $gamestate->transitions);
+        $notification = end($this->game->notify->events);
+        self::assertSame('characterPutInPlay', $notification['type']);
+        self::assertSame(Location::STORY_CURRENT, $notification['arguments']['source']);
+    }
+
     public function testStoryCheckAppliesGreyConsequenceOnlyWhenCardIsRevealed(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -461,6 +658,53 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testBuriedStoryCharacterDoesNotJoinCharactersInPlay(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[9] = [
+            'id' => 9,
+            'location' => Location::MEMORY,
+            'location_arg' => 1,
+            'card_name' => 'Kieren',
+            'is_character' => '1',
+            'consequence_grey' => [
+                'action' => 'bury',
+                'bury' => 'this',
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $this->game->stStoryCheckStep();
+        $this->game->stPhase1Switch();
+        $this->game->stStoryCheckStep();
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[9]['location']);
+        self::assertNotContains(
+            'characterPutInPlay',
+            array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            [
+                Transition::PHASE_1,
+                Transition::STORY_CHECK_STEP,
+                'gameCheck',
+            ],
+            $gamestate->transitions
+        );
+    }
+
     public function testDeferredGreyConsequenceReturnsToStoryCheck(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -537,6 +781,13 @@ final class GameRulesTest extends TestCase
             'card_name' => 'Zombie',
             'is_zombie' => '1',
         ];
+        $deckManager->cards[42] = [
+            'id' => 42,
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Remaining card',
+            'is_zombie' => '0',
+        ];
         $gamestate = new class {
             public array $transitions = [];
 
@@ -562,6 +813,51 @@ final class GameRulesTest extends TestCase
                 Transition::PHASE_1,
                 Transition::PLAY_CARDS,
             ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testPlayingLastCardToMemoryStartsNormalRefillAfterConsequence(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[18] = [
+            'id' => 18,
+            'type' => '2',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Teddy Bear',
+            'is_character' => '0',
+            'consequence_black' => null,
+            'consequence_white' => ['action' => 'nothing'],
+            'consequence_grey' => null,
+        ];
+        $deckManager->cards[19] = [
+            'id' => 19,
+            'type' => '2',
+            'location' => Location::RURAL,
+            'location_arg' => 1,
+            'card_name' => 'Next card',
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->actPlayCard(18, Location::MEMORY);
+        $this->game->stPhase1Switch();
+
+        self::assertSame(0, $deckManager->countCardInLocation(Location::HAND));
+        self::assertSame(Location::MEMORY, $deckManager->cards[18]['location']);
+        self::assertSame(
+            [Transition::PHASE_1, Transition::DRAW_CARDS],
             $gamestate->transitions
         );
     }

@@ -221,7 +221,6 @@ $machinestates = [
         ->args('argStoryCheckPlayerChoice')
         ->possibleactions([
             'actStoryCheckPlayerChoice',
-            'actPutCharacterInPlay',
         ])
         ->transitions([
             Transition::DEFAULT => GameStep::STORY_CHECK_WIN_LOSS

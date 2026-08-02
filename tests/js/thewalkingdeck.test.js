@@ -24,7 +24,7 @@ before(() => {
   const context = {
     console: { log: spy(), warn: spy() },
     document: {
-      getElementById: spy(() => ({ classList: { add: spy() } })),
+      getElementById: spy(() => ({ style: {}, classList: { add: spy() } })),
       querySelectorAll: spy(() => []),
     },
     ebg: { core: { gamegui: function GameGui() {} } },
@@ -225,6 +225,29 @@ describe("player actions", () => {
 });
 
 describe("notifications", () => {
+  it("waits until the face-down Memory card is installed when Story Check starts", async () => {
+    let finishAdding;
+    const addPromise = new Promise((resolve) => {
+      finishAdding = resolve;
+    });
+    const memory = { addCard: spy(() => addPromise) };
+    const card = { id: 18, type: "2", face_down: true };
+    let notificationFinished = false;
+
+    const notification = game.notif_storyCheckStarted.call({ memory }, { memoryTopCard: card });
+    notification.then(() => {
+      notificationFinished = true;
+    });
+    await Promise.resolve();
+
+    assert.equal(notificationFinished, false);
+    assert.equal(memory.addCard.calls[0][0], card);
+
+    finishAdding();
+    await notification;
+    assert.equal(notificationFinished, true);
+  });
+
   it("updates the protagonist and loss condition", () => {
     const context = {
       protagonistSlot: { addCard: spy() },
@@ -270,7 +293,7 @@ describe("notifications", () => {
     };
     const context = { memory, storyCurrent };
     const card = { id: 21 };
-    const memoryTopCard = { id: "fake-top-card" };
+    const memoryTopCard = { id: 15, type: "2", face_down: true };
 
     await game.notif_storyCardRevealed.call(context, {
       card,
@@ -282,5 +305,18 @@ describe("notifications", () => {
     assert.equal(storyCurrent.addCard.calls[0][1].fromStock, memory);
     assert.equal(memory.setCardNumber.calls[0][0], 2);
     assert.equal(memory.addCard.calls[0][0], memoryTopCard);
+  });
+
+  it("moves a resolved character from the current Story card to the characters area", async () => {
+    const storyCurrent = {};
+    const characters = { addCard: spy(async () => undefined) };
+    const context = { storyCurrent, characters };
+    const card = { id: 8, is_character: "1" };
+
+    await game.notif_characterPutInPlay.call(context, { card });
+
+    assert.equal(characters.addCard.calls.length, 1);
+    assert.equal(characters.addCard.calls[0][0], card);
+    assert.equal(characters.addCard.calls[0][1].fromStock, storyCurrent);
   });
 });
