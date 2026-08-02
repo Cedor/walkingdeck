@@ -109,7 +109,7 @@ class TWDDeck
   {
     $faketype = '';
     switch ($card['type']) {
-      case CardType::PROTAGONIST:
+      case CardType::RURAL:
         $faketype = '4';
         break;
       case CardType::URBAN:

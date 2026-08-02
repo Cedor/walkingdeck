@@ -70,9 +70,9 @@ final class TWDDeckTest extends TestCase
     public function fakeCardTypeProvider(): array
     {
         return [
-            'protagonist' => [1, '4'],
+            'protagonist/default' => [1, '6'],
             'urban' => [3, '5'],
-            'rural/default' => [2, '6'],
+            'rural' => [2, '4'],
         ];
     }
 

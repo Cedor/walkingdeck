@@ -333,17 +333,25 @@ class Game extends \Bga\GameFramework\Table
     private function pushConsequenceEvent(
         int $cardId,
         string $color,
-        string $returnTransition
+        ?string $returnTransition
     ): void {
-        $this->assertEventTransition($returnTransition);
-        $this->eventStack->pushEvent(
-            EventType::NEXT_STATE,
-            ['transition' => $returnTransition]
-        );
+        if ($returnTransition !== null) {
+            $this->assertEventTransition($returnTransition);
+            $this->eventStack->pushEvent(
+                EventType::NEXT_STATE,
+                ['transition' => $returnTransition]
+            );
+        }
         $this->eventStack->pushEvent(EventType::CONSEQUENCE, [
             'cardId' => $cardId,
             'color' => $color,
         ]);
+    }
+
+    private function withFaceDown(array $card, bool $faceDown): array
+    {
+        $card['face_down'] = $faceDown;
+        return $card;
     }
 
     /**
@@ -385,7 +393,7 @@ class Game extends \Bga\GameFramework\Table
                 $this->pushConsequenceEvent(
                     intval($card['id']),
                     $consequenceColor,
-                    Transition::PLAY_CARDS
+                    null
                 );
             }
 
@@ -575,14 +583,11 @@ class Game extends \Bga\GameFramework\Table
     {
         switch ($location) {
             case Location::CHARACTERS_IN_PLAY:
-                return $card['is_character'] == '1';
-                break;
+                return intval($card['is_character'] ?? 0) === 1;
             case Location::MEMORY:
                 return $card['consequence_white'] || $card['consequence_grey'];
-                break;
             case Location::ESCAPED:
                 return $card['consequence_black'] && $this->consequenceCanBeResolved($card);
-                break;
         }
         return true;
     }
@@ -1025,18 +1030,36 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        $this->deckManager->moveCard(
-            intval($currentCard['id']),
-            Location::DONE
-        );
-        $this->notify->all(
-            'storyCardResolved',
-            \clienttranslate('${card_name} has been resolved'),
-            [
-                'card' => $currentCard,
-                'card_name' => $currentCard['card_name'],
-            ]
-        );
+        $cardId = intval($currentCard['id']);
+        if ($this->cardCanBePlayedInLocation(
+            $currentCard,
+            Location::CHARACTERS_IN_PLAY
+        )) {
+            $this->deckManager->moveCard(
+                $cardId,
+                Location::CHARACTERS_IN_PLAY
+            );
+            $character = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'characterPutInPlay',
+                \clienttranslate('${card_name} joins the characters'),
+                [
+                    'card' => $character,
+                    'card_name' => $character['card_name'],
+                    'source' => Location::STORY_CURRENT,
+                ]
+            );
+        } else {
+            $this->deckManager->moveCard($cardId, Location::DONE);
+            $this->notify->all(
+                'storyCardResolved',
+                \clienttranslate('${card_name} has been resolved'),
+                [
+                    'card' => $currentCard,
+                    'card_name' => $currentCard['card_name'],
+                ]
+            );
+        }
         $this->gamestate->nextState(Transition::DEFAULT);
     }
 
@@ -1059,34 +1082,6 @@ class Game extends \Bga\GameFramework\Table
             'disaster' => $disasterPicked,
             'shuffle' => $shuffle
         ));
-    }
-
-    /**
-     * Player action : putting a character in play
-     *
-     * @throws BgaUserException
-     */
-    public function actPutCharacterInPlay(int $card_id, string $location): void
-    {
-        $card = $this->deckManager->getCard($card_id);
-        $card_name = '';
-        if ($card && $card['location'] == Location::HAND &&  $this->cardCanBePlayedInLocation($card, $location)) {
-            $this->deckManager->moveCard($card_id, 'characters');
-            $card = $this->deckManager->getCard($card_id);
-            $card_name = $card['card_name'];
-            $this->notify->all('characterPutInPlay', \clienttranslate("Card $card_name played from hand to $location"), array(
-                'card' => $card,
-                'location' => $location
-            ));
-        } else {
-            throw new UserException(new NotificationMessage(
-                \clienttranslate('Illegal move: cannot play card ${card_id} (character: ${is_character})'),
-                [
-                    'card_id' => $card_id,
-                    'is_character' => $card['is_character'] ?? 'unknown',
-                ]
-            ));
-        }
     }
 
     /**
@@ -1134,22 +1129,22 @@ class Game extends \Bga\GameFramework\Table
         if ($isStartingStoryCheck) {
             $this->setGamePhase(2);
             static::DbQuery(
-                "UPDATE card
-                 SET card_location_arg = - card_location_arg
-                 WHERE card_location = 'memory'"
+                "UPDATE `twd_card`
+                 SET `card_location_arg` = - `card_location_arg`
+                 WHERE `card_location` = 'memory'"
             );
         }
 
         $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
-        $memoryFakeTop = $memoryTop === null
+        $memoryVisibleTop = $memoryTop === null
             ? null
-            : $this->deckManager->generateFakeCard($memoryTop);
+            : $this->withFaceDown($memoryTop, true);
 
         if ($isStartingStoryCheck) {
             $this->notify->all(
                 'storyCheckStarted',
                 \clienttranslate("Story check started"),
-                ['memoryTopCard' => $memoryFakeTop]
+                ['memoryTopCard' => $memoryVisibleTop]
             );
         }
         // Go to following game state
@@ -1178,13 +1173,11 @@ class Game extends \Bga\GameFramework\Table
                     'storyCardRevealed',
                     \clienttranslate('${card_name} is the current Story Check card'),
                     [
-                        'card' => $currentCard,
+                        'card' => $this->withFaceDown($currentCard, false),
                         'card_name' => $currentCard['card_name'],
                         'memoryTopCard' => $nextMemoryTop === null
                             ? null
-                            : $this->deckManager->generateFakeCard(
-                                $nextMemoryTop
-                            ),
+                            : $this->withFaceDown($nextMemoryTop, true),
                         'memoryNb' => $this->deckManager->countCardInLocation(
                             Location::MEMORY
                         ),
@@ -1341,7 +1334,7 @@ class Game extends \Bga\GameFramework\Table
         $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
         $result['memoryTop'] = $gamePhase == 1 || $memoryTop === null
             ? $memoryTop
-            : $this->deckManager->generateFakeCard($memoryTop);
+            : $this->withFaceDown($memoryTop, true);
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
         $result['storyCurrent'] = $this->getCurrentStoryCard();
         $result['escaped'] = $this->deckManager->getCardsInLocation(Location::ESCAPED, null, 'location_arg');
