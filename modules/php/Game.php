@@ -135,11 +135,8 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Resolve the shared event stack and resume the phase that queued it.
-     *
-     * The method keeps its phase-one name because it is the action of the
-     * existing PHASE_1 dispatcher state, which is also reused by Story Check.
      */
-    public function stPhase1Switch(): void
+    public function stEventDispatcher(): void
     {
         while (!$this->eventStack->isEmpty()) {
             $event = $this->eventStack->getCurrentEvent();
@@ -397,7 +394,7 @@ class Game extends \Bga\GameFramework\Table
                 );
             }
 
-            $this->gamestate->nextState(Transition::PHASE_1);
+            $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
         } else {
             throw new UserException(new NotificationMessage(
                 \clienttranslate('Illegal move: ${card_name} (${card_id}) cannot be played from hand to location ${location}'),
@@ -707,7 +704,7 @@ class Game extends \Bga\GameFramework\Table
             ]
         );
 
-        $this->gamestate->nextState(Transition::PHASE_1);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     private function getBrainstormAvailableDecks(): array
@@ -844,7 +841,7 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        $this->gamestate->nextState(Transition::PHASE_1);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     private function getBrainstormLocationForDeck(string $location): string
@@ -888,7 +885,7 @@ class Game extends \Bga\GameFramework\Table
 
     /**
      * Player action: start the normal refill when exactly one card remains.
-     * An empty hand starts the same refill automatically in stPhase1Switch().
+     * An empty hand starts the same refill automatically in stEventDispatcher().
      *
      * @throws BgaUserException
      */
@@ -904,7 +901,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $this->eventStack->pushEvent(EventType::DRAW_CARD);
-        $this->gamestate->nextState(Transition::PHASE_1);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     /**
@@ -989,7 +986,7 @@ class Game extends \Bga\GameFramework\Table
             $this->eventStack->pushEvent(EventType::SPECIAL_DRAW);
         }
 
-        $this->gamestate->nextState(Transition::PHASE_1);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     /**
@@ -1042,7 +1039,7 @@ class Game extends \Bga\GameFramework\Table
                 'grey',
                 Transition::STORY_CHECK_STEP
             );
-            $this->gamestate->nextState(Transition::PHASE_1);
+            $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
             return;
         }
 
@@ -1075,7 +1072,7 @@ class Game extends \Bga\GameFramework\Table
                 ]
             );
         }
-        $this->gamestate->nextState(Transition::DEFAULT);
+        $this->gamestate->nextState(Transition::PHASE_2);
     }
 
     /**

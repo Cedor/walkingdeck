@@ -7,7 +7,7 @@ namespace Bga\Games\TheWalkingDeck\Constants;
 final class GameStep
 {
     public const PROTAGONIST_SELECTION = 2;
-    public const PHASE_1 = 3;
+    public const EVENT_DISPATCHER = 3;
     public const DRAW_CARDS = 31;
     public const ADDITIONAL_DRAW = 32;
     public const PLAY_CARDS = 33;

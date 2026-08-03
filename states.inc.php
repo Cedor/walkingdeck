@@ -66,14 +66,14 @@ $machinestates = [
             'actPlayProtagonistCard',
         ])
         ->transitions([
-            Transition::DEFAULT => GameStep::PHASE_1,
+            Transition::DEFAULT => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
-    GameStep::PHASE_1 => GameStateBuilder::create()
-        ->name(Transition::PHASE_1)
+    GameStep::EVENT_DISPATCHER => GameStateBuilder::create()
+        ->name(Transition::DISPATCH_EVENTS)
         ->description(clienttranslate(''))
         ->type(StateType::GAME)
-        ->action('stPhase1Switch')
+        ->action('stEventDispatcher')
         ->transitions([
             Transition::DRAW_CARDS => GameStep::DRAW_CARDS,
             Transition::ADDITIONAL_DRAW_CARDS => GameStep::ADDITIONAL_DRAW,
@@ -100,7 +100,7 @@ $machinestates = [
             Transition::ADDITIONAL_DRAW_CARDS => GameStep::ADDITIONAL_DRAW,
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::ADDITIONAL_DRAW => GameStateBuilder::create()
@@ -116,7 +116,7 @@ $machinestates = [
             Transition::DRAW_CARDS => GameStep::DRAW_CARDS,
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::PLAY_CARDS => GameStateBuilder::create()
@@ -136,7 +136,7 @@ $machinestates = [
             Transition::DRAW_CARDS => GameStep::DRAW_CARDS,
             Transition::ADDITIONAL_DRAW_CARDS => GameStep::ADDITIONAL_DRAW,
             Transition::STORY_CHECK => GameStep::STORY_CHECK,
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END
         ])
         ->build(),
@@ -151,7 +151,7 @@ $machinestates = [
             'actEscapeTallaFromMemory',
         ])
         ->transitions([
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::AVOID_ZOMBIE_CHOICE => GameStateBuilder::create()
@@ -164,7 +164,7 @@ $machinestates = [
             'actEscapeZombie',
         ])
         ->transitions([
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::BRAINSTORM_DECK_CHOICE => GameStateBuilder::create()
@@ -190,7 +190,7 @@ $machinestates = [
             'actConfirmBrainstorm',
         ])
         ->transitions([
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()
@@ -210,7 +210,7 @@ $machinestates = [
         ->transitions([
             'playerChoice' => GameStep::STORY_PLAYER_CHOICE,
             'gameCheck' => GameStep::STORY_CHECK_WIN_LOSS,
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
@@ -224,8 +224,8 @@ $machinestates = [
             'actStoryCheckPlayerChoice',
         ])
         ->transitions([
-            Transition::DEFAULT => GameStep::STORY_CHECK_WIN_LOSS,
-            Transition::PHASE_1 => GameStep::PHASE_1,
+            Transition::PHASE_2 => GameStep::STORY_CHECK_WIN_LOSS,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::STORY_CHECK_WIN_LOSS => GameStateBuilder::create()
