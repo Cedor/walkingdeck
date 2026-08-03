@@ -11,6 +11,7 @@ final class TWDEventStack
 {
     private const SUPPORTED_TYPES = [
         EventType::CONSEQUENCE,
+        EventType::BITE_CHOICE,
         EventType::DRAW_CARD,
         EventType::SPECIAL_DRAW,
         EventType::ADDITIONAL_DRAW,

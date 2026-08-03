@@ -7,6 +7,7 @@ namespace Bga\Games\TheWalkingDeck\Constants;
 final class EventType
 {
     public const CONSEQUENCE = 'consequence';
+    public const BITE_CHOICE = 'biteChoice';
     public const DRAW_CARD = 'drawCard';
     public const SPECIAL_DRAW = 'specialDraw';
     public const ADDITIONAL_DRAW = 'additionalDraw';

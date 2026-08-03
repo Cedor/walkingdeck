@@ -82,6 +82,7 @@ $machinestates = [
             Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
+            Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -188,6 +189,19 @@ $machinestates = [
         ->args('argBrainstormReorder')
         ->possibleactions([
             'actConfirmBrainstorm',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::BITE_CHOICE => GameStateBuilder::create()
+        ->name(Transition::BITE_CHOICE)
+        ->description(clienttranslate('You must choose a character to receive the bite'))
+        ->descriptionmyturn(clienttranslate('You must choose a character to receive the bite'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argBiteChoice')
+        ->possibleactions([
+            'actChooseBiteTarget',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,

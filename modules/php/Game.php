@@ -182,6 +182,11 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::PLAY_CARDS);
                     return;
 
+                case EventType::BITE_CHOICE:
+                    $this->getPendingBiteChoiceEvent();
+                    $this->gamestate->nextState(Transition::BITE_CHOICE);
+                    return;
+
                 case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
@@ -202,6 +207,28 @@ class Game extends \Bga\GameFramework\Table
                         );
                         $this->gamestate->nextState(Transition::GAME_END);
                         return;
+                    }
+
+                    if ($outcome['biteChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                        ) {
+                            throw new SystemException(
+                                'A bite choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (array_reverse($outcome['biteChoices']) as $biteChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::BITE_CHOICE,
+                                $biteChoice
+                            );
+                        }
+                        break;
                     }
 
                     if ($outcome['brainstorm']) {
@@ -433,6 +460,7 @@ class Game extends \Bga\GameFramework\Table
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'biteChoices' => [],
         ];
 
         switch ($consequence['action']) {
@@ -469,7 +497,14 @@ class Game extends \Bga\GameFramework\Table
                 }
                 break;
             case 'bite':
-                // CONS implement bite damage (phase 2 only)
+                $bite = intval($consequence['bite'] ?? 0);
+                if ($bite < 1 || $bite > 3) {
+                    throw new SystemException('Invalid bite value');
+                }
+                $outcome['biteChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                    'bite' => $bite,
+                ];
                 break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
@@ -527,6 +562,7 @@ class Game extends \Bga\GameFramework\Table
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'biteChoices' => [],
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -563,6 +599,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
             $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
             $outcome['brainstorm'] = $outcome['brainstorm'] || $currentOutcome['brainstorm'];
+            $outcome['biteChoices'] = array_merge(
+                $outcome['biteChoices'],
+                $currentOutcome['biteChoices']
+            );
         }
 
         return $outcome;
@@ -637,6 +677,85 @@ class Game extends \Bga\GameFramework\Table
     private function zombieEscapeChoiceIsAvailable(): bool
     {
         return count($this->getZombiesInHand()) > 0;
+    }
+
+    public function argBiteChoice(): array
+    {
+        $event = $this->getPendingBiteChoiceEvent();
+        $characters = array_values(
+            $this->deckManager->getCardsInLocation(
+                Location::CHARACTERS_IN_PLAY
+            )
+        );
+
+        return [
+            'bite' => intval($event['parameters']['bite']),
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'eligibleCharacters' => $characters,
+            'eligibleCardsIds' => array_map(
+                'intval',
+                array_column($characters, 'id')
+            ),
+        ];
+    }
+
+    /**
+     * Record the character selected for a bite consequence.
+     * Applying wounds and weaknesses will be implemented with the bite rules.
+     */
+    public function actChooseBiteTarget(int $card_id): void
+    {
+        $this->checkAction('actChooseBiteTarget');
+
+        $event = $this->getPendingBiteChoiceEvent();
+        $eligibleCharacters = $this->deckManager->getCardsInLocation(
+            Location::CHARACTERS_IN_PLAY
+        );
+        $eligibleCardIds = array_map(
+            'intval',
+            array_column($eligibleCharacters, 'id')
+        );
+        if (!in_array($card_id, $eligibleCardIds, true)) {
+            throw new UserException(
+                \clienttranslate('You must choose a character in play')
+            );
+        }
+
+        $target = $this->deckManager->getCard($card_id);
+        $this->notify->all(
+            'biteTargetChosen',
+            \clienttranslate('${card_name} was chosen to receive bite ${bite}'),
+            [
+                'card' => $target,
+                'card_name' => $target['card_name'],
+                'bite' => intval($event['parameters']['bite']),
+                'sourceCardId' => intval(
+                    $event['parameters']['sourceCardId']
+                ),
+            ]
+        );
+
+        // The actual wound/weakness mutation belongs here once the rule is set.
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingBiteChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null || $event['type'] !== EventType::BITE_CHOICE) {
+            throw new SystemException('There is no pending bite choice');
+        }
+
+        $sourceCardId = intval($event['parameters']['sourceCardId'] ?? 0);
+        $bite = intval($event['parameters']['bite'] ?? 0);
+        if ($sourceCardId < 1 || $bite < 1 || $bite > 3) {
+            throw new SystemException('Invalid pending bite choice');
+        }
+
+        return $event;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bga\Games\TheWalkingDeck\Tests\Unit;
 
 use Bga\GameFramework\UserException;
+use Bga\Games\TheWalkingDeck\Constants\EventType;
 use Bga\Games\TheWalkingDeck\Constants\Location;
 use Bga\Games\TheWalkingDeck\Constants\Transition;
 use Bga\Games\TheWalkingDeck\Game;
@@ -157,6 +158,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'biteChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -175,6 +177,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => true,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'biteChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -195,6 +198,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
             'brainstorm' => false,
+            'biteChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -212,7 +216,82 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => true,
+            'biteChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testBiteConsequencePausesForACharacterChoice(): void
+    {
+        $deckManager = new class {
+            public array $cards = [
+                19 => [
+                    'id' => 19,
+                    'location' => Location::STORY_CURRENT,
+                    'card_name' => 'Wild Zero',
+                    'consequence_grey' => [
+                        'action' => 'bite',
+                        'bite' => '2',
+                    ],
+                ],
+                8 => [
+                    'id' => 8,
+                    'location' => Location::CHARACTERS_IN_PLAY,
+                    'card_name' => 'Ellie and Joel',
+                ],
+            ];
+
+            public function getCard(int $cardId): ?array
+            {
+                return $this->cards[$cardId] ?? null;
+            }
+
+            public function getCardsInLocation(string $location): array
+            {
+                return array_values(array_filter(
+                    $this->cards,
+                    static function (array $card) use ($location): bool {
+                        return $card['location'] === $location;
+                    }
+                ));
+            }
+        };
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 19,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame([Transition::BITE_CHOICE], $gamestate->transitions);
+        self::assertSame(2, $this->game->argBiteChoice()['bite']);
+        self::assertSame(
+            [8],
+            $this->game->argBiteChoice()['eligibleCardsIds']
+        );
+
+        $this->game->actChooseBiteTarget(8);
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::BITE_CHOICE, Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            'biteTargetChosen',
+            end($this->game->notify->events)['type']
+        );
     }
 
     public function testBrainstormOnlyOffersNonEmptyDecks(): void
@@ -259,6 +338,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
             'brainstorm' => false,
+            'biteChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -307,6 +387,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'biteChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,
