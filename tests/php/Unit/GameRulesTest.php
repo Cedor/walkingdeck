@@ -343,6 +343,9 @@ final class GameRulesTest extends TestCase
             [2],
             $this->invoke('argEscapeTallaChoice')['playableCardsIds']
         );
+        self::assertFalse(
+            $this->invoke('argEscapeTallaChoice')['mustChooseMemory']
+        );
         self::assertSame(
             [2],
             $this->invoke('argAvoidZombieChoice')['playableCardsIds']
@@ -356,6 +359,9 @@ final class GameRulesTest extends TestCase
         self::assertTrue($this->invoke('escapeTallaChoiceIsAvailable'));
         self::assertTrue(
             $this->invoke('argEscapeTallaChoice')['canChooseMemory']
+        );
+        self::assertTrue(
+            $this->invoke('argEscapeTallaChoice')['mustChooseMemory']
         );
     }
 

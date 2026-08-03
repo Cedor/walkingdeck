@@ -142,8 +142,8 @@ $machinestates = [
         ->build(),
     GameStep::PLAYER_CHOICE_1 => GameStateBuilder::create()
         ->name('escapeTallaChoice')
-        ->description(clienttranslate('You must choose a card from your hand to escape'))
-        ->descriptionmyturn(clienttranslate('You must choose a card from your hand to escape'))
+        ->description(clienttranslate('You must choose a card from your hand or the top card of the memory to escape'))
+        ->descriptionmyturn(clienttranslate('You must choose a card from your hand or the top card of the memory to escape'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argEscapeTallaChoice')
         ->possibleactions([
