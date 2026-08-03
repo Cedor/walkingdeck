@@ -234,6 +234,41 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
+  it("confirms the top Memory card when Tallahassee finds an empty hand", () => {
+    let confirmCallback;
+    const statusBar = {
+      setTitle: spy(),
+      addActionButton: spy((_label, callback) => {
+        confirmCallback = callback;
+        return { style: {} };
+      }),
+    };
+    const context = {
+      statusBar,
+      getActivePlayerId: () => 1,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onUpdateActionButtons.call(context, "escapeTallaChoice", {
+      canChooseMemory: true,
+      mustChooseMemory: true,
+      playableCardsIds: [],
+    });
+
+    assert.equal(
+      statusBar.setTitle.calls[0][0],
+      "The top card of the memory will be escaped"
+    );
+    assert.equal(statusBar.addActionButton.calls[0][0], "Confirm");
+
+    confirmCallback();
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actEscapeTallaFromMemory"
+    );
+  });
+
   it("chooses the top card of memory during Tallahassee's consequence", () => {
     const context = {
       zombieEscapeChoiceActive: true,

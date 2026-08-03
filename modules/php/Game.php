@@ -602,14 +602,19 @@ class Game extends \Bga\GameFramework\Table
     private function getZombieEscapeChoiceArgs(bool $canChooseMemory): array
     {
         $zombies = $this->getZombiesInHand();
+        $handIsEmpty = $this->deckManager->getCardsInLocation(
+            Location::HAND
+        ) === [];
+        $memoryIsAvailable = $canChooseMemory
+            && $this->deckManager->getCardOnTop(Location::MEMORY) !== null;
 
         return [
             'playableCardsIds' => array_map(
                 'intval',
                 array_column($zombies, 'id')
             ),
-            'canChooseMemory' => $canChooseMemory
-                && $this->deckManager->getCardOnTop(Location::MEMORY) !== null,
+            'canChooseMemory' => $memoryIsAvailable,
+            'mustChooseMemory' => $handIsEmpty && $memoryIsAvailable,
         ];
     }
 

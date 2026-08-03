@@ -575,7 +575,21 @@ define([
               { color: "secondary" }
             );
             break;
-          case "escapeTallaChoice":
+          case "escapeTallaChoice": {
+            const escapeArgs = args.args || args;
+            if (escapeArgs.mustChooseMemory) {
+              this.statusBar.setTitle(_("The top card of the memory will be escaped"));
+              this.statusBar.addActionButton(
+                _("Confirm"),
+                () => this.bgaPerformAction("actEscapeTallaFromMemory"),
+                {
+                  id: "confirm_talla_memory",
+                  color: "primary",
+                }
+              );
+              break;
+            }
+          }
           case "avoidZombieChoice":
             this.statusBar.addActionButton(_("Confirm choice"), () => this.confirmZombieEscapeChoice(), {
               id: "confirm_escape_zombie",
