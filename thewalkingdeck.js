@@ -600,7 +600,7 @@ define([
                 storyTitle = _("${card_name} will be placed in the Characters area");
                 break;
               default:
-                storyTitle = _("${card_name} will be resolved");
+                return;
             }
             this.statusBar.setTitle(storyTitle, { card_name: storyCardName });
             this.statusBar.addActionButton(_("Confirm"), () => this.bgaPerformAction("actStoryCheckPlayerChoice"), {
