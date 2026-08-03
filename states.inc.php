@@ -216,7 +216,7 @@ $machinestates = [
         ->build(),
     GameStep::STORY_PLAYER_CHOICE => GameStateBuilder::create()
         ->name('storyCheckPlayerChoice')
-        ->description(clienttranslate("${actplayer} must confirm the Story Check action"))
+        ->description(clienttranslate('${actplayer} must confirm the Story Check action'))
         ->descriptionmyturn(clienttranslate("You must confirm the Story Check action"))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argStoryCheckPlayerChoice')
