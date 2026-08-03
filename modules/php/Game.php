@@ -1043,35 +1043,29 @@ class Game extends \Bga\GameFramework\Table
             return;
         }
 
-        if ($this->cardCanBePlayedInLocation(
+        if (!$this->cardCanBePlayedInLocation(
             $currentCard,
             Location::CHARACTERS_IN_PLAY
         )) {
-            $this->deckManager->moveCard(
-                $cardId,
-                Location::CHARACTERS_IN_PLAY
-            );
-            $character = $this->deckManager->getCard($cardId);
-            $this->notify->all(
-                'characterPutInPlay',
-                \clienttranslate('${card_name} joins the characters'),
-                [
-                    'card' => $character,
-                    'card_name' => $character['card_name'],
-                    'source' => Location::STORY_CURRENT,
-                ]
-            );
-        } else {
-            $this->deckManager->moveCard($cardId, Location::DONE);
-            $this->notify->all(
-                'storyCardResolved',
-                \clienttranslate('${card_name} has been resolved'),
-                [
-                    'card' => $currentCard,
-                    'card_name' => $currentCard['card_name'],
-                ]
+            throw new UserException(
+                \clienttranslate('This Story Check card does not require confirmation')
             );
         }
+
+        $this->deckManager->moveCard(
+            $cardId,
+            Location::CHARACTERS_IN_PLAY
+        );
+        $character = $this->deckManager->getCard($cardId);
+        $this->notify->all(
+            'characterPutInPlay',
+            \clienttranslate('${card_name} joins the characters'),
+            [
+                'card' => $character,
+                'card_name' => $character['card_name'],
+                'source' => Location::STORY_CURRENT,
+            ]
+        );
         $this->gamestate->nextState(Transition::PHASE_2);
     }
 
@@ -1201,17 +1195,30 @@ class Game extends \Bga\GameFramework\Table
                         'Story Check card could not be installed'
                     );
                 }
-
-                $this->gamestate->nextState('playerChoice');
-                return;
             }
         }
 
-        if ($currentCard !== null) {
-            $this->gamestate->nextState('playerChoice');
-        } else {
+        if ($currentCard === null) {
             $this->gamestate->nextState('gameCheck');
+            return;
         }
+
+        if ($this->getPendingStoryAction($currentCard) !== 'resolveCard') {
+            $this->gamestate->nextState('playerChoice');
+            return;
+        }
+
+        $cardId = intval($currentCard['id']);
+        $this->deckManager->moveCard($cardId, Location::DONE);
+        $this->notify->all(
+            'storyCardResolved',
+            \clienttranslate('${card_name} has been resolved'),
+            [
+                'card' => $currentCard,
+                'card_name' => $currentCard['card_name'],
+            ]
+        );
+        $this->gamestate->nextState('gameCheck');
     }
 
     public function argStoryCheckPlayerChoice(): array

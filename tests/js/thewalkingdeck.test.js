@@ -107,7 +107,6 @@ describe("player actions", () => {
   for (const [pendingAction, expectedTitle] of [
     ["applyGreyConsequence", "The grey consequence of ${card_name} will be applied"],
     ["placeCharacter", "${card_name} will be placed in the Characters area"],
-    ["resolveCard", "${card_name} will be resolved"],
   ]) {
     it(`shows and submits the ${pendingAction} confirmation`, () => {
       let confirmCallback;
@@ -138,6 +137,29 @@ describe("player actions", () => {
       assert.equal(context.bgaPerformAction.calls[0][0], "actStoryCheckPlayerChoice");
     });
   }
+
+  it("does not offer a confirmation to resolve a non-character card", () => {
+    const statusBar = {
+      setTitle: spy(),
+      addActionButton: spy(),
+    };
+
+    game.onUpdateActionButtons.call(
+      {
+        statusBar,
+        getActivePlayerId: () => 1,
+        isCurrentPlayerActive: () => true,
+      },
+      "storyCheckPlayerChoice",
+      {
+        currentCard: { id: 15, card_name: "Horse" },
+        pendingAction: "resolveCard",
+      }
+    );
+
+    assert.equal(statusBar.setTitle.calls.length, 0);
+    assert.equal(statusBar.addActionButton.calls.length, 0);
+  });
 
   it("submits a selected protagonist", () => {
     const context = {
