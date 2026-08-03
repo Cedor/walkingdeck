@@ -15,6 +15,7 @@ final class GameStep
     public const PLAYER_CHOICE_1 = 35;
     public const BRAINSTORM_DECK_CHOICE = 36;
     public const BRAINSTORM_REORDER = 37;
+    public const BITE_CHOICE = 38;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;

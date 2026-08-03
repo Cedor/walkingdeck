@@ -161,6 +161,21 @@ describe("player actions", () => {
     assert.equal(statusBar.addActionButton.calls.length, 0);
   });
 
+  it("submits the character selected as a bite target", () => {
+    const context = {
+      characters: { getSelection: () => [{ id: 8 }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmBiteTarget.call(context);
+
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actChooseBiteTarget"
+    );
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },

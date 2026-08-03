@@ -460,6 +460,10 @@ define([
             document.getElementById("memory").classList.add("twd-highlight");
           }
           break;
+        case "biteChoice":
+          this.characters.setSelectionMode("single");
+          this.characters.onSelectionChange = this.onBiteTargetSelectionChange;
+          break;
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -525,6 +529,10 @@ define([
           this.escapeTallaMemoryAvailable = false;
           this.hand.onSelectionChange = null;
           document.getElementById("memory").classList.remove("twd-highlight");
+          break;
+        case "biteChoice":
+          this.characters.onSelectionChange = null;
+          this.characters.setSelectionMode("none");
           break;
         case "drawCards":
         case "specialDraw":
@@ -593,6 +601,12 @@ define([
           case "avoidZombieChoice":
             this.statusBar.addActionButton(_("Confirm choice"), () => this.confirmZombieEscapeChoice(), {
               id: "confirm_escape_zombie",
+              color: "primary",
+            }).style.visibility = "hidden";
+            break;
+          case "biteChoice":
+            this.statusBar.addActionButton(_("Confirm target"), () => this.confirmBiteTarget(), {
+              id: "confirm_bite_target",
               color: "primary",
             }).style.visibility = "hidden";
             break;
@@ -793,6 +807,20 @@ define([
       const card = this.hand.getSelection()[0];
       if (card && Boolean(parseInt(card.is_zombie))) {
         this.bgaPerformAction("actEscapeZombie", { card_id: card.id });
+      }
+    },
+
+    onBiteTargetSelectionChange: function (selection) {
+      const button = document.getElementById("confirm_bite_target");
+      if (button) {
+        button.style.visibility = selection[0] ? "visible" : "hidden";
+      }
+    },
+
+    confirmBiteTarget: function () {
+      const card = this.characters.getSelection()[0];
+      if (card) {
+        this.bgaPerformAction("actChooseBiteTarget", { card_id: card.id });
       }
     },
 
@@ -1009,6 +1037,10 @@ define([
       if (card) {
         await this.characters.addCard(card, { fromStock: this.storyCurrent });
       }
+    },
+    notif_biteTargetChosen: function (args) {
+      console.log("notif_biteTargetChosen", args);
+      // The character display will be updated here when wounds are implemented.
     },
     notif_ressourceConsumed: function (args) {
       console.log("notif_ressourceConsumed");
