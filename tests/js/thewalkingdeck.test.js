@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
 let game;
+let documentElementOverrides = {};
 
 function spy(implementation = () => undefined) {
   const calls = [];
@@ -24,7 +25,8 @@ before(() => {
   const context = {
     console: { log: spy(), warn: spy() },
     document: {
-      getElementById: spy(() => ({ style: {}, classList: { add: spy() } })),
+      getElementById: spy((id) => documentElementOverrides[id]
+        || { style: {}, classList: { add: spy() } }),
       querySelectorAll: spy(() => []),
     },
     ebg: { core: { gamegui: function GameGui() {} } },
@@ -46,6 +48,47 @@ before(() => {
 });
 
 describe("card helpers", () => {
+  it("hides the hand only while brainstorm cards are being reordered", () => {
+    const brainstormWrap = { style: {} };
+    documentElementOverrides.brainstorm_wrap = brainstormWrap;
+
+    try {
+      const context = {
+        getActivePlayerId: spy(),
+        setHandVisible: spy(),
+        prepareBrainstormReorder: spy(),
+        disableBrainstormReorder: spy(),
+        brainstormAvailableDecks: [],
+      };
+
+      game.onEnteringState.call(context, "brainstormDeckChoice", {
+        args: { availableDecks: [] },
+      });
+      game.onEnteringState.call(context, "brainstormReorder", {
+        args: { cards: [] },
+      });
+      game.onLeavingState.call(context, "brainstormReorder");
+
+      assert.equal(context.setHandVisible.calls.length, 2);
+      assert.equal(context.setHandVisible.calls[0][0], false);
+      assert.equal(context.setHandVisible.calls[1][0], true);
+    } finally {
+      delete documentElementOverrides.brainstorm_wrap;
+    }
+  });
+
+  it("can permanently hide the hand when phase two starts", () => {
+    const handWrap = { style: {} };
+    documentElementOverrides.hand_wrap = handWrap;
+
+    try {
+      game.setHandVisible(false);
+      assert.equal(handWrap.style.display, "none");
+    } finally {
+      delete documentElementOverrides.hand_wrap;
+    }
+  });
+
   for (const [wounds, expectedRotation] of [
     ["1", 1],
     [2, 2],
@@ -435,9 +478,10 @@ describe("notifications", () => {
     });
     const memory = { addCard: spy(() => addPromise) };
     const card = { id: 18, type: "2", face_down: true };
+    const context = { memory, setHandVisible: spy() };
     let notificationFinished = false;
 
-    const notification = game.notif_storyCheckStarted.call({ memory }, { memoryTopCard: card });
+    const notification = game.notif_storyCheckStarted.call(context, { memoryTopCard: card });
     notification.then(() => {
       notificationFinished = true;
     });
@@ -445,6 +489,8 @@ describe("notifications", () => {
 
     assert.equal(notificationFinished, false);
     assert.equal(memory.addCard.calls[0][0], card);
+    assert.equal(context.gamePhase, 2);
+    assert.equal(context.setHandVisible.calls[0][0], false);
 
     finishAdding();
     await notification;

@@ -368,6 +368,7 @@ define([
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
       this.gamePhase = this.gamedatas.gamePhase;
+      this.setHandVisible(Number(this.gamePhase) !== 2);
       let charactersVisibility = "none";
       if (this.gamePhase === "2") {
         // Display characters area (phase 2)
@@ -492,6 +493,7 @@ define([
           }
           break;
         case "brainstormReorder":
+          this.setHandVisible(false);
           document.getElementById("brainstorm_wrap").style.display = "block";
           this.prepareBrainstormReorder((args.args || args).cards || []);
           break;
@@ -507,6 +509,13 @@ define([
           break;
         case "dummy":
           break;
+      }
+    },
+
+    setHandVisible: function (visible) {
+      const handWrap = document.getElementById("hand_wrap");
+      if (handWrap) {
+        handWrap.style.display = visible ? "" : "none";
       }
     },
 
@@ -556,6 +565,7 @@ define([
         case "brainstormReorder":
           this.disableBrainstormReorder();
           document.getElementById("brainstorm_wrap").style.display = "none";
+          this.setHandVisible(true);
           break;
         case "playCards":
           break;
@@ -1073,6 +1083,8 @@ define([
     notif_storyCheckStarted: async function (args) {
       console.log("notif_storyCheckStarted");
       console.log(args);
+      this.gamePhase = 2;
+      this.setHandVisible(false);
       document.getElementById("story_organiser").style.display = "block";
       if (args.memoryTopCard) {
         await this.memory.addCard(args.memoryTopCard, {
