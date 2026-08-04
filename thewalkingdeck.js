@@ -175,6 +175,7 @@ define([
         isCardVisible: (card) => {
           return !card.face_down && (card.type === "1" || card.type === "2" || card.type === "3");
         },
+        getCardRotation: (card) => this.getCharacterWoundsRotation(card),
         cardWidth: 127,
         cardHeight: 179,
       });
@@ -670,6 +671,21 @@ define([
         default:
           console.log("Unknown location: " + location);
           return null;
+      }
+    },
+
+    getCharacterWoundsRotation: function (card) {
+      if (!card || Number(card.is_character) !== 1) return 0;
+
+      switch (Number(card.wounds)) {
+        case 1:
+          return 90;
+        case 2:
+          return 180;
+        case 3:
+          return -90;
+        default:
+          return 0;
       }
     },
 

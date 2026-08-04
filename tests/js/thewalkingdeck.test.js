@@ -46,6 +46,26 @@ before(() => {
 });
 
 describe("card helpers", () => {
+  for (const [wounds, expectedRotation] of [
+    ["1", 90],
+    [2, 180],
+    ["3", -90],
+  ]) {
+    it(`rotates a character with ${wounds} wounds by ${expectedRotation} degrees`, () => {
+      assert.equal(
+        game.getCharacterWoundsRotation({ is_character: "1", wounds }),
+        expectedRotation
+      );
+    });
+  }
+
+  it("does not rotate characters without supported wounds or non-character cards", () => {
+    assert.equal(game.getCharacterWoundsRotation({ is_character: "1", wounds: 0 }), 0);
+    assert.equal(game.getCharacterWoundsRotation({ is_character: "0", wounds: 1 }), 0);
+    assert.equal(game.getCharacterWoundsRotation({ is_character: "1", wounds: 4 }), 0);
+    assert.equal(game.getCharacterWoundsRotation({ is_character: "1", wounds: null }), 0);
+  });
+
   for (const [type, expectedType] of [
     ["2", "4"],
     ["3", "5"],
