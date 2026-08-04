@@ -842,7 +842,6 @@ define([
     prepareBiteChoice: function (args) {
       const characters = args.eligibleCharacters || [];
       this.biteWoundsRequired = Number(args.bite) || 0;
-      this.biteWoundsRemaining = this.biteWoundsRequired;
       this.biteWoundsToApply = {};
       this.biteInitialWounds = {};
       this.biteInitialCharacters = {};
@@ -856,6 +855,13 @@ define([
           face_down: Boolean(card.face_down),
         };
       });
+
+      const availableCapacity = characters.reduce(
+        (capacity, card) => capacity + Math.max(0, 4 - (Number(card.wounds) || 0)),
+        0
+      );
+      this.biteWoundsToAssign = Math.min(this.biteWoundsRequired, availableCapacity);
+      this.biteWoundsRemaining = this.biteWoundsToAssign;
     },
 
     onBiteCharacterClick: function (card) {
@@ -894,7 +900,7 @@ define([
         }
       });
 
-      this.biteWoundsRemaining = this.biteWoundsRequired;
+      this.biteWoundsRemaining = this.biteWoundsToAssign;
       this.biteWoundsToApply = {};
       const button = document.getElementById("confirm_bite_wounds");
       if (button) {

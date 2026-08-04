@@ -726,8 +726,13 @@ class Game extends \Bga\GameFramework\Table
             Location::CHARACTERS_IN_PLAY
         );
         $eligibleCharactersById = [];
+        $availableWoundCapacity = 0;
         foreach ($eligibleCharacters as $character) {
             $eligibleCharactersById[intval($character['id'])] = $character;
+            $availableWoundCapacity += max(
+                0,
+                4 - intval($character['wounds'] ?? 0)
+            );
         }
 
         $allocations = [];
@@ -760,9 +765,13 @@ class Game extends \Bga\GameFramework\Table
             $allocations[$cardId] = $wounds;
         }
 
-        if (array_sum($allocations) !== intval($event['parameters']['bite'])) {
+        $woundsToAssign = min(
+            intval($event['parameters']['bite']),
+            $availableWoundCapacity
+        );
+        if (array_sum($allocations) !== $woundsToAssign) {
             throw new UserException(
-                \clienttranslate('You must assign all wounds')
+                \clienttranslate('You must assign all possible wounds')
             );
         }
 
