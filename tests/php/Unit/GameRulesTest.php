@@ -237,6 +237,7 @@ final class GameRulesTest extends TestCase
                     'id' => 8,
                     'location' => Location::CHARACTERS_IN_PLAY,
                     'card_name' => 'Ellie and Joel',
+                    'wounds' => 0,
                 ],
             ];
 
@@ -253,6 +254,17 @@ final class GameRulesTest extends TestCase
                         return $card['location'] === $location;
                     }
                 ));
+            }
+
+            public function countCardInLocation(string $location): int
+            {
+                return count($this->getCardsInLocation($location));
+            }
+
+            public function setCardWounds(int $cardId, int $wounds): array
+            {
+                $this->cards[$cardId]['wounds'] = $wounds;
+                return $this->cards[$cardId];
             }
         };
         $eventStack = $this->createEventStack();
@@ -271,6 +283,7 @@ final class GameRulesTest extends TestCase
         $this->setProperty('deckManager', $deckManager);
         $this->setProperty('eventStack', $eventStack);
         $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
 
         $this->game->stEventDispatcher();
 
@@ -281,7 +294,7 @@ final class GameRulesTest extends TestCase
             $this->game->argBiteChoice()['eligibleCardsIds']
         );
 
-        $this->game->actChooseBiteTarget(8);
+        $this->game->actApplyBiteWounds('{"8":2}');
 
         self::assertTrue($eventStack->isEmpty());
         self::assertSame(
@@ -289,8 +302,99 @@ final class GameRulesTest extends TestCase
             $gamestate->transitions
         );
         self::assertSame(
-            'biteTargetChosen',
+            'characterWoundsChanged',
             end($this->game->notify->events)['type']
+        );
+        self::assertSame(2, $deckManager->cards[8]['wounds']);
+    }
+
+    /**
+     * @dataProvider invalidBiteAllocationsProvider
+     */
+    public function testBiteWoundAllocationIsValidated(
+        int $currentWounds,
+        string $allocations
+    ): void {
+        $deckManager = new class($currentWounds) {
+            public array $cards;
+
+            public function __construct(int $currentWounds)
+            {
+                $this->cards = [
+                    8 => [
+                        'id' => 8,
+                        'location' => Location::CHARACTERS_IN_PLAY,
+                        'card_name' => 'Ellie and Joel',
+                        'wounds' => $currentWounds,
+                    ],
+                ];
+            }
+
+            public function getCardsInLocation(string $location): array
+            {
+                return $location === Location::CHARACTERS_IN_PLAY
+                    ? array_values($this->cards)
+                    : [];
+            }
+        };
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BITE_CHOICE, [
+            'sourceCardId' => 19,
+            'bite' => 2,
+        ]);
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+        $this->game->actApplyBiteWounds($allocations);
+    }
+
+    public function invalidBiteAllocationsProvider(): array
+    {
+        return [
+            'not every wound is assigned' => [0, '{"8":1}'],
+            'character would exceed four wounds' => [3, '{"8":2}'],
+            'unknown character' => [0, '{"99":2}'],
+            'malformed character id' => [0, '{"8-invalid":2}'],
+        ];
+    }
+
+    public function testFourthWoundBuriesCharacterAndCausesImmediateLoss(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+            'card_name' => 'Ellie and Joel',
+            'wounds' => 3,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BITE_CHOICE, [
+            'sourceCardId' => 19,
+            'bite' => 1,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 1);
+
+        $this->game->actApplyBiteWounds('{"8":1}');
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[8]['location']);
+        self::assertSame([Transition::GAME_END], $gamestate->transitions);
+        self::assertSame(
+            ['cardMoved', 'gameLoss'],
+            array_column($this->game->notify->events, 'type')
         );
     }
 

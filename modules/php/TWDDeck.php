@@ -105,6 +105,26 @@ class TWDDeck
   {
     $this->game->getCardManager()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
   }
+  public function setCardWounds(int $card_id, int $wounds): array
+  {
+    $card = $this->getCard($card_id);
+    if (intval($card['is_character'] ?? 0) !== 1 || $wounds < 0 || $wounds > 3) {
+      throw new \InvalidArgumentException('Invalid character wounds');
+    }
+
+    $type = intval($card['type']);
+    $type_arg = intval($card['type_arg']);
+    $this->game->DbQuery(
+      "UPDATE `twd_character_info`
+        INNER JOIN `twd_card_info` ON `twd_card_info`.`info_id` = `twd_character_info`.`info_id`
+        SET `twd_character_info`.`wounds` = $wounds
+        WHERE `twd_card_info`.`card_type` = $type
+        AND `twd_card_info`.`card_type_arg` = $type_arg"
+    );
+
+    $card['wounds'] = $wounds;
+    return $card;
+  }
   public function generateFakeCard($card): array
   {
     $faketype = '';

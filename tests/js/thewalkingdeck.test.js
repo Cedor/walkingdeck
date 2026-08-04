@@ -47,11 +47,11 @@ before(() => {
 
 describe("card helpers", () => {
   for (const [wounds, expectedRotation] of [
-    ["1", 90],
-    [2, 180],
-    ["3", -90],
+    ["1", 1],
+    [2, 2],
+    ["3", 3],
   ]) {
-    it(`rotates a character with ${wounds} wounds by ${expectedRotation} degrees`, () => {
+    it(`rotates a character with ${wounds} wounds by ${expectedRotation} quarter-turns`, () => {
       assert.equal(
         game.getCharacterWoundsRotation({ is_character: "1", wounds }),
         expectedRotation
@@ -181,19 +181,62 @@ describe("player actions", () => {
     assert.equal(statusBar.addActionButton.calls.length, 0);
   });
 
-  it("submits the character selected as a bite target", () => {
+  it("previews one rotation for each wound assigned by clicking characters", () => {
+    const updateCardInformations = spy();
     const context = {
-      characters: { getSelection: () => [{ id: 8 }] },
+      biteWoundsRemaining: 3,
+      biteWoundsToApply: {},
+      biteInitialWounds: { 8: 0, 9: 1 },
+      biteEligibleCardIds: [8, 9],
+      cardsManager: { updateCardInformations },
+      isCurrentPlayerActive: () => true,
+    };
+
+    game.onBiteCharacterClick.call(context, { id: 8, wounds: 0 });
+    game.onBiteCharacterClick.call(context, { id: 8, wounds: 1 });
+    game.onBiteCharacterClick.call(context, { id: 9, wounds: 1 });
+
+    assert.equal(context.biteWoundsRemaining, 0);
+    assert.deepEqual(JSON.parse(JSON.stringify(context.biteWoundsToApply)), { 8: 2, 9: 1 });
+    assert.deepEqual(
+      updateCardInformations.calls.map((call) => call[0].wounds),
+      [1, 2, 2]
+    );
+  });
+
+  it("turns a character face down on its fourth wound and stops further wounds", () => {
+    const context = {
+      biteWoundsRemaining: 2,
+      biteWoundsToApply: {},
+      biteInitialWounds: { 8: 3 },
+      biteEligibleCardIds: [8],
+      cardsManager: { updateCardInformations: spy() },
+      isCurrentPlayerActive: () => true,
+    };
+
+    game.onBiteCharacterClick.call(context, { id: 8, wounds: 3 });
+    game.onBiteCharacterClick.call(context, { id: 8, wounds: 4, face_down: true });
+
+    assert.equal(context.biteWoundsRemaining, 1);
+    assert.equal(context.cardsManager.updateCardInformations.calls.length, 1);
+    assert.equal(context.cardsManager.updateCardInformations.calls[0][0].wounds, 4);
+    assert.equal(context.cardsManager.updateCardInformations.calls[0][0].face_down, true);
+  });
+
+  it("submits all bite wound allocations once every wound is assigned", () => {
+    const context = {
+      biteWoundsRemaining: 0,
+      biteWoundsToApply: { 8: 2, 9: 1 },
       bgaPerformAction: spy(),
     };
 
-    game.confirmBiteTarget.call(context);
+    game.confirmBiteWounds.call(context);
 
+    assert.equal(context.bgaPerformAction.calls[0][0], "actApplyBiteWounds");
     assert.equal(
-      context.bgaPerformAction.calls[0][0],
-      "actChooseBiteTarget"
+      context.bgaPerformAction.calls[0][1].wound_allocations,
+      JSON.stringify({ 8: 2, 9: 1 })
     );
-    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
   });
 
   it("submits a selected protagonist", () => {
@@ -445,5 +488,17 @@ describe("notifications", () => {
     assert.equal(characters.addCard.calls.length, 1);
     assert.equal(characters.addCard.calls[0][0], card);
     assert.equal(characters.addCard.calls[0][1].fromStock, storyCurrent);
+  });
+
+  it("updates a character after its wounds change", () => {
+    const updateCardInformations = spy();
+    const card = { id: 8, is_character: "1", wounds: 2 };
+
+    game.notif_characterWoundsChanged.call(
+      { cardsManager: { updateCardInformations } },
+      { card }
+    );
+
+    assert.equal(updateCardInformations.calls[0][0], card);
   });
 });

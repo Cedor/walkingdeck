@@ -196,12 +196,12 @@ $machinestates = [
         ->build(),
     GameStep::BITE_CHOICE => GameStateBuilder::create()
         ->name(Transition::BITE_CHOICE)
-        ->description(clienttranslate('You must choose a character to receive the bite'))
-        ->descriptionmyturn(clienttranslate('You must choose a character to receive the bite'))
+        ->description(clienttranslate('The active player must assign ${bite} wound(s)'))
+        ->descriptionmyturn(clienttranslate('You must assign ${bite} wound(s) to your characters'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBiteChoice')
         ->possibleactions([
-            'actChooseBiteTarget',
+            'actApplyBiteWounds',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,

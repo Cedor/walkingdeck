@@ -701,44 +701,99 @@ class Game extends \Bga\GameFramework\Table
         ];
     }
 
-    /**
-     * Record the character selected for a bite consequence.
-     * Applying wounds and weaknesses will be implemented with the bite rules.
-     */
-    public function actChooseBiteTarget(int $card_id): void
+    public function actApplyBiteWounds(string $wound_allocations): void
     {
-        $this->checkAction('actChooseBiteTarget');
+        $this->checkAction('actApplyBiteWounds');
 
         $event = $this->getPendingBiteChoiceEvent();
+        try {
+            $submittedAllocations = json_decode(
+                $wound_allocations,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid wound allocation')
+            );
+        }
+        if (!is_array($submittedAllocations)) {
+            throw new UserException(\clienttranslate('Invalid wound allocation'));
+        }
+
         $eligibleCharacters = $this->deckManager->getCardsInLocation(
             Location::CHARACTERS_IN_PLAY
         );
-        $eligibleCardIds = array_map(
-            'intval',
-            array_column($eligibleCharacters, 'id')
-        );
-        if (!in_array($card_id, $eligibleCardIds, true)) {
+        $eligibleCharactersById = [];
+        foreach ($eligibleCharacters as $character) {
+            $eligibleCharactersById[intval($character['id'])] = $character;
+        }
+
+        $allocations = [];
+        foreach ($submittedAllocations as $cardId => $wounds) {
+            if (!is_int($cardId) && !ctype_digit($cardId)) {
+                throw new UserException(
+                    \clienttranslate('Invalid wound allocation')
+                );
+            }
+            $cardId = intval($cardId);
+            if (
+                $cardId < 1
+                || !is_int($wounds)
+                || $wounds < 1
+                || !isset($eligibleCharactersById[$cardId])
+            ) {
+                throw new UserException(
+                    \clienttranslate('Invalid wound allocation')
+                );
+            }
+
+            $currentWounds = intval(
+                $eligibleCharactersById[$cardId]['wounds'] ?? 0
+            );
+            if ($currentWounds + $wounds > 4) {
+                throw new UserException(
+                    \clienttranslate('A character cannot receive more than 4 wounds')
+                );
+            }
+            $allocations[$cardId] = $wounds;
+        }
+
+        if (array_sum($allocations) !== intval($event['parameters']['bite'])) {
             throw new UserException(
-                \clienttranslate('You must choose a character in play')
+                \clienttranslate('You must assign all wounds')
             );
         }
 
-        $target = $this->deckManager->getCard($card_id);
-        $this->notify->all(
-            'biteTargetChosen',
-            \clienttranslate('${card_name} was chosen to receive bite ${bite}'),
-            [
-                'card' => $target,
-                'card_name' => $target['card_name'],
-                'bite' => intval($event['parameters']['bite']),
-                'sourceCardId' => intval(
-                    $event['parameters']['sourceCardId']
-                ),
-            ]
-        );
+        foreach ($allocations as $cardId => $wounds) {
+            $newWounds = intval($eligibleCharactersById[$cardId]['wounds'] ?? 0)
+                + $wounds;
+            if ($newWounds === 4) {
+                $this->moveCard($cardId, Location::GRAVEYARD);
+            } else {
+                $card = $this->deckManager->setCardWounds($cardId, $newWounds);
+                $this->notify->all(
+                    'characterWoundsChanged',
+                    \clienttranslate('${card_name} receives ${wounds} wound(s)'),
+                    [
+                        'card' => $card,
+                        'card_name' => $card['card_name'],
+                        'wounds' => $wounds,
+                    ]
+                );
+            }
+        }
 
-        // The actual wound/weakness mutation belongs here once the rule is set.
         $this->popEvent($event['id']);
+        if ($this->isLossReached()) {
+            $this->notify->all(
+                'gameLoss',
+                \clienttranslate('You lost the game')
+            );
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
