@@ -204,9 +204,23 @@ describe("player actions", () => {
     );
   });
 
+  it("only requires the wounds that the characters can still receive", () => {
+    const context = {};
+
+    game.prepareBiteChoice.call(context, {
+      bite: 3,
+      eligibleCardsIds: [8],
+      eligibleCharacters: [{ id: 8, wounds: 3 }],
+    });
+
+    assert.equal(context.biteWoundsRequired, 3);
+    assert.equal(context.biteWoundsToAssign, 1);
+    assert.equal(context.biteWoundsRemaining, 1);
+  });
+
   it("turns a character face down on its fourth wound and stops further wounds", () => {
     const context = {
-      biteWoundsRemaining: 2,
+      biteWoundsRemaining: 1,
       biteWoundsToApply: {},
       biteInitialWounds: { 8: 3 },
       biteEligibleCardIds: [8],
@@ -217,7 +231,7 @@ describe("player actions", () => {
     game.onBiteCharacterClick.call(context, { id: 8, wounds: 3 });
     game.onBiteCharacterClick.call(context, { id: 8, wounds: 4, face_down: true });
 
-    assert.equal(context.biteWoundsRemaining, 1);
+    assert.equal(context.biteWoundsRemaining, 0);
     assert.equal(context.cardsManager.updateCardInformations.calls.length, 1);
     assert.equal(context.cardsManager.updateCardInformations.calls[0][0].wounds, 4);
     assert.equal(context.cardsManager.updateCardInformations.calls[0][0].face_down, true);
@@ -244,6 +258,7 @@ describe("player actions", () => {
     const updateCardInformations = spy();
     const context = {
       biteWoundsRequired: 2,
+      biteWoundsToAssign: 2,
       biteWoundsRemaining: 0,
       biteWoundsToApply: { 8: 2 },
       biteInitialCharacters: { 8: initialCard },

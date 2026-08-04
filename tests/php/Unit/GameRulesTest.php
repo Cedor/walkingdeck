@@ -372,7 +372,7 @@ final class GameRulesTest extends TestCase
         $eventStack = $this->createEventStack();
         $eventStack->pushEvent(EventType::BITE_CHOICE, [
             'sourceCardId' => 19,
-            'bite' => 1,
+            'bite' => 2,
         ]);
         $gamestate = new class {
             public array $transitions = [];
