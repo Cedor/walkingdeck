@@ -632,6 +632,16 @@ define([
               color: "secondary",
             });
             break;
+          case "calamityChoice":
+            this.statusBar.addActionButton(
+              _("Resolve calamity"),
+              () => this.resolveCalamity(),
+              {
+                id: "resolve_calamity",
+                color: "primary",
+              }
+            );
+            break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
               id: "confirm_brainstorm",
@@ -924,6 +934,10 @@ define([
       this.bgaPerformAction("actApplyBiteWounds", {
         wound_allocations: JSON.stringify(this.biteWoundsToApply),
       });
+    },
+
+    resolveCalamity: function () {
+      this.bgaPerformAction("actResolveCalamity");
     },
 
     onRuralDeckCardClick: function (card) {

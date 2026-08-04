@@ -159,6 +159,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -178,6 +179,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -199,6 +201,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => true,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -217,7 +220,107 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => true,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    /**
+     * @dataProvider calamityConsequenceProvider
+     */
+    public function testCalamityConsequencesRequestTheSharedPlayerTreatment(
+        array $consequence
+    ): void {
+        $card = [
+            'id' => 8,
+            'consequence_grey' => $consequence,
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$card, 'grey']);
+
+        self::assertIsInt(
+            $outcome['calamityChoices'][0]['consequence']['number']
+        );
+        self::assertSame([
+            [
+                'sourceCardId' => 8,
+                'consequence' => $consequence,
+            ],
+        ], $outcome['calamityChoices']);
+    }
+
+    public function calamityConsequenceProvider(): array
+    {
+        return [
+            'standard' => [['action' => 'calamity', 'number' => 1]],
+            'ignore' => [[
+                'action' => 'calamityignore',
+                'number' => 1,
+                'ignore' => 'stress',
+            ]],
+            'aggravate two' => [[
+                'action' => 'calamityaggravate2',
+                'number' => 1,
+                'aggravate1' => 'break',
+                'aggravate2' => 'stress',
+            ]],
+        ];
+    }
+
+    public function testCalamityWaitsForThePlayerThenResumesEvents(): void
+    {
+        $consequence = ['action' => 'calamity', 'number' => 1];
+        $deckManager = new class($consequence) {
+            private array $card;
+
+            public function __construct(array $consequence)
+            {
+                $this->card = [
+                    'id' => 8,
+                    'card_name' => 'Ellie and Joel',
+                    'consequence_grey' => $consequence,
+                ];
+            }
+
+            public function getCard(int $cardId): ?array
+            {
+                return $cardId === 8 ? $this->card : null;
+            }
+        };
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 8,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::CALAMITY_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            $consequence,
+            $this->game->argCalamityChoice()['consequence']
+        );
+
+        $this->game->actResolveCalamity();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::CALAMITY_CHOICE, Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
     }
 
     public function testBiteConsequencePausesForACharacterChoice(): void
@@ -443,6 +546,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => true,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -492,6 +596,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,
