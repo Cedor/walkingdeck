@@ -1,0 +1,100 @@
+RÈGLES COHÉRENTES RECONSTRUITES - THE WALKING DECK
+==================================================
+
+Ce texte est une version cohérente reconstituée à partir du PDF scanné et de la logique présente dans le code du projet.
+
+1. OBJECTIF DU JEU
+------------------
+Le joueur incarne un survivant de l'apocalypse zombie et doit progresser dans l'aventure tout en évitant la défaite.
+
+Le jeu se déroule en deux grandes phases :
+- une phase d'expédition, où le joueur tire et joue des cartes,
+- une phase de récit, où les cartes mémorisées sont révélées et leurs effets sont résolus.
+
+2. MISE EN PLACE
+----------------
+- Le joueur choisit un protagoniste parmi quatre personnages : Aenor, Boris, Adrien et Éléonore.
+- Chaque protagoniste possède une condition de perte différente :
+  - Aenor : 5
+  - Boris : 5
+  - Adrien : 4
+  - Éléonore : 3
+- Le jeu utilise plusieurs piles :
+  - une pioche de cartes de campagne,
+  - une pile de mémoire,
+  - une pile d'échappés,
+  - une pile de cimetière,
+  - une réserve de catastrophes.
+
+3. DÉROULEMENT D'UN TOUR
+------------------------
+Un tour suit généralement cet enchaînement :
+
+1. Tirer des cartes
+   - Le joueur peut piocher depuis les decks disponibles.
+   - Si une carte spéciale impose un tirage supplémentaire, ce tirage est appliqué.
+
+2. Jouer des cartes
+   - Le joueur peut jouer des cartes depuis sa main.
+   - Certaines cartes sont des zombies ; d'autres sont des personnages ou des objets.
+   - Certaines cartes peuvent être placées dans la mémoire, d'autres dans la zone des échappés, d'autres encore en jeu comme personnages.
+
+3. Résolution des conséquences
+   - Quand une carte est jouée ou placée selon une règle donnée, ses conséquences peuvent être appliquées.
+   - Les conséquences possibles sont :
+     - piocher des cartes,
+     - consommer ou restaurer une ressource,
+     - enterrer la carte,
+     - infliger un morsure (bite),
+     - permettre d'éviter un zombie,
+     - déclencher un effet de passage ou de brainstorming.
+
+4. RÈGLES DE BASE DES CARTES
+----------------------------
+Les cartes peuvent avoir trois types d'effets principaux :
+- effet de carte simple,
+- effet de conséquence blanche,
+- effet de conséquence noire,
+- effet de conséquence grise.
+
+En pratique, la carte est souvent jouée puis son effet de conséquence est résolu selon l'endroit où elle est placée.
+
+5. RESSOURCES
+-------------
+Le jeu comporte trois ressources. Elles servent à gérer certains effets et à limiter certaines actions.
+- Une ressource consommée reste marquée jusqu'à ce qu'elle soit restaurée.
+- Une ressource restaurée repasse à l'état disponible.
+
+6. ÉVITER ET ÉCHAPPER
+---------------------
+Certaines cartes permettent d'éviter un zombie ou de faire échapper une carte de la main ou de la mémoire.
+- Un joueur peut parfois choisir un zombie de sa main pour échapper à une conséquence.
+- Dans certains cas, l'effet de Tallahassee permet d'utiliser la carte du dessus de la mémoire pour échapper.
+
+7. PHASE DE RÉCIT (STORY CHECK)
+--------------------------------
+Quand la partie passe en phase de récit, les cartes mémorisées sont révélées une à une.
+- La carte du dessus de la mémoire devient la carte courante de récit.
+- Son effet est résolu.
+- Selon la carte et le contexte, une décision du joueur peut être demandée.
+- Cette phase sert à déterminer si la partie continue ou si elle se termine par défaite.
+
+8. DÉFAITE
+----------
+La partie est perdue si le joueur atteint la condition de perte liée à son protagoniste, ou si un effet l'oblige à enterrer ou à éliminer une carte de façon définitive suffisante pour franchir ce seuil.
+
+9. NOTE IMPORTANTE
+------------------
+Le PDF contient une note indiquant qu'en cas de mémorisation, d'évitement ou d'enterrement d'une péripétie par un effet de cartouche, les effets de cette péripétie ne doivent pas être appliqués.
+
+10. INCOHÉRENCES ET LIMITES DÉTECTÉES
+------------------------------------
+- Le PDF fourni est un document scanné et partiellement illisible ; l'extraction automatique du texte est incomplète et partielle.
+- Le code du jeu contient plusieurs zones marquées comme "à implémenter" ou "placeholder" :
+  - enterrement d'un personnage,
+  - enterrement de la carte du dessus,
+  - résolution complète des morsures,
+  - certains effets "other",
+  - la phase de récit et les conditions de victoire/défaite ne sont pas entièrement finalisées.
+- Le moteur de jeu ne traite pas encore de façon complète toutes les vórues actions possibles figurant dans les cartes.
+- Certaines règles présentes dans le PDF sont donc ambiguës ou non entièrement traduites dans le code, ce qui rend la version du jeu actuellement implémentée partiellement cohérente mais pas totalement complète.
