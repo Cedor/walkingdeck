@@ -37,13 +37,17 @@ final class TWDDisasterTest extends TestCase
             'location' => 'deck',
             'location_arg' => 0,
         ];
-        $game->disasterInfo[4] = ['disaster1' => 1, 'disaster2' => 1, 'disaster3' => 0];
+        $game->disasterInfo[4] = [
+            'disaster_hunger' => 1,
+            'disaster_break' => 1,
+            'disaster_stress' => 0,
+        ];
 
         $disaster = (new TWDDisaster($game))->pickCard('deck', 42);
 
-        self::assertSame(1, $disaster['disaster1']);
-        self::assertSame(1, $disaster['disaster2']);
-        self::assertSame(0, $disaster['disaster3']);
+        self::assertSame(1, $disaster['disaster_hunger']);
+        self::assertSame(1, $disaster['disaster_break']);
+        self::assertSame(0, $disaster['disaster_stress']);
         self::assertSame(42, $disaster['location_arg']);
     }
 

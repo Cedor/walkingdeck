@@ -30,9 +30,9 @@ final class TWDDeckTest extends TestCase
             'consequence_white' => null,
             'consequence_grey' => '{"action":"bury","bury":"this"}',
             'special_draw' => 0,
-            'weakness_1' => null,
-            'weakness_2' => null,
-            'weakness_3' => null,
+            'weakness_hunger' => null,
+            'weakness_break' => null,
+            'weakness_stress' => null,
             'wounds' => null,
         ];
 

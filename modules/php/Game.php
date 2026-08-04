@@ -58,9 +58,9 @@ class Game extends \Bga\GameFramework\Table
             'difficultyLevel' => 10, // example of game option
             'gamePhase' => 11, // 1=> expedition phase, 2=> story phase
             'lossCondition' => 12,
-            'ressource1' => 13,
-            'ressource2' => 14,
-            'ressource3' => 15,
+            'ressource_hunger' => 13,
+            'ressource_break' => 14,
+            'ressource_stress' => 15,
         ]);
 
         $this->cards = $this->bga->deckFactory->createDeck('twd_card');

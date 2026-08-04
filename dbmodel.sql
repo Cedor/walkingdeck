@@ -44,9 +44,9 @@ CREATE TABLE IF NOT EXISTS `twd_protagonist_info` (
 
 CREATE TABLE IF NOT EXISTS `twd_character_info` (
   `info_id` int(10) unsigned NOT NULL,
-  `weakness_1` TINYINT(1) NOT NULL DEFAULT 0,
-  `weakness_2` TINYINT(1) NOT NULL DEFAULT 0,
-  `weakness_3` TINYINT(1) NOT NULL DEFAULT 0,
+  `weakness_hunger` TINYINT(1) NOT NULL DEFAULT 0,
+  `weakness_break` TINYINT(1) NOT NULL DEFAULT 0,
+  `weakness_stress` TINYINT(1) NOT NULL DEFAULT 0,
   `wounds` TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (info_id) REFERENCES `twd_card_info` (`info_id`) 
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
@@ -62,9 +62,9 @@ CREATE TABLE IF NOT EXISTS `twd_disaster` (
 
 CREATE TABLE IF NOT EXISTS `twd_disaster_info` (
   `card_type` varchar(16) NOT NULL,
-  `disaster1` TINYINT(1) NOT NULL DEFAULT 0,
-  `disaster2` TINYINT(1) NOT NULL DEFAULT 0,
-  `disaster3` TINYINT(1) NOT NULL DEFAULT 0,
+  `disaster_hunger` TINYINT(1) NOT NULL DEFAULT 0,
+  `disaster_break` TINYINT(1) NOT NULL DEFAULT 0,
+  `disaster_stress` TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`card_type`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8 AUTO_INCREMENT = 1;
 
@@ -92,9 +92,9 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (13, '2', 9, 'Brigade', 1, 0, NULL, '{"action" : "other"}', '{"action" : "bite", "bite" : "2"}', 1),
 (14, '2', 10, 'Bonfire', 0, 0, '{"action" : "draw", "number" : 3}', NULL, '{"action" : "other"}', 0),
 (15, '2', 11, 'Horse', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "other"}', 0),
-(16, '2', 12, 'RV', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "restore", "ressource" : "ressource2"}', 0),
+(16, '2', 12, 'RV', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "restore", "ressource" : "ressource_break"}', 0),
 (17, '2', 13, 'Cellar', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "other"}', 0),
-(18, '2', 14, 'Teddy Bear', 0, 0, '{"action" : "restore", "ressource" : "ressource3"}', NULL, '{"action" : "other"}', 0),
+(18, '2', 14, 'Teddy Bear', 0, 0, '{"action" : "restore", "ressource" : "ressource_stress"}', NULL, '{"action" : "other"}', 0),
 (19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "other"}', NULL, '{"action" : "bite", "bite" : "2"}', 0),
 (20, '2', 16, 'Voodoo', 1, 0, '{"action" : "other"}', NULL, '{"action" : "bite", "bite" : "2"}', 0),
 (21, '2', 17, 'Mutt', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
@@ -104,8 +104,8 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (25, '3', 3, 'Glenn', 0, 1, NULL, '{"action" : "brainstorm"}', '{"action" : "other"}', 0),
 (26, '3', 4, 'Murphy', 0, 1, '{"action" : "bury", "bury" : "this"}', NULL, '{"action" : "other"}', 0),
 (27, '3', 5, 'Horde', 1, 0, NULL, '{"action" : "other"}', '{"action" : "bite", "bite" : "3"}', 1),
-(28, '3', 6, 'Butler', 1, 0, NULL, '{"action" : "consume", "ressource" : "ressource2"}', '{"action" : "bite", "bite" : "2"}', 0),
-(29, '3', 7, 'Canned food', 0, 0, '{"action" : "nothing"}', '{"action" : "consume", "ressource" : "ressource1"}', '{"action" : "other"}', 0),
+(28, '3', 6, 'Butler', 1, 0, NULL, '{"action" : "consume", "ressource" : "ressource_break"}', '{"action" : "bite", "bite" : "2"}', 0),
+(29, '3', 7, 'Canned food', 0, 0, '{"action" : "nothing"}', '{"action" : "consume", "ressource" : "ressource_hunger"}', '{"action" : "other"}', 0),
 (30, '3', 8, 'Warehouse', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
 (31, '3', 9, 'Medical alcohol', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "other"}', 0),
 (32, '3', 10, 'Map', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
@@ -114,8 +114,8 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (35, '3', 13, 'Controller', 1, 0, '{"action" : "other"}', NULL, '{"action" : "bite", "bite" : "2"}', 0),
 (36, '3', 14, 'Zoey', 0, 1, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
 (37, '3', 15, 'Jill', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "other"}', 0),
-(38, '3', 16, 'Shaun', 0, 1, '[{"action" : "bury", "bury" : "this"}, {"action" : "draw", "number" : 2}]', '{"action" : "consume", "ressource" : "ressource3"}', '{"action" : "nothing"}', 0),
-(39, '3', 17, 'LGS', 0, 0, '{"action" : "other"}', NULL, '{"action" : "restore", "ressource" : "ressource1"}', 0),
+(38, '3', 16, 'Shaun', 0, 1, '[{"action" : "bury", "bury" : "this"}, {"action" : "draw", "number" : 2}]', '{"action" : "consume", "ressource" : "ressource_stress"}', '{"action" : "nothing"}', 0),
+(39, '3', 17, 'LGS', 0, 0, '{"action" : "other"}', NULL, '{"action" : "restore", "ressource" : "ressource_hunger"}', 0),
 (40, '3', 18, 'Teacher', 1, 0, '{"action" : "bury", "bury" : "topCard"}', NULL, NULL, 0)
 ;
 
@@ -128,7 +128,7 @@ INSERT INTO `twd_protagonist_info` (`info_id`, `losscon`) VALUES
 ;
 
 -- Create characters info
-INSERT INTO `twd_character_info` (`info_id`, `weakness_1`, `weakness_2`, `weakness_3`, `wounds`) VALUES
+INSERT INTO `twd_character_info` (`info_id`, `weakness_hunger`, `weakness_break`, `weakness_stress`, `wounds`) VALUES
 (8, 1, 0, 1, 0),
 (9, 0, 0, 1, 0),
 (10, 1, 0, 1, 0),
@@ -143,7 +143,7 @@ INSERT INTO `twd_character_info` (`info_id`, `weakness_1`, `weakness_2`, `weakne
 ;
 
 -- Create disaster info
-INSERT INTO `twd_disaster_info` (`card_type`, `disaster1`, `disaster2`, `disaster3`) VALUES
+INSERT INTO `twd_disaster_info` (`card_type`, `disaster_hunger`, `disaster_break`, `disaster_stress`) VALUES
 (1, 1, 0, 0),
 (2, 0, 1, 0),
 (3, 0, 0, 1),
