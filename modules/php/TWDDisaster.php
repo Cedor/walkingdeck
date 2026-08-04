@@ -30,7 +30,7 @@ class TWDDisaster
   public function getExtendedCardInfo(int $type): array
   {
     $disaster_info = $this->game->getObjectFromDB(
-      "SELECT `disaster1`, `disaster2`, `disaster3`
+      "SELECT `disaster_hunger`, `disaster_break`, `disaster_stress`
         FROM `twd_disaster_info`
         WHERE `card_type` = $type"
     );

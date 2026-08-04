@@ -162,32 +162,32 @@
   background-size: 276px 184px;
 }
 
-.twd-ressource-front[data-id="ressource1"] {
+.twd-ressource-front[data-id="ressource_hunger"] {
   background-position-x: 0px;
   background-position-y: 0px;
 }
 
-.twd-ressource-front[data-id="ressource2"] {
+.twd-ressource-front[data-id="ressource_break"] {
   background-position-x: -184px;
   background-position-y: 0px;
 }
 
-.twd-ressource-front[data-id="ressource3"] {
+.twd-ressource-front[data-id="ressource_stress"] {
   background-position-x: -368px;
   background-position-y: 0px;
 }
 
-.twd-ressource-back[data-id="ressource1"] {
+.twd-ressource-back[data-id="ressource_hunger"] {
   background-position-x: 0px;
   background-position-y: -92px;
 }
 
-.twd-ressource-back[data-id="ressource2"] {
+.twd-ressource-back[data-id="ressource_break"] {
   background-position-x: -184px;
   background-position-y: -92px;
 }
 
-.twd-ressource-back[data-id="ressource3"] {
+.twd-ressource-back[data-id="ressource_stress"] {
   background-position-x: -368px;
   background-position-y: -92px;
 }

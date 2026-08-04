@@ -14,18 +14,18 @@ class TWDRessources
   public function initRessources(): void
   {
     // Initialize ressources to available for all players
-    $this->game->setGameStateInitialValue('ressource1', 0);
-    $this->game->setGameStateInitialValue('ressource2', 0);
-    $this->game->setGameStateInitialValue('ressource3', 0);
+    $this->game->setGameStateInitialValue('ressource_hunger', 0);
+    $this->game->setGameStateInitialValue('ressource_break', 0);
+    $this->game->setGameStateInitialValue('ressource_stress', 0);
   }
 
   public function getRessources(): array
   {
     // Get all ressources values
     return [
-      1 => ['id' => 'ressource1', 'consumed' => $this->game->getGameStateValue('ressource1')],
-      2 => ['id' => 'ressource2', 'consumed' => $this->game->getGameStateValue('ressource2')],
-      3 => ['id' => 'ressource3', 'consumed' => $this->game->getGameStateValue('ressource3')],
+      1 => ['id' => 'ressource_hunger', 'consumed' => $this->game->getGameStateValue('ressource_hunger')],
+      2 => ['id' => 'ressource_break', 'consumed' => $this->game->getGameStateValue('ressource_break')],
+      3 => ['id' => 'ressource_stress', 'consumed' => $this->game->getGameStateValue('ressource_stress')],
     ];
   }
 

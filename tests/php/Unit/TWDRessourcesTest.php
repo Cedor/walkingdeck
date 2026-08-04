@@ -25,25 +25,25 @@ final class TWDRessourcesTest extends TestCase
         $this->resources->initRessources();
 
         self::assertSame([
-            1 => ['id' => 'ressource1', 'consumed' => 0],
-            2 => ['id' => 'ressource2', 'consumed' => 0],
-            3 => ['id' => 'ressource3', 'consumed' => 0],
+            1 => ['id' => 'ressource_hunger', 'consumed' => 0],
+            2 => ['id' => 'ressource_break', 'consumed' => 0],
+            3 => ['id' => 'ressource_stress', 'consumed' => 0],
         ], $this->resources->getRessources());
     }
 
     public function testConsumeAndRefillAreIdempotentAndNotifyOnce(): void
     {
-        $this->resources->consumeRessources('ressource1');
-        $this->resources->consumeRessources('ressource1');
+        $this->resources->consumeRessources('ressource_hunger');
+        $this->resources->consumeRessources('ressource_hunger');
 
-        self::assertSame(1, $this->resources->getRessourceState('ressource1'));
+        self::assertSame(1, $this->resources->getRessourceState('ressource_hunger'));
         self::assertCount(1, $this->game->notify->events);
         self::assertSame('ressourceConsumed', $this->game->notify->events[0]['type']);
 
-        $this->resources->refillRessources('ressource1');
-        $this->resources->refillRessources('ressource1');
+        $this->resources->refillRessources('ressource_hunger');
+        $this->resources->refillRessources('ressource_hunger');
 
-        self::assertSame(0, $this->resources->getRessourceState('ressource1'));
+        self::assertSame(0, $this->resources->getRessourceState('ressource_hunger'));
         self::assertCount(2, $this->game->notify->events);
         self::assertSame('ressourceRefilled', $this->game->notify->events[1]['type']);
     }
@@ -61,8 +61,8 @@ final class TWDRessourcesTest extends TestCase
     {
         return [
             'empty identifier' => ['', 0],
-            'negative state' => ['ressource1', -1],
-            'state above one' => ['ressource1', 2],
+            'negative state' => ['ressource_hunger', -1],
+            'state above one' => ['ressource_hunger', 2],
         ];
     }
 }

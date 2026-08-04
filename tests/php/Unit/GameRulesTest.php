@@ -769,7 +769,7 @@ final class GameRulesTest extends TestCase
             'card_name' => 'RV',
             'consequence_grey' => [
                 'action' => 'restore',
-                'ressource' => 'ressource2',
+                'ressource' => 'ressource_break',
             ],
         ];
         $ressources = new class {

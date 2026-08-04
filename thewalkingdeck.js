@@ -297,7 +297,7 @@ define([
         document.getElementById("ressources_slots"),
         {
           cardClickEventFilter: "all",
-          slotsIds: ["slot_ressource1", "slot_ressource2", "slot_ressource3"],
+          slotsIds: ["slot_ressource_hunger", "slot_ressource_break", "slot_ressource_stress"],
           slotClasses: ["twd-ressources-slot"],
           mapCardToSlot: (token) => `slot_${token.id}`,
         }
