@@ -48,6 +48,34 @@ final class TWDDeckTest extends TestCase
         (new TWDDeck(new FakeGame()))->getCard(999);
     }
 
+    public function testCharacterWoundsArePersisted(): void
+    {
+        $game = new FakeGame();
+        $game->cardDeck->cards[8] = [
+            'id' => 8,
+            'type' => 2,
+            'type_arg' => 8,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+        ];
+        $game->cardInfo[2][8] = [
+            'card_name' => 'Ellie and Joel',
+            'is_character' => 1,
+            'consequence_black' => null,
+            'consequence_white' => null,
+            'consequence_grey' => null,
+            'wounds' => 0,
+        ];
+
+        $card = (new TWDDeck($game))->setCardWounds(8, 2);
+
+        self::assertSame(2, $card['wounds']);
+        self::assertStringContainsString(
+            'SET `twd_character_info`.`wounds` = 2',
+            $game->queries[0]
+        );
+    }
+
     /**
      * @dataProvider fakeCardTypeProvider
      */

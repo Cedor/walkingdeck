@@ -462,8 +462,13 @@ define([
           }
           break;
         case "biteChoice":
-          this.characters.setSelectionMode("single");
-          this.characters.onSelectionChange = this.onBiteTargetSelectionChange;
+          this.prepareBiteChoice(args.args || args);
+          this.biteChoiceConnector = dojo.connect(
+            this.characters,
+            "onCardClick",
+            this,
+            "onBiteCharacterClick"
+          );
           break;
         case "drawCards":
         case "specialDraw":
@@ -532,8 +537,10 @@ define([
           document.getElementById("memory").classList.remove("twd-highlight");
           break;
         case "biteChoice":
-          this.characters.onSelectionChange = null;
-          this.characters.setSelectionMode("none");
+          if (this.biteChoiceConnector) {
+            dojo.disconnect(this.biteChoiceConnector);
+            this.biteChoiceConnector = null;
+          }
           break;
         case "drawCards":
         case "specialDraw":
@@ -606,10 +613,10 @@ define([
             }).style.visibility = "hidden";
             break;
           case "biteChoice":
-            this.statusBar.addActionButton(_("Confirm target"), () => this.confirmBiteTarget(), {
-              id: "confirm_bite_target",
+            this.statusBar.addActionButton(_("Confirm wounds"), () => this.confirmBiteWounds(), {
+              id: "confirm_bite_wounds",
               color: "primary",
-            }).style.visibility = "hidden";
+            }).style.visibility = this.biteWoundsRemaining === 0 ? "visible" : "hidden";
             break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
@@ -668,6 +675,8 @@ define([
           return this.brainstorm;
         case "story_current":
           return this.storyCurrent;
+        case "characters":
+          return this.characters;
         default:
           console.log("Unknown location: " + location);
           return null;
@@ -679,11 +688,11 @@ define([
 
       switch (Number(card.wounds)) {
         case 1:
-          return 90;
+          return 1;
         case 2:
-          return 180;
+          return 2;
         case 3:
-          return -90;
+          return 3;
         default:
           return 0;
       }
@@ -826,18 +835,53 @@ define([
       }
     },
 
-    onBiteTargetSelectionChange: function (selection) {
-      const button = document.getElementById("confirm_bite_target");
+    prepareBiteChoice: function (args) {
+      const characters = args.eligibleCharacters || [];
+      this.biteWoundsRequired = Number(args.bite) || 0;
+      this.biteWoundsRemaining = this.biteWoundsRequired;
+      this.biteWoundsToApply = {};
+      this.biteInitialWounds = {};
+      this.biteEligibleCardIds = (args.eligibleCardsIds || []).map(Number);
+
+      characters.forEach((card) => {
+        this.biteInitialWounds[Number(card.id)] = Number(card.wounds) || 0;
+      });
+    },
+
+    onBiteCharacterClick: function (card) {
+      const cardId = Number(card?.id);
+      if (
+        !card
+        || this.biteWoundsRemaining <= 0
+        || !this.biteEligibleCardIds.includes(cardId)
+        || (this.isCurrentPlayerActive && !this.isCurrentPlayerActive())
+      ) return;
+
+      const woundsToApply = this.biteWoundsToApply[cardId] || 0;
+      const initialWounds = this.biteInitialWounds[cardId] || 0;
+      if (initialWounds + woundsToApply >= 4) return;
+
+      this.biteWoundsToApply[cardId] = woundsToApply + 1;
+      this.biteWoundsRemaining--;
+      const newWounds = initialWounds + woundsToApply + 1;
+      this.cardsManager.updateCardInformations({
+        ...card,
+        wounds: newWounds,
+        face_down: newWounds === 4,
+      });
+
+      const button = document.getElementById("confirm_bite_wounds");
       if (button) {
-        button.style.visibility = selection[0] ? "visible" : "hidden";
+        button.style.visibility = this.biteWoundsRemaining === 0 ? "visible" : "hidden";
       }
     },
 
-    confirmBiteTarget: function () {
-      const card = this.characters.getSelection()[0];
-      if (card) {
-        this.bgaPerformAction("actChooseBiteTarget", { card_id: card.id });
-      }
+    confirmBiteWounds: function () {
+      if (this.biteWoundsRemaining !== 0) return;
+
+      this.bgaPerformAction("actApplyBiteWounds", {
+        wound_allocations: JSON.stringify(this.biteWoundsToApply),
+      });
     },
 
     onRuralDeckCardClick: function (card) {
@@ -1054,9 +1098,11 @@ define([
         await this.characters.addCard(card, { fromStock: this.storyCurrent });
       }
     },
-    notif_biteTargetChosen: function (args) {
-      console.log("notif_biteTargetChosen", args);
-      // The character display will be updated here when wounds are implemented.
+    notif_characterWoundsChanged: function (args) {
+      console.log("notif_characterWoundsChanged", args);
+      if (args.card) {
+        this.cardsManager.updateCardInformations(args.card);
+      }
     },
     notif_ressourceConsumed: function (args) {
       console.log("notif_ressourceConsumed");

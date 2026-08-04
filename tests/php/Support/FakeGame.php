@@ -12,6 +12,7 @@ final class FakeGame
     public array $disasterInfo = [];
     public array $cardDefinitions = [];
     public array $state = [];
+    public array $queries = [];
     public object $notify;
 
     public function __construct()
@@ -53,6 +54,11 @@ final class FakeGame
     public function getObjectListFromDB(string $query): array
     {
         return $this->cardDefinitions;
+    }
+
+    public function DbQuery(string $query): void
+    {
+        $this->queries[] = $query;
     }
 
     public function setGameStateInitialValue(string $name, int $value): void
