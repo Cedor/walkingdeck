@@ -83,6 +83,7 @@ $machinestates = [
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
+            Transition::CALAMITY_CHOICE => GameStep::CALAMITY_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -202,6 +203,19 @@ $machinestates = [
         ->args('argBiteChoice')
         ->possibleactions([
             'actApplyBiteWounds',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::CALAMITY_CHOICE => GameStateBuilder::create()
+        ->name(Transition::CALAMITY_CHOICE)
+        ->description(clienttranslate('${actplayer} must resolve a calamity'))
+        ->descriptionmyturn(clienttranslate('You must resolve a calamity'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argCalamityChoice')
+        ->possibleactions([
+            'actResolveCalamity',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,

@@ -187,6 +187,11 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::BITE_CHOICE);
                     return;
 
+                case EventType::CALAMITY_CHOICE:
+                    $this->getPendingCalamityChoiceEvent();
+                    $this->gamestate->nextState(Transition::CALAMITY_CHOICE);
+                    return;
+
                 case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
@@ -216,6 +221,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['calamityChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A bite choice cannot be combined with another deferred consequence'
@@ -226,6 +232,28 @@ class Game extends \Bga\GameFramework\Table
                             $this->eventStack->pushEvent(
                                 EventType::BITE_CHOICE,
                                 $biteChoice
+                            );
+                        }
+                        break;
+                    }
+
+                    if ($outcome['calamityChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                        ) {
+                            throw new SystemException(
+                                'A calamity choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (array_reverse($outcome['calamityChoices']) as $calamityChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::CALAMITY_CHOICE,
+                                $calamityChoice
                             );
                         }
                         break;
@@ -461,11 +489,12 @@ class Game extends \Bga\GameFramework\Table
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ];
 
         switch ($consequence['action']) {
             case 'draw':
-                $numCards = intval($consequence['number']);
+                $numCards = intval($consequence['number'] ?? 0);
                 if ($numCards < 1) {
                     throw new SystemException('Invalid consequence draw count');
                 }
@@ -504,6 +533,19 @@ class Game extends \Bga\GameFramework\Table
                 $outcome['biteChoices'][] = [
                     'sourceCardId' => intval($card['id']),
                     'bite' => $bite,
+                ];
+                break;
+            case 'calamity':
+            case 'calamityignore':
+            case 'calamityaggravate2':
+                $number = intval($consequence['number'] ?? 0);
+                if ($number < 1) {
+                    throw new SystemException('Invalid calamity count');
+                }
+                $consequence['number'] = $number;
+                $outcome['calamityChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                    'consequence' => $consequence,
                 ];
                 break;
             case 'forcePass':
@@ -563,6 +605,7 @@ class Game extends \Bga\GameFramework\Table
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'calamityChoices' => [],
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -602,6 +645,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['biteChoices'] = array_merge(
                 $outcome['biteChoices'],
                 $currentOutcome['biteChoices']
+            );
+            $outcome['calamityChoices'] = array_merge(
+                $outcome['calamityChoices'],
+                $currentOutcome['calamityChoices']
             );
         }
 
@@ -817,6 +864,68 @@ class Game extends \Bga\GameFramework\Table
         $bite = intval($event['parameters']['bite'] ?? 0);
         if ($sourceCardId < 1 || $bite < 1 || $bite > 3) {
             throw new SystemException('Invalid pending bite choice');
+        }
+
+        return $event;
+    }
+
+    public function argCalamityChoice(): array
+    {
+        $event = $this->getPendingCalamityChoiceEvent();
+
+        return [
+            'consequence' => $event['parameters']['consequence'],
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+        ];
+    }
+
+    public function actResolveCalamity(): void
+    {
+        $this->checkAction('actResolveCalamity');
+
+        $event = $this->getPendingCalamityChoiceEvent();
+        $this->resolveCalamity(
+            $event['parameters']['consequence'],
+            $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            )
+        );
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    /**
+     * Shared player-confirmed treatment for every calamity consequence.
+     * The concrete calamity rules will be implemented here.
+     */
+    private function resolveCalamity(array $consequence, array $sourceCard): void
+    {
+        // CALAMITY implement the shared resolution.
+    }
+
+    private function getPendingCalamityChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null || $event['type'] !== EventType::CALAMITY_CHOICE) {
+            throw new SystemException('There is no pending calamity choice');
+        }
+
+        $sourceCardId = intval($event['parameters']['sourceCardId'] ?? 0);
+        $consequence = $event['parameters']['consequence'] ?? null;
+        $action = is_array($consequence)
+            ? strval($consequence['action'] ?? '')
+            : '';
+        if (
+            $sourceCardId < 1
+            || !in_array(
+                $action,
+                ['calamity', 'calamityignore', 'calamityaggravate2'],
+                true
+            )
+        ) {
+            throw new SystemException('Invalid pending calamity choice');
         }
 
         return $event;
@@ -1466,7 +1575,7 @@ class Game extends \Bga\GameFramework\Table
      */
     public function stStoryCheckGameWinLoss(): void
     {
-        $win = $this->checkWin(); // WINLOSS check win condition
+        $win = $this->checkWin();
         $loss = $this->isLossReached(); // WINLOSS check loss condition
 
         // Go to following game state

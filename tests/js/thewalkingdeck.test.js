@@ -459,6 +459,14 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
   });
 
+  it("confirms calamity resolution through the shared player action", () => {
+    const context = { bgaPerformAction: spy() };
+
+    game.resolveCalamity.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actResolveCalamity");
+  });
+
   it("reads brainstorm cards from left to right", () => {
     const ids = game.getBrainstormCardIds([
       { id: "twd-card-8" },
