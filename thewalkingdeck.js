@@ -617,6 +617,10 @@ define([
               id: "confirm_bite_wounds",
               color: "primary",
             }).style.visibility = this.biteWoundsRemaining === 0 ? "visible" : "hidden";
+            this.statusBar.addActionButton(_("Reset"), () => this.resetBiteWounds(), {
+              id: "reset_bite_wounds",
+              color: "secondary",
+            });
             break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
@@ -841,10 +845,16 @@ define([
       this.biteWoundsRemaining = this.biteWoundsRequired;
       this.biteWoundsToApply = {};
       this.biteInitialWounds = {};
+      this.biteInitialCharacters = {};
       this.biteEligibleCardIds = (args.eligibleCardsIds || []).map(Number);
 
       characters.forEach((card) => {
-        this.biteInitialWounds[Number(card.id)] = Number(card.wounds) || 0;
+        const cardId = Number(card.id);
+        this.biteInitialWounds[cardId] = Number(card.wounds) || 0;
+        this.biteInitialCharacters[cardId] = {
+          ...card,
+          face_down: Boolean(card.face_down),
+        };
       });
     },
 
@@ -873,6 +883,22 @@ define([
       const button = document.getElementById("confirm_bite_wounds");
       if (button) {
         button.style.visibility = this.biteWoundsRemaining === 0 ? "visible" : "hidden";
+      }
+    },
+
+    resetBiteWounds: function () {
+      Object.keys(this.biteWoundsToApply).forEach((cardId) => {
+        const initialCard = this.biteInitialCharacters[cardId];
+        if (initialCard) {
+          this.cardsManager.updateCardInformations(initialCard);
+        }
+      });
+
+      this.biteWoundsRemaining = this.biteWoundsRequired;
+      this.biteWoundsToApply = {};
+      const button = document.getElementById("confirm_bite_wounds");
+      if (button) {
+        button.style.visibility = "hidden";
       }
     },
 
