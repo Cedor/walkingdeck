@@ -239,6 +239,24 @@ describe("player actions", () => {
     );
   });
 
+  it("resets bite allocations and restores the original character display", () => {
+    const initialCard = { id: 8, is_character: "1", wounds: 2, face_down: false };
+    const updateCardInformations = spy();
+    const context = {
+      biteWoundsRequired: 2,
+      biteWoundsRemaining: 0,
+      biteWoundsToApply: { 8: 2 },
+      biteInitialCharacters: { 8: initialCard },
+      cardsManager: { updateCardInformations },
+    };
+
+    game.resetBiteWounds.call(context);
+
+    assert.equal(context.biteWoundsRemaining, 2);
+    assert.deepEqual(JSON.parse(JSON.stringify(context.biteWoundsToApply)), {});
+    assert.equal(updateCardInformations.calls[0][0], initialCard);
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },
