@@ -8,7 +8,7 @@ final class EventType
 {
     public const CONSEQUENCE = 'consequence';
     public const BITE_CHOICE = 'biteChoice';
-    public const CALAMITY_CHOICE = 'calamityChoice';
+    public const DISASTER_CHOICE = 'disasterChoice';
     public const DRAW_CARD = 'drawCard';
     public const SPECIAL_DRAW = 'specialDraw';
     public const ADDITIONAL_DRAW = 'additionalDraw';

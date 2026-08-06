@@ -632,12 +632,12 @@ define([
               color: "secondary",
             });
             break;
-          case "calamityChoice":
+          case "disasterChoice":
             this.statusBar.addActionButton(
-              _("Resolve calamity"),
-              () => this.resolveCalamity(),
+              _("Resolve disaster"),
+              () => this.resolveDisaster(),
               {
-                id: "resolve_calamity",
+                id: "resolve_disaster",
                 color: "primary",
               }
             );
@@ -936,8 +936,8 @@ define([
       });
     },
 
-    resolveCalamity: function () {
-      this.bgaPerformAction("actResolveCalamity");
+    resolveDisaster: function () {
+      this.bgaPerformAction("actResolveDisaster");
     },
 
     onRuralDeckCardClick: function (card) {
