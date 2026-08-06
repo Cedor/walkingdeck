@@ -645,17 +645,15 @@ define([
             const disasterArgs = args.args || args;
             if (disasterArgs.phase === "draw") {
               this.statusBar.setTitle(
-                _("Draw disaster ${current} of ${total}"),
+                _("Draw ${total} disasters"),
                 {
-                  current: Number(disasterArgs.confirmedDraws) + 1,
                   total: disasterArgs.requiredDraws,
                 }
               );
             } else if (disasterArgs.phase === "confirmDraw") {
               this.statusBar.setTitle(
-                _("Confirm disaster ${current} of ${total}"),
+                _("Draw ${total} disasters"),
                 {
-                  current: Number(disasterArgs.confirmedDraws) + 1,
                   total: disasterArgs.requiredDraws,
                 }
               );
