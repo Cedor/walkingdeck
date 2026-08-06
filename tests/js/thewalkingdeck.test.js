@@ -315,6 +315,44 @@ describe("player actions", () => {
     assert.equal(updateCardInformations.calls[0][0], initialCard);
   });
 
+  it("selects and unselects up to the maximum number of characters to heal", () => {
+    const highlights = new Map();
+    const context = {
+      healMaximumCharacters: 2,
+      healEligibleCardIds: [8, 9, 10],
+      healSelectedCardIds: [],
+      isCurrentPlayerActive: () => true,
+      setHealCharacterHighlighted: spy((cardId, highlighted) => {
+        highlights.set(cardId, highlighted);
+      }),
+    };
+
+    game.onHealCharacterClick.call(context, { id: 8, wounds: 2 });
+    game.onHealCharacterClick.call(context, { id: 9, wounds: 0 });
+    game.onHealCharacterClick.call(context, { id: 10, wounds: 1 });
+    game.onHealCharacterClick.call(context, { id: 8, wounds: 2 });
+
+    assert.deepEqual(Array.from(context.healSelectedCardIds), [9]);
+    assert.equal(highlights.get(8), false);
+    assert.equal(highlights.get(9), true);
+    assert.equal(highlights.has(10), false);
+  });
+
+  it("submits the selected characters for healing", () => {
+    const context = {
+      healSelectedCardIds: [8, 9],
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmHealing.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actHealCharacters");
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].selected_character_ids,
+      "[8,9]"
+    );
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },

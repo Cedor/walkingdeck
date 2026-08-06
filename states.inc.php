@@ -83,6 +83,7 @@ $machinestates = [
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
+            Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
@@ -203,6 +204,19 @@ $machinestates = [
         ->args('argBiteChoice')
         ->possibleactions([
             'actApplyBiteWounds',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::HEAL_CHOICE => GameStateBuilder::create()
+        ->name(Transition::HEAL_CHOICE)
+        ->description(clienttranslate('The active player may choose up to ${number} character(s) to heal'))
+        ->descriptionmyturn(clienttranslate('You may choose up to ${number} character(s) to heal'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argHealChoice')
+        ->possibleactions([
+            'actHealCharacters',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
