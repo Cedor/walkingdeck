@@ -29,6 +29,10 @@ final class GameRulesTest extends TestCase
                 $this->events[] = compact('type', 'message', 'arguments');
             }
         };
+        $this->setProperty(
+            'ressources',
+            new \Bga\Games\TheWalkingDeck\TWDRessources($this->game)
+        );
     }
 
     public function testNormalDrawRequiresCardsAndRoomInHand(): void
@@ -417,14 +421,25 @@ final class GameRulesTest extends TestCase
         self::assertTrue($args['characteristicPresent']);
         self::assertSame([25], array_column($args['affectedCharacters'], 'id'));
 
+        $this->game->actUseDisasterResource('ressource_hunger');
+        self::assertTrue(
+            $this->game->argDisasterChoice()['characteristicIgnored']
+        );
         $this->game->actConfirmDisasterCharacteristic();
-        self::assertSame(4, $deckManager->cards[25]['wounds']);
+        self::assertSame(3, $deckManager->cards[25]['wounds']);
         self::assertSame('break', $this->game->argDisasterChoice()['characteristic']);
         $this->game->actConfirmDisasterCharacteristic();
         self::assertSame(2, $deckManager->cards[26]['wounds']);
         self::assertSame('stress', $this->game->argDisasterChoice()['characteristic']);
-        self::assertSame([], $this->game->argDisasterChoice()['affectedCharacters']);
+        self::assertSame(
+            [25],
+            array_column(
+                $this->game->argDisasterChoice()['affectedCharacters'],
+                'id'
+            )
+        );
         $this->game->actConfirmDisasterCharacteristic();
+        self::assertSame(4, $deckManager->cards[25]['wounds']);
         self::assertSame('complete', $this->game->argDisasterChoice()['phase']);
 
         $this->game->actResolveDisaster();
@@ -491,6 +506,16 @@ final class GameRulesTest extends TestCase
         self::assertSame('characteristic', $args['phase']);
         self::assertSame('hunger', $args['characteristic']);
         self::assertSame(1, $args['confirmedDraws']);
+        self::assertTrue($args['resourceAvailable']);
+        self::assertSame('ressource_hunger', $args['resourceId']);
+
+        $this->game->actUseDisasterResource('ressource_hunger');
+
+        $args = $this->game->argDisasterChoice();
+        self::assertTrue($args['characteristicIgnored']);
+        self::assertFalse($args['characteristicPresent']);
+        self::assertFalse($args['resourceAvailable']);
+        self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
     }
 
     public function testBiteConsequencePausesForACharacterChoice(): void

@@ -908,13 +908,27 @@ class Game extends \Bga\GameFramework\Table
         $characteristic = $phase === 'characteristic'
             ? self::DISASTER_CHARACTERISTICS[$resolution['characteristicIndex']]
             : null;
-        $present = $characteristic === null
+        $characteristicPresent = $characteristic === null
             ? false
             : $this->disasterCharacteristicIsPresent(
                 $characteristic,
                 $drawnDisasters,
                 $consequence
             );
+        $characteristicIgnored = $characteristic !== null
+            && in_array(
+                $characteristic,
+                $resolution['ignoredCharacteristics'],
+                true
+            );
+        $present = $characteristicPresent && !$characteristicIgnored;
+        $resourceId = $characteristic === null
+            ? null
+            : 'ressource_' . $characteristic;
+        $resourceAvailable = $phase === 'characteristic'
+            && $characteristicPresent
+            && !$characteristicIgnored
+            && $this->ressources->getRessourceState($resourceId) === 0;
         $affectedCharacters = $present
             ? $this->getCharactersAffectedByDisaster($characteristic)
             : [];
@@ -930,6 +944,9 @@ class Game extends \Bga\GameFramework\Table
             'drawnDisasters' => $drawnDisasters,
             'characteristic' => $characteristic,
             'characteristicPresent' => $present,
+            'characteristicIgnored' => $characteristicIgnored,
+            'resourceId' => $resourceId,
+            'resourceAvailable' => $resourceAvailable,
             'affectedCharacters' => $affectedCharacters,
         ];
     }
@@ -1023,11 +1040,18 @@ class Game extends \Bga\GameFramework\Table
             'hand',
             $event['id']
         );
-        if ($this->disasterCharacteristicIsPresent(
+        if (
+            !in_array(
+                $characteristic,
+                $resolution['ignoredCharacteristics'],
+                true
+            )
+            && $this->disasterCharacteristicIsPresent(
             $characteristic,
             $drawnDisasters,
             $event['parameters']['consequence']
-        )) {
+            )
+        ) {
             foreach ($this->getCharactersAffectedByDisaster($characteristic) as $character) {
                 $newWounds = min(4, intval($character['wounds'] ?? 0) + 1);
                 $card = $this->deckManager->setCardWounds(
@@ -1048,6 +1072,51 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $resolution['characteristicIndex']++;
+        $this->updateDisasterResolution($event, $resolution);
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+    }
+
+    public function actUseDisasterResource(string $token_id): void
+    {
+        $this->checkAction('actUseDisasterResource');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $requiredDraws = intval($event['parameters']['consequence']['number']);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] !== $requiredDraws
+            || $resolution['characteristicIndex'] >= count(self::DISASTER_CHARACTERISTICS)
+        ) {
+            throw new UserException(\clienttranslate('No disaster characteristic can be ignored now'));
+        }
+
+        $characteristic = self::DISASTER_CHARACTERISTICS[$resolution['characteristicIndex']];
+        $expectedResourceId = 'ressource_' . $characteristic;
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        if (
+            $token_id !== $expectedResourceId
+            || in_array(
+                $characteristic,
+                $resolution['ignoredCharacteristics'],
+                true
+            )
+            || !$this->disasterCharacteristicIsPresent(
+                $characteristic,
+                $drawnDisasters,
+                $event['parameters']['consequence']
+            )
+            || $this->ressources->getRessourceState($token_id) !== 0
+        ) {
+            throw new UserException(
+                \clienttranslate('This resource cannot ignore the current disaster characteristic')
+            );
+        }
+
+        $this->ressources->consumeRessources($token_id);
+        $resolution['ignoredCharacteristics'][] = $characteristic;
         $this->updateDisasterResolution($event, $resolution);
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
@@ -1101,6 +1170,12 @@ class Game extends \Bga\GameFramework\Table
             'confirmedDraws' => max(0, intval($resolution['confirmedDraws'] ?? 0)),
             'pendingDrawCardId' => max(0, intval($resolution['pendingDrawCardId'] ?? 0)),
             'characteristicIndex' => max(0, intval($resolution['characteristicIndex'] ?? 0)),
+            'ignoredCharacteristics' => array_values(array_intersect(
+                self::DISASTER_CHARACTERISTICS,
+                is_array($resolution['ignoredCharacteristics'] ?? null)
+                    ? $resolution['ignoredCharacteristics']
+                    : []
+            )),
         ];
     }
 

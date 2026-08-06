@@ -555,7 +555,10 @@ define([
           break;
         case "disasterChoice":
           this.disasterResolutionPhase = null;
+          this.disasterResourceAvailable = false;
+          this.disasterResourceId = null;
           document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
+          this.clearDisasterResourceHighlight();
           break;
         case "drawCards":
         case "specialDraw":
@@ -666,7 +669,12 @@ define([
               const affectedNames = (disasterArgs.affectedCharacters || [])
                 .map((card) => card.card_name)
                 .join(", ");
-              if (!disasterArgs.characteristicPresent) {
+              if (disasterArgs.characteristicIgnored) {
+                this.statusBar.setTitle(
+                  _("${characteristic} is ignored: no wound will be applied"),
+                  { characteristic }
+                );
+              } else if (!disasterArgs.characteristicPresent) {
                 this.statusBar.setTitle(
                   _("${characteristic} is not present: no wound will be applied"),
                   { characteristic }
@@ -999,12 +1007,26 @@ define([
 
     prepareDisasterChoice: function (args) {
       this.disasterResolutionPhase = args.phase;
+      this.disasterResourceAvailable = Boolean(args.resourceAvailable);
+      this.disasterResourceId = args.resourceId || null;
       const bag = document.getElementById("disasters_bag");
       if (args.phase === "draw") {
         bag?.classList.add("twd-highlight");
       } else {
         bag?.classList.remove("twd-highlight");
       }
+      this.clearDisasterResourceHighlight();
+      if (this.disasterResourceAvailable && this.disasterResourceId) {
+        document.getElementById(`slot_${this.disasterResourceId}`)?.classList.add("twd-highlight");
+      }
+    },
+
+    clearDisasterResourceHighlight: function () {
+      ["hunger", "break", "stress"].forEach((characteristic) => {
+        document
+          .getElementById(`slot_ressource_${characteristic}`)
+          ?.classList.remove("twd-highlight");
+      });
     },
 
     resolveDisaster: function () {
@@ -1128,6 +1150,12 @@ define([
 
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
+      if (this.disasterResolutionPhase === "characteristic") {
+        if (this.disasterResourceAvailable && token.id === this.disasterResourceId) {
+          this.bgaPerformAction("actUseDisasterResource", { token_id: token.id });
+        }
+        return;
+      }
       this.bgaPerformAction("actFlipRessource", { token_id: token.id });
     },
 

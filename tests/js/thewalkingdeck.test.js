@@ -363,6 +363,25 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDisaster");
   });
 
+  it("consumes only the matching resource during a disaster characteristic", () => {
+    const context = {
+      disasterResolutionPhase: "characteristic",
+      disasterResourceAvailable: true,
+      disasterResourceId: "ressource_hunger",
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, { id: "ressource_break" });
+    game.onRessourceClick.call(context, { id: "ressource_hunger" });
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actUseDisasterResource");
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].token_id,
+      "ressource_hunger"
+    );
+  });
+
   it("asks for confirmation after the final disaster draw", () => {
     let confirmCallback;
     const context = {
