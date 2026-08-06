@@ -683,7 +683,7 @@ define([
                 );
               }
               this.statusBar.addActionButton(
-                _("Confirm ${characteristic}"),
+                _("Confirm"),
                 () => this.bgaPerformAction("actConfirmDisasterCharacteristic"),
                 {
                   id: `confirm_disaster_${characteristic}`,
