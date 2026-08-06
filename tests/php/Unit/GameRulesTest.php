@@ -518,6 +518,59 @@ final class GameRulesTest extends TestCase
         self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
     }
 
+    public function testAbsentAndConsequenceIgnoredDisasterCharacteristicsAreSkipped(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[6] = [
+            'id' => 6,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Wolf Trap',
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[2] = [
+            'id' => 2,
+            'type' => 2,
+            'location' => 'deck',
+            'location_arg' => 0,
+            'disaster_hunger' => 1,
+            'disaster_break' => 1,
+            'disaster_stress' => 0,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
+            'sourceCardId' => 6,
+            'consequence' => [
+                'action' => 'disasterignore',
+                'number' => 1,
+                'ignore' => 'hunger',
+            ],
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actDrawDisaster();
+        $this->game->actConfirmDisasterDraw();
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('characteristic', $args['phase']);
+        self::assertSame('break', $args['characteristic']);
+
+        $this->game->actConfirmDisasterCharacteristic();
+
+        self::assertSame('complete', $this->game->argDisasterChoice()['phase']);
+    }
+
     public function testDisasterConsequenceIsIgnoredWithoutCharacters(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
