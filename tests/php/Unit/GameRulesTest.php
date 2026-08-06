@@ -405,10 +405,10 @@ final class GameRulesTest extends TestCase
 
         self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
         $this->game->actDrawDisaster();
-        self::assertSame('confirmDraw', $this->game->argDisasterChoice()['phase']);
-        $this->game->actConfirmDisasterDraw();
         self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
+        self::assertSame(1, $this->game->argDisasterChoice()['confirmedDraws']);
         $this->game->actDrawDisaster();
+        self::assertSame('confirmDraw', $this->game->argDisasterChoice()['phase']);
         $this->game->actConfirmDisasterDraw();
 
         $args = $this->game->argDisasterChoice();
@@ -434,6 +434,63 @@ final class GameRulesTest extends TestCase
         self::assertSame('deck', $disasterManager->cards[1]['location']);
         self::assertSame('deck', $disasterManager->cards[2]['location']);
         self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
+    }
+
+    public function testSingleDisasterDrawImmediatelyRequiresConfirmation(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Ellie and Joel',
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[1] = [
+            'id' => 1,
+            'type' => 1,
+            'location' => 'deck',
+            'location_arg' => 0,
+            'disaster_hunger' => 1,
+            'disaster_break' => 0,
+            'disaster_stress' => 0,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
+            'sourceCardId' => 8,
+            'consequence' => [
+                'action' => 'disaster',
+                'number' => 1,
+            ],
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
+
+        $this->game->actDrawDisaster();
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('confirmDraw', $args['phase']);
+        self::assertSame(0, $args['confirmedDraws']);
+        self::assertCount(1, $args['drawnDisasters']);
+
+        $this->game->actConfirmDisasterDraw();
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('characteristic', $args['phase']);
+        self::assertSame('hunger', $args['characteristic']);
+        self::assertSame(1, $args['confirmedDraws']);
     }
 
     public function testBiteConsequencePausesForACharacterChoice(): void

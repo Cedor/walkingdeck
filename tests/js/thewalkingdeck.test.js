@@ -363,7 +363,7 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDisaster");
   });
 
-  it("asks for confirmation after every disaster draw", () => {
+  it("asks for confirmation after the final disaster draw", () => {
     let confirmCallback;
     const context = {
       statusBar: {
@@ -415,7 +415,7 @@ describe("player actions", () => {
       context.statusBar.setTitle.calls[0][0],
       "${characteristic} is present: ${characters} will receive 1 wound"
     );
-    assert.equal(context.statusBar.addActionButton.calls[0][0], "Confirm ${characteristic}");
+    assert.equal(context.statusBar.addActionButton.calls[0][0], "Confirm");
     confirmCallback();
     assert.equal(
       context.bgaPerformAction.calls[0][0],

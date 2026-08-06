@@ -961,7 +961,11 @@ class Game extends \Bga\GameFramework\Table
             throw new SystemException('The disaster deck is empty');
         }
 
-        $resolution['pendingDrawCardId'] = intval($disaster['id']);
+        if ($resolution['confirmedDraws'] + 1 < $requiredDraws) {
+            $resolution['confirmedDraws']++;
+        } else {
+            $resolution['pendingDrawCardId'] = intval($disaster['id']);
+        }
         $this->updateDisasterResolution($event, $resolution);
         $this->notify->all(
             'disasterDrawnFromBag',
