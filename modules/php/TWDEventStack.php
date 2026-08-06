@@ -12,6 +12,7 @@ final class TWDEventStack
     private const SUPPORTED_TYPES = [
         EventType::CONSEQUENCE,
         EventType::BITE_CHOICE,
+        EventType::DISASTER_CHOICE,
         EventType::DRAW_CARD,
         EventType::SPECIAL_DRAW,
         EventType::ADDITIONAL_DRAW,
@@ -78,6 +79,21 @@ final class TWDEventStack
             'type' => $type,
             'parameters' => $parameters,
         ];
+    }
+
+    public function updateEventParameters(int $eventId, array $parameters): void
+    {
+        if ($eventId < 1) {
+            throw new SystemException('Invalid event id');
+        }
+
+        $encodedParameters = json_encode($parameters, JSON_THROW_ON_ERROR);
+        $escapedParameters = $this->game->escapeStringForDB($encodedParameters);
+        $this->game->DbQuery(
+            "UPDATE `twd_event_stack`
+             SET `event_parameters` = '$escapedParameters'
+             WHERE `event_id` = $eventId"
+        );
     }
 
     public function popEvent(): ?array

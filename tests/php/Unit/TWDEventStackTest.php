@@ -48,6 +48,26 @@ final class TWDEventStackTest extends TestCase
         ], (new TWDEventStack($game))->getCurrentEvent());
     }
 
+    public function testDisasterEventParametersCanBeUpdated(): void
+    {
+        $game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['escapeStringForDB', 'DbQuery'])
+            ->getMock();
+        $game->method('escapeStringForDB')->willReturnCallback('addslashes');
+        $game->expects(self::once())
+            ->method('DbQuery')
+            ->with(self::callback(static function (string $query): bool {
+                return strpos($query, 'UPDATE `twd_event_stack`') !== false
+                    && strpos($query, '\\"confirmedDraws\\":1') !== false
+                    && strpos($query, 'WHERE `event_id` = 12') !== false;
+            }));
+
+        (new TWDEventStack($game))->updateEventParameters(12, [
+            'resolution' => ['confirmedDraws' => 1],
+        ]);
+    }
+
     public function testPopUsesLifoEventAndDeletesIt(): void
     {
         $game = $this->getMockBuilder(Game::class)

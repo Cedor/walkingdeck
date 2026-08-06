@@ -40,6 +40,12 @@ class TWDDeck
             $cardInfo[$id] = json_decode($cardInfo[$id], true);
           }
         }
+        if (
+          intval($cardInfo['is_character'] ?? 0) === 1
+          && intval($cardInfo['wounds'] ?? 0) >= 4
+        ) {
+          $cardInfo['face_down'] = true;
+        }
       }
     }
     return $cardInfo;
@@ -108,7 +114,7 @@ class TWDDeck
   public function setCardWounds(int $card_id, int $wounds): array
   {
     $card = $this->getCard($card_id);
-    if (intval($card['is_character'] ?? 0) !== 1 || $wounds < 0 || $wounds > 3) {
+    if (intval($card['is_character'] ?? 0) !== 1 || $wounds < 0 || $wounds > 4) {
       throw new \InvalidArgumentException('Invalid character wounds');
     }
 

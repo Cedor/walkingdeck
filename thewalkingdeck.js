@@ -339,13 +339,12 @@ define([
         },
       });
       // Create slot for drawn disasters
-      this.disastersDrawnSlot = new BgaCards.SlotStock(
+      this.disastersDrawnSlot = new BgaCards.LineStock(
         this.disastersManager,
         document.getElementById("disasters_drawn_slot"),
         {
-          slotsIds: ["A"],
-          slotClasses: ["twd-token-slot"],
-          mapCardToSlot: (card) => "A",
+          direction: "row",
+          center: false,
         }
       );
       // Create characters area (phase 2)
@@ -471,6 +470,9 @@ define([
             "onBiteCharacterClick"
           );
           break;
+        case "disasterChoice":
+          this.prepareDisasterChoice(args.args || args);
+          break;
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -550,6 +552,10 @@ define([
             dojo.disconnect(this.biteChoiceConnector);
             this.biteChoiceConnector = null;
           }
+          break;
+        case "disasterChoice":
+          this.disasterResolutionPhase = null;
+          document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
           break;
         case "drawCards":
         case "specialDraw":
@@ -632,16 +638,71 @@ define([
               color: "secondary",
             });
             break;
-          case "disasterChoice":
-            this.statusBar.addActionButton(
-              _("Resolve disaster"),
-              () => this.resolveDisaster(),
-              {
-                id: "resolve_disaster",
-                color: "primary",
+          case "disasterChoice": {
+            const disasterArgs = args.args || args;
+            if (disasterArgs.phase === "draw") {
+              this.statusBar.setTitle(
+                _("Draw disaster ${current} of ${total} by clicking the disaster bag"),
+                {
+                  current: Number(disasterArgs.confirmedDraws) + 1,
+                  total: disasterArgs.requiredDraws,
+                }
+              );
+            } else if (disasterArgs.phase === "confirmDraw") {
+              this.statusBar.setTitle(
+                _("Confirm disaster ${current} of ${total}"),
+                {
+                  current: Number(disasterArgs.confirmedDraws) + 1,
+                  total: disasterArgs.requiredDraws,
+                }
+              );
+              this.statusBar.addActionButton(
+                _("Confirm draw"),
+                () => this.bgaPerformAction("actConfirmDisasterDraw"),
+                { id: "confirm_disaster_draw", color: "primary" }
+              );
+            } else if (disasterArgs.phase === "characteristic") {
+              const characteristic = disasterArgs.characteristic;
+              const affectedNames = (disasterArgs.affectedCharacters || [])
+                .map((card) => card.card_name)
+                .join(", ");
+              if (!disasterArgs.characteristicPresent) {
+                this.statusBar.setTitle(
+                  _("${characteristic} is not present: no wound will be applied"),
+                  { characteristic }
+                );
+              } else if (affectedNames) {
+                this.statusBar.setTitle(
+                  _("${characteristic} is present: ${characters} will receive 1 wound"),
+                  { characteristic, characters: affectedNames }
+                );
+              } else {
+                this.statusBar.setTitle(
+                  _("${characteristic} is present, but no character is vulnerable"),
+                  { characteristic }
+                );
               }
-            );
+              this.statusBar.addActionButton(
+                _("Confirm ${characteristic}"),
+                () => this.bgaPerformAction("actConfirmDisasterCharacteristic"),
+                {
+                  id: `confirm_disaster_${characteristic}`,
+                  color: "primary",
+                }
+              );
+            } else if (disasterArgs.phase === "complete") {
+              this.statusBar.setTitle(_("Confirm the completed disaster resolution"));
+              this.statusBar.addActionButton(
+                _("Confirm resolution"),
+                () => this.resolveDisaster(),
+                {
+                  id: "resolve_disaster",
+                  color: "primary",
+                }
+              );
+            }
             break;
+          }
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
               id: "confirm_brainstorm",
@@ -936,6 +997,16 @@ define([
       });
     },
 
+    prepareDisasterChoice: function (args) {
+      this.disasterResolutionPhase = args.phase;
+      const bag = document.getElementById("disasters_bag");
+      if (args.phase === "draw") {
+        bag?.classList.add("twd-highlight");
+      } else {
+        bag?.classList.remove("twd-highlight");
+      }
+    },
+
     resolveDisaster: function () {
       this.bgaPerformAction("actResolveDisaster");
     },
@@ -1063,7 +1134,9 @@ define([
     // PHASE2 allowing only in phase 2
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
-      if (this.gamePhase == 2) {
+      if (this.disasterResolutionPhase === "draw") {
+        this.bgaPerformAction("actDrawDisaster");
+      } else if (!this.disasterResolutionPhase && this.gamePhase == 2) {
         this.bgaPerformAction("actDrawFromDisasterBag");
       }
     },

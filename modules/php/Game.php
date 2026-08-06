@@ -32,6 +32,8 @@ use Bga\GameFramework\UserException;
 
 class Game extends \Bga\GameFramework\Table
 {
+    private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
+
     /**
      * Your global variables labels:
      *
@@ -872,13 +874,164 @@ class Game extends \Bga\GameFramework\Table
     public function argDisasterChoice(): array
     {
         $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $consequence = $event['parameters']['consequence'];
+        $requiredDraws = intval($consequence['number']);
+        $drawnDisasters = array_values(
+            $this->disasterManager->getCardsInLocation('hand', $event['id'])
+        );
+
+        if ($resolution['pendingDrawCardId'] > 0) {
+            $phase = 'confirmDraw';
+        } elseif ($resolution['confirmedDraws'] < $requiredDraws) {
+            $phase = 'draw';
+        } elseif ($resolution['characteristicIndex'] < count(self::DISASTER_CHARACTERISTICS)) {
+            $phase = 'characteristic';
+        } else {
+            $phase = 'complete';
+        }
+
+        $characteristic = $phase === 'characteristic'
+            ? self::DISASTER_CHARACTERISTICS[$resolution['characteristicIndex']]
+            : null;
+        $present = $characteristic === null
+            ? false
+            : $this->disasterCharacteristicIsPresent(
+                $characteristic,
+                $drawnDisasters,
+                $consequence
+            );
+        $affectedCharacters = $present
+            ? $this->getCharactersAffectedByDisaster($characteristic)
+            : [];
 
         return [
-            'consequence' => $event['parameters']['consequence'],
+            'consequence' => $consequence,
             'sourceCard' => $this->deckManager->getCard(
                 intval($event['parameters']['sourceCardId'])
             ),
+            'phase' => $phase,
+            'requiredDraws' => $requiredDraws,
+            'confirmedDraws' => $resolution['confirmedDraws'],
+            'drawnDisasters' => $drawnDisasters,
+            'characteristic' => $characteristic,
+            'characteristicPresent' => $present,
+            'affectedCharacters' => $affectedCharacters,
         ];
+    }
+
+    public function actDrawDisaster(): void
+    {
+        $this->checkAction('actDrawDisaster');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $requiredDraws = intval($event['parameters']['consequence']['number']);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] >= $requiredDraws
+        ) {
+            throw new UserException(
+                \clienttranslate('You must confirm the current disaster before drawing another one')
+            );
+        }
+
+        $shuffle = false;
+        if ($resolution['confirmedDraws'] === 0) {
+            $this->disasterManager->moveAllCardsInLocation('hand', 'deck');
+            $this->disasterManager->shuffle('deck');
+            $shuffle = true;
+        }
+
+        $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+        if ($disaster === null) {
+            throw new SystemException('The disaster deck is empty');
+        }
+
+        $resolution['pendingDrawCardId'] = intval($disaster['id']);
+        $this->updateDisasterResolution($event, $resolution);
+        $this->notify->all(
+            'disasterDrawnFromBag',
+            \clienttranslate('Disaster drawn from bag'),
+            [
+                'disaster' => $disaster,
+                'shuffle' => $shuffle,
+            ]
+        );
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+    }
+
+    public function actConfirmDisasterDraw(): void
+    {
+        $this->checkAction('actConfirmDisasterDraw');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        if ($resolution['pendingDrawCardId'] < 1) {
+            throw new UserException(\clienttranslate('There is no disaster draw to confirm'));
+        }
+
+        $drawnIds = array_map(
+            'intval',
+            array_column(
+                $this->disasterManager->getCardsInLocation('hand', $event['id']),
+                'id'
+            )
+        );
+        if (!in_array($resolution['pendingDrawCardId'], $drawnIds, true)) {
+            throw new SystemException('The pending disaster is no longer drawn');
+        }
+
+        $resolution['confirmedDraws']++;
+        $resolution['pendingDrawCardId'] = 0;
+        $this->updateDisasterResolution($event, $resolution);
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+    }
+
+    public function actConfirmDisasterCharacteristic(): void
+    {
+        $this->checkAction('actConfirmDisasterCharacteristic');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $requiredDraws = intval($event['parameters']['consequence']['number']);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] !== $requiredDraws
+            || $resolution['characteristicIndex'] >= count(self::DISASTER_CHARACTERISTICS)
+        ) {
+            throw new UserException(\clienttranslate('This disaster characteristic cannot be confirmed yet'));
+        }
+
+        $characteristic = self::DISASTER_CHARACTERISTICS[$resolution['characteristicIndex']];
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        if ($this->disasterCharacteristicIsPresent(
+            $characteristic,
+            $drawnDisasters,
+            $event['parameters']['consequence']
+        )) {
+            foreach ($this->getCharactersAffectedByDisaster($characteristic) as $character) {
+                $newWounds = min(4, intval($character['wounds'] ?? 0) + 1);
+                $card = $this->deckManager->setCardWounds(
+                    intval($character['id']),
+                    $newWounds
+                );
+                $card['face_down'] = $newWounds === 4;
+                $this->notify->all(
+                    'characterWoundsChanged',
+                    \clienttranslate('${card_name} receives 1 wound'),
+                    [
+                        'card' => $card,
+                        'card_name' => $card['card_name'],
+                        'wounds' => 1,
+                    ]
+                );
+            }
+        }
+
+        $resolution['characteristicIndex']++;
+        $this->updateDisasterResolution($event, $resolution);
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
 
     public function actResolveDisaster(): void
@@ -886,23 +1039,93 @@ class Game extends \Bga\GameFramework\Table
         $this->checkAction('actResolveDisaster');
 
         $event = $this->getPendingDisasterChoiceEvent();
-        $this->resolveDisaster(
-            $event['parameters']['consequence'],
-            $this->deckManager->getCard(
-                intval($event['parameters']['sourceCardId'])
+        $resolution = $this->getDisasterResolution($event);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] !== intval(
+                $event['parameters']['consequence']['number']
             )
+            || $resolution['characteristicIndex'] !== count(self::DISASTER_CHARACTERISTICS)
+        ) {
+            throw new UserException(\clienttranslate('The disaster resolution is not complete'));
+        }
+
+        foreach ($this->deckManager->getCardsInLocation(
+            Location::CHARACTERS_IN_PLAY
+        ) as $character) {
+            if (intval($character['wounds'] ?? 0) >= 4) {
+                $this->moveCard(intval($character['id']), Location::GRAVEYARD);
+            }
+        }
+        $this->disasterManager->moveAllCardsInLocation(
+            'hand',
+            'deck',
+            $event['id']
+        );
+        $this->disasterManager->shuffle('deck');
+        $this->notify->all(
+            'disasterShuffledBack',
+            \clienttranslate('Disasters shuffled back into the bag')
         );
         $this->popEvent($event['id']);
+        if ($this->isLossReached()) {
+            $this->notify->all('gameLoss', \clienttranslate('You lost the game'));
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
-    /**
-     * Shared player-confirmed treatment for every disaster consequence.
-     * The concrete disaster rules will be implemented here.
-     */
-    private function resolveDisaster(array $consequence, array $sourceCard): void
+    private function getDisasterResolution(array $event): array
     {
-        // DISASTER implement the shared resolution.
+        $resolution = $event['parameters']['resolution'] ?? [];
+        return [
+            'confirmedDraws' => max(0, intval($resolution['confirmedDraws'] ?? 0)),
+            'pendingDrawCardId' => max(0, intval($resolution['pendingDrawCardId'] ?? 0)),
+            'characteristicIndex' => max(0, intval($resolution['characteristicIndex'] ?? 0)),
+        ];
+    }
+
+    private function updateDisasterResolution(array $event, array $resolution): void
+    {
+        $parameters = $event['parameters'];
+        $parameters['resolution'] = $resolution;
+        $this->eventStack->updateEventParameters($event['id'], $parameters);
+    }
+
+    private function disasterCharacteristicIsPresent(
+        string $characteristic,
+        array $drawnDisasters,
+        array $consequence
+    ): bool {
+        if (
+            $consequence['action'] === 'disasterignore'
+            && strval($consequence['ignore'] ?? '') === $characteristic
+        ) {
+            return false;
+        }
+
+        $field = 'disaster_' . $characteristic;
+        foreach ($drawnDisasters as $disaster) {
+            if (intval($disaster[$field] ?? 0) === 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function getCharactersAffectedByDisaster(string $characteristic): array
+    {
+        $field = 'weakness_' . $characteristic;
+        return array_values(array_filter(
+            $this->deckManager->getCardsInLocation(
+                Location::CHARACTERS_IN_PLAY
+            ),
+            static function (array $character) use ($field): bool {
+                return intval($character[$field] ?? 0) === 1
+                    && intval($character['wounds'] ?? 0) < 4;
+            }
+        ));
     }
 
     private function getPendingDisasterChoiceEvent(): array
@@ -919,6 +1142,7 @@ class Game extends \Bga\GameFramework\Table
             : '';
         if (
             $sourceCardId < 1
+            || intval($consequence['number'] ?? 0) < 1
             || !in_array(
                 $action,
                 ['disaster', 'disasterignore', 'disasteraggravate2'],

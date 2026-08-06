@@ -350,6 +350,79 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawFromDisasterBag");
   });
 
+  it("uses the disaster bag for the active disaster resolution draw", () => {
+    const context = {
+      gamePhase: 2,
+      disasterResolutionPhase: "draw",
+      bgaPerformAction: spy(),
+    };
+
+    game.onDisasterBagClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDisaster");
+  });
+
+  it("asks for confirmation after every disaster draw", () => {
+    let confirmCallback;
+    const context = {
+      statusBar: {
+        setTitle: spy(),
+        addActionButton: spy((_label, callback) => {
+          confirmCallback = callback;
+          return { style: {} };
+        }),
+      },
+      getActivePlayerId: () => 1,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onUpdateActionButtons.call(context, "disasterChoice", {
+      phase: "confirmDraw",
+      confirmedDraws: 0,
+      requiredDraws: 2,
+    });
+
+    assert.equal(context.statusBar.addActionButton.calls[0][0], "Confirm draw");
+    confirmCallback();
+    assert.equal(context.bgaPerformAction.calls[0][0], "actConfirmDisasterDraw");
+  });
+
+  it("confirms each disaster characteristic and announces affected characters", () => {
+    let confirmCallback;
+    const context = {
+      statusBar: {
+        setTitle: spy(),
+        addActionButton: spy((_label, callback) => {
+          confirmCallback = callback;
+          return { style: {} };
+        }),
+      },
+      getActivePlayerId: () => 1,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onUpdateActionButtons.call(context, "disasterChoice", {
+      phase: "characteristic",
+      characteristic: "hunger",
+      characteristicPresent: true,
+      affectedCharacters: [{ card_name: "Glenn" }],
+    });
+
+    assert.equal(
+      context.statusBar.setTitle.calls[0][0],
+      "${characteristic} is present: ${characters} will receive 1 wound"
+    );
+    assert.equal(context.statusBar.addActionButton.calls[0][0], "Confirm ${characteristic}");
+    confirmCallback();
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actConfirmDisasterCharacteristic"
+    );
+  });
+
   it("plays an eligible selected card to memory", () => {
     const card = { id: 3, consequence_white: { action: "nothing" } };
     const context = {
