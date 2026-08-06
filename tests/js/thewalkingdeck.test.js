@@ -26,7 +26,7 @@ before(() => {
     console: { log: spy(), warn: spy() },
     document: {
       getElementById: spy((id) => documentElementOverrides[id]
-        || { style: {}, classList: { add: spy() } }),
+        || { style: {}, classList: { add: spy(), remove: spy() } }),
       querySelectorAll: spy(() => []),
     },
     ebg: { core: { gamegui: function GameGui() {} } },
@@ -380,6 +380,30 @@ describe("player actions", () => {
       context.bgaPerformAction.calls[0][1].token_id,
       "ressource_hunger"
     );
+  });
+
+  it("highlights the available resource for the current disaster characteristic", () => {
+    const resourceElement = {
+      classList: { add: spy(), remove: spy() },
+    };
+    documentElementOverrides["twd-ressource-ressource_hunger"] = resourceElement;
+
+    try {
+      const context = {
+        clearDisasterResourceHighlight: game.clearDisasterResourceHighlight,
+      };
+
+      game.prepareDisasterChoice.call(context, {
+        phase: "characteristic",
+        resourceAvailable: true,
+        resourceId: "ressource_hunger",
+      });
+
+      assert.equal(resourceElement.classList.add.calls.length, 1);
+      assert.equal(resourceElement.classList.add.calls[0][0], "twd-highlight");
+    } finally {
+      delete documentElementOverrides["twd-ressource-ressource_hunger"];
+    }
   });
 
   it("asks for confirmation after the final disaster draw", () => {
