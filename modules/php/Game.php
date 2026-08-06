@@ -191,6 +191,10 @@ class Game extends \Bga\GameFramework\Table
 
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
+                    if (!$this->hasCharactersInPlay()) {
+                        $this->popEvent($event['id']);
+                        break;
+                    }
                     $this->gamestate->nextState(Transition::DISASTER_CHOICE);
                     return;
 
@@ -242,7 +246,10 @@ class Game extends \Bga\GameFramework\Table
                         break;
                     }
 
-                    if ($outcome['disasterChoices'] !== []) {
+                    if (
+                        $outcome['disasterChoices'] !== []
+                        && $this->hasCharactersInPlay()
+                    ) {
                         if (
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
@@ -762,6 +769,13 @@ class Game extends \Bga\GameFramework\Table
             $capacity += max(0, 4 - intval($character['wounds'] ?? 0));
         }
         return $capacity;
+    }
+
+    private function hasCharactersInPlay(): bool
+    {
+        return $this->deckManager->countCardInLocation(
+            Location::CHARACTERS_IN_PLAY
+        ) > 0;
     }
 
     public function actApplyBiteWounds(string $wound_allocations): void

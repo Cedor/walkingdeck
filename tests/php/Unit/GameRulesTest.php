@@ -518,6 +518,85 @@ final class GameRulesTest extends TestCase
         self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
     }
 
+    public function testDisasterConsequenceIsIgnoredWithoutCharacters(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Ellie and Joel',
+            'consequence_grey' => [
+                'action' => 'disaster',
+                'number' => 1,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 8,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::STORY_CHECK_STEP],
+            $gamestate->transitions
+        );
+    }
+
+    public function testPendingDisasterChoiceIsSkippedWhenCharactersAreGone(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Ellie and Joel',
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
+            'sourceCardId' => 8,
+            'consequence' => [
+                'action' => 'disaster',
+                'number' => 1,
+            ],
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::STORY_CHECK_STEP],
+            $gamestate->transitions
+        );
+    }
+
     public function testBiteConsequencePausesForACharacterChoice(): void
     {
         $deckManager = new class {
