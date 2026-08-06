@@ -1118,6 +1118,19 @@ class Game extends \Bga\GameFramework\Table
         ) {
             return false;
         }
+        if (
+            $consequence['action'] === 'disasteraggravate2'
+            && in_array(
+                $characteristic,
+                [
+                    strval($consequence['aggravate1'] ?? ''),
+                    strval($consequence['aggravate2'] ?? ''),
+                ],
+                true
+            )
+        ) {
+            return true;
+        }
 
         $field = 'disaster_' . $characteristic;
         foreach ($drawnDisasters as $disaster) {

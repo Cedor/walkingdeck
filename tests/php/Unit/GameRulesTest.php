@@ -289,6 +289,34 @@ final class GameRulesTest extends TestCase
         ));
     }
 
+    public function testDisasterAggravateForcesBothNamedCharacteristics(): void
+    {
+        $disasters = [[
+            'disaster_hunger' => 1,
+            'disaster_break' => 0,
+            'disaster_stress' => 0,
+        ]];
+        $consequence = [
+            'action' => 'disasteraggravate2',
+            'number' => 1,
+            'aggravate1' => 'break',
+            'aggravate2' => 'stress',
+        ];
+
+        self::assertTrue($this->invoke(
+            'disasterCharacteristicIsPresent',
+            ['hunger', $disasters, $consequence]
+        ));
+        self::assertTrue($this->invoke(
+            'disasterCharacteristicIsPresent',
+            ['break', $disasters, $consequence]
+        ));
+        self::assertTrue($this->invoke(
+            'disasterCharacteristicIsPresent',
+            ['stress', $disasters, $consequence]
+        ));
+    }
+
     public function testDisasterWaitsForThePlayerThenResumesEvents(): void
     {
         $consequence = ['action' => 'disaster', 'number' => 2];
