@@ -216,7 +216,10 @@ class Game extends \Bga\GameFramework\Table
                         return;
                     }
 
-                    if ($outcome['biteChoices'] !== []) {
+                    if (
+                        $outcome['biteChoices'] !== []
+                        && $this->getAvailableCharacterWoundCapacity() > 0
+                    ) {
                         if (
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
@@ -748,6 +751,17 @@ class Game extends \Bga\GameFramework\Table
                 array_column($characters, 'id')
             ),
         ];
+    }
+
+    private function getAvailableCharacterWoundCapacity(): int
+    {
+        $capacity = 0;
+        foreach ($this->deckManager->getCardsInLocation(
+            Location::CHARACTERS_IN_PLAY
+        ) as $character) {
+            $capacity += max(0, 4 - intval($character['wounds'] ?? 0));
+        }
+        return $capacity;
     }
 
     public function actApplyBiteWounds(string $wound_allocations): void
