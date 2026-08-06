@@ -1017,14 +1017,16 @@ define([
       }
       this.clearDisasterResourceHighlight();
       if (this.disasterResourceAvailable && this.disasterResourceId) {
-        document.getElementById(`slot_${this.disasterResourceId}`)?.classList.add("twd-highlight");
+        document
+          .getElementById(`twd-ressource-${this.disasterResourceId}`)
+          ?.classList.add("twd-highlight");
       }
     },
 
     clearDisasterResourceHighlight: function () {
       ["hunger", "break", "stress"].forEach((characteristic) => {
         document
-          .getElementById(`slot_ressource_${characteristic}`)
+          .getElementById(`twd-ressource-ressource_${characteristic}`)
           ?.classList.remove("twd-highlight");
       });
     },
