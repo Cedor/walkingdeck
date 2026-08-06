@@ -168,12 +168,12 @@
 }
 
 .twd-ressource-front[data-id="ressource_break"] {
-  background-position-x: -184px;
+  background-position-x: -92px;
   background-position-y: 0px;
 }
 
 .twd-ressource-front[data-id="ressource_stress"] {
-  background-position-x: -368px;
+  background-position-x: -184px;
   background-position-y: 0px;
 }
 
@@ -183,12 +183,12 @@
 }
 
 .twd-ressource-back[data-id="ressource_break"] {
-  background-position-x: -184px;
+  background-position-x: -92px;
   background-position-y: -92px;
 }
 
 .twd-ressource-back[data-id="ressource_stress"] {
-  background-position-x: -368px;
+  background-position-x: -184px;
   background-position-y: -92px;
 }
 
