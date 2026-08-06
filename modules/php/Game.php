@@ -590,9 +590,21 @@ class Game extends \Bga\GameFramework\Table
                 if ($number < 1) {
                     throw new SystemException('Invalid heal character count');
                 }
+                $conditions = [];
+                foreach (['condition', 'condition2'] as $conditionKey) {
+                    if (!isset($consequence[$conditionKey])) {
+                        continue;
+                    }
+                    $condition = strval($consequence[$conditionKey]);
+                    if (!in_array($condition, self::DISASTER_CHARACTERISTICS, true)) {
+                        throw new SystemException('Invalid heal condition');
+                    }
+                    $conditions[] = $condition;
+                }
                 $outcome['healChoices'][] = [
                     'sourceCardId' => intval($card['id']),
                     'number' => $number,
+                    'conditions' => array_values(array_unique($conditions)),
                 ];
                 break;
             case 'disaster':
@@ -955,11 +967,7 @@ class Game extends \Bga\GameFramework\Table
     public function argHealChoice(): array
     {
         $event = $this->getPendingHealChoiceEvent();
-        $characters = array_values(
-            $this->deckManager->getCardsInLocation(
-                Location::CHARACTERS_IN_PLAY
-            )
-        );
+        $characters = $this->getEligibleCharactersForHeal($event);
 
         return [
             'number' => intval($event['parameters']['number']),
@@ -1005,9 +1013,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $eligibleCharactersById = [];
-        foreach ($this->deckManager->getCardsInLocation(
-            Location::CHARACTERS_IN_PLAY
-        ) as $character) {
+        foreach ($this->getEligibleCharactersForHeal($event) as $character) {
             $eligibleCharactersById[intval($character['id'])] = $character;
         }
 
@@ -1062,7 +1068,45 @@ class Game extends \Bga\GameFramework\Table
         ) {
             throw new SystemException('Invalid pending heal choice');
         }
+        $conditions = $event['parameters']['conditions'] ?? [];
+        if (!is_array($conditions) || $conditions !== array_values($conditions)) {
+            throw new SystemException('Invalid pending heal conditions');
+        }
+        foreach ($conditions as $condition) {
+            if (!is_string($condition) || !in_array(
+                $condition,
+                self::DISASTER_CHARACTERISTICS,
+                true
+            )) {
+                throw new SystemException('Invalid pending heal condition');
+            }
+        }
         return $event;
+    }
+
+    private function getEligibleCharactersForHeal(array $event): array
+    {
+        $conditions = $event['parameters']['conditions'] ?? [];
+        $characters = array_values(
+            $this->deckManager->getCardsInLocation(
+                Location::CHARACTERS_IN_PLAY
+            )
+        );
+        if ($conditions === []) {
+            return $characters;
+        }
+
+        return array_values(array_filter(
+            $characters,
+            static function (array $character) use ($conditions): bool {
+                foreach ($conditions as $condition) {
+                    if (intval($character['weakness_' . $condition] ?? 0) === 1) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        ));
     }
 
     public function argDisasterChoice(): array

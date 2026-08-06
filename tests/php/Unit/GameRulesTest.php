@@ -846,6 +846,81 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testHealConditionsOnlyAllowMatchingWeaknesses(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            17 => [
+                'id' => 17,
+                'location' => Location::STORY_CURRENT,
+                'location_arg' => 0,
+                'card_name' => 'Cellar',
+                'consequence_grey' => [
+                    'action' => 'heal',
+                    'number' => 3,
+                    'condition' => 'hunger',
+                    'condition2' => 'stress',
+                ],
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Hungry character',
+                'weakness_hunger' => 1,
+                'weakness_break' => 0,
+                'weakness_stress' => 0,
+                'wounds' => 1,
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Stressed character',
+                'weakness_hunger' => 0,
+                'weakness_break' => 0,
+                'weakness_stress' => 1,
+                'wounds' => 1,
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Tired character',
+                'weakness_hunger' => 0,
+                'weakness_break' => 1,
+                'weakness_stress' => 0,
+                'wounds' => 1,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 17,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [8, 9],
+            $this->game->argHealChoice()['eligibleCardsIds']
+        );
+
+        $this->expectException(UserException::class);
+        $this->game->actHealCharacters('[10]');
+    }
+
     /**
      * @dataProvider invalidHealSelectionsProvider
      */
