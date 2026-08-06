@@ -104,7 +104,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (25, '3', 3, 'Glenn', 0, 1, NULL, '{"action" : "brainstorm"}', '{"action" : "disasterignore", "number" : 1, "ignore" : "hunger"}', 0),
 (26, '3', 4, 'Murphy', 0, 1, '{"action" : "bury", "bury" : "this"}', NULL, '{"action" : "disasteraggravate2", "number" : 1, "aggravate1" : "break", "aggravate2" : "stress"}', 0),
 (27, '3', 5, 'Horde', 1, 0, NULL, '{"action" : "other"}', '{"action" : "bite", "bite" : 3}', 1),
-(28, '3', 6, 'Butler', 1, 0, NULL, '{"action" : "consume", "ressource" : "ressource_break"}', '{"action" : "bite", "bite" : 2}', 0),
+(28, '3', 6, 'Butler', 1, 0, NULL, '{"action" : "consume", "ressource" : "ressource_stress"}', '{"action" : "bite", "bite" : 2}', 0),
 (29, '3', 7, 'Canned food', 0, 0, '{"action" : "nothing"}', '{"action" : "consume", "ressource" : "ressource_hunger"}', '{"action" : "other"}', 0),
 (30, '3', 8, 'Warehouse', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
 (31, '3', 9, 'Medical alcohol', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "other"}', 0),
@@ -114,7 +114,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (35, '3', 13, 'Controller', 1, 0, '{"action" : "other"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (36, '3', 14, 'Zoey', 0, 1, '{"action" : "other"}', NULL, '{"action" : "disaster", "number" : 1}', 0),
 (37, '3', 15, 'Jill', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
-(38, '3', 16, 'Shaun', 0, 1, '[{"action" : "bury", "bury" : "this"}, {"action" : "draw", "number" : 2}]', '{"action" : "consume", "ressource" : "ressource_stress"}', '{"action" : "nothing"}', 0),
+(38, '3', 16, 'Shaun', 0, 1, '[{"action" : "bury", "bury" : "this"}, {"action" : "draw", "number" : 2}]', '{"action" : "consume", "ressource" : "ressource_break"}', '{"action" : "nothing"}', 0),
 (39, '3', 17, 'LGS', 0, 0, '{"action" : "other"}', NULL, '{"action" : "restore", "ressource" : "ressource_hunger"}', 0),
 (40, '3', 18, 'Teacher', 1, 0, '{"action" : "bury", "bury" : "topCard"}', NULL, NULL, 0)
 ;
