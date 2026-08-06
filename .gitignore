@@ -19,5 +19,6 @@
 # Local BGA Studio credentials
 /.bga-sftp-password
 
-
+/bga-framework.d.ts
+/_ide_helper.php
 planTheWalkingDeck.prompt.md
