@@ -496,6 +496,46 @@ final class GameRulesTest extends TestCase
         self::assertSame(2, $deckManager->cards[8]['wounds']);
     }
 
+    public function testBiteConsequenceIsIgnoredWithoutCharacters(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[13] = [
+            'id' => 13,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Brigade',
+            'consequence_grey' => [
+                'action' => 'bite',
+                'bite' => 2,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 13,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::STORY_CHECK_STEP],
+            $gamestate->transitions
+        );
+    }
+
     /**
      * @dataProvider invalidBiteAllocationsProvider
      */
