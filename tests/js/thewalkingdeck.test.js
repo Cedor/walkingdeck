@@ -422,11 +422,20 @@ describe("player actions", () => {
     };
 
     game.onUpdateActionButtons.call(context, "disasterChoice", {
-      phase: "confirmDraw",
+      phase: "draw",
       confirmedDraws: 0,
       requiredDraws: 2,
     });
+    game.onUpdateActionButtons.call(context, "disasterChoice", {
+      phase: "confirmDraw",
+      confirmedDraws: 1,
+      requiredDraws: 2,
+    });
 
+    assert.equal(context.statusBar.setTitle.calls[0][0], "Draw ${total} disasters");
+    assert.equal(context.statusBar.setTitle.calls[0][1].total, 2);
+    assert.equal(context.statusBar.setTitle.calls[1][0], "Draw ${total} disasters");
+    assert.equal(context.statusBar.setTitle.calls[1][1].total, 2);
     assert.equal(context.statusBar.addActionButton.calls[0][0], "Confirm draw");
     confirmCallback();
     assert.equal(context.bgaPerformAction.calls[0][0], "actConfirmDisasterDraw");
