@@ -217,6 +217,7 @@ $machinestates = [
         ->possibleactions([
             'actDrawDisaster',
             'actConfirmDisasterDraw',
+            'actUseDisasterResource',
             'actConfirmDisasterCharacteristic',
             'actResolveDisaster',
         ])
