@@ -83,7 +83,7 @@ $machinestates = [
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
-            Transition::CALAMITY_CHOICE => GameStep::CALAMITY_CHOICE,
+            Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -208,14 +208,14 @@ $machinestates = [
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
-    GameStep::CALAMITY_CHOICE => GameStateBuilder::create()
-        ->name(Transition::CALAMITY_CHOICE)
-        ->description(clienttranslate('${actplayer} must resolve a calamity'))
-        ->descriptionmyturn(clienttranslate('You must resolve a calamity'))
+    GameStep::DISASTER_CHOICE => GameStateBuilder::create()
+        ->name(Transition::DISASTER_CHOICE)
+        ->description(clienttranslate('${actplayer} must resolve a disaster'))
+        ->descriptionmyturn(clienttranslate('You must resolve a disaster'))
         ->type(StateType::ACTIVE_PLAYER)
-        ->args('argCalamityChoice')
+        ->args('argDisasterChoice')
         ->possibleactions([
-            'actResolveCalamity',
+            'actResolveDisaster',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
