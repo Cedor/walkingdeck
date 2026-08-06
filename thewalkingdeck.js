@@ -470,6 +470,15 @@ define([
             "onBiteCharacterClick"
           );
           break;
+        case "healChoice":
+          this.prepareHealChoice(args.args || args);
+          this.healChoiceConnector = dojo.connect(
+            this.characters,
+            "onCardClick",
+            this,
+            "onHealCharacterClick"
+          );
+          break;
         case "disasterChoice":
           this.prepareDisasterChoice(args.args || args);
           break;
@@ -552,6 +561,13 @@ define([
             dojo.disconnect(this.biteChoiceConnector);
             this.biteChoiceConnector = null;
           }
+          break;
+        case "healChoice":
+          if (this.healChoiceConnector) {
+            dojo.disconnect(this.healChoiceConnector);
+            this.healChoiceConnector = null;
+          }
+          this.clearHealSelection();
           break;
         case "disasterChoice":
           this.disasterResolutionPhase = null;
@@ -640,6 +656,16 @@ define([
               id: "reset_bite_wounds",
               color: "secondary",
             });
+            break;
+          case "healChoice":
+            this.statusBar.addActionButton(
+              _("Confirm healing"),
+              () => this.confirmHealing(),
+              {
+                id: "confirm_healing",
+                color: "primary",
+              }
+            );
             break;
           case "disasterChoice": {
             const disasterArgs = args.args || args;
@@ -1000,6 +1026,50 @@ define([
 
       this.bgaPerformAction("actApplyBiteWounds", {
         wound_allocations: JSON.stringify(this.biteWoundsToApply),
+      });
+    },
+
+    prepareHealChoice: function (args) {
+      this.healMaximumCharacters = Math.max(0, Number(args.number) || 0);
+      this.healEligibleCardIds = (args.eligibleCardsIds || []).map(Number);
+      this.healSelectedCardIds = [];
+    },
+
+    onHealCharacterClick: function (card) {
+      const cardId = Number(card?.id);
+      if (
+        !card
+        || !this.healEligibleCardIds.includes(cardId)
+        || (this.isCurrentPlayerActive && !this.isCurrentPlayerActive())
+      ) return;
+
+      const selectedIndex = this.healSelectedCardIds.indexOf(cardId);
+      if (selectedIndex >= 0) {
+        this.healSelectedCardIds.splice(selectedIndex, 1);
+        this.setHealCharacterHighlighted(cardId, false);
+        return;
+      }
+      if (this.healSelectedCardIds.length >= this.healMaximumCharacters) return;
+
+      this.healSelectedCardIds.push(cardId);
+      this.setHealCharacterHighlighted(cardId, true);
+    },
+
+    setHealCharacterHighlighted: function (cardId, highlighted) {
+      const cardElement = document.getElementById(`twd-card-${cardId}`);
+      cardElement?.classList.toggle("twd-heal-selected", highlighted);
+    },
+
+    clearHealSelection: function () {
+      (this.healSelectedCardIds || []).forEach((cardId) => {
+        this.setHealCharacterHighlighted(cardId, false);
+      });
+      this.healSelectedCardIds = [];
+    },
+
+    confirmHealing: function () {
+      this.bgaPerformAction("actHealCharacters", {
+        selected_character_ids: JSON.stringify(this.healSelectedCardIds || []),
       });
     },
 

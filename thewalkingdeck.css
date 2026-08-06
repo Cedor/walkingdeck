@@ -67,6 +67,11 @@
     box-shadow: 0 0 8px 8px orange;
 }
 
+.twd-card.twd-heal-selected {
+  box-shadow: 0 0 8px 8px #41c96b;
+  cursor: pointer;
+}
+
 #table_organiser {
   position: relative;
   width: max-content;

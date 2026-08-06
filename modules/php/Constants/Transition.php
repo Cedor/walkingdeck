@@ -18,6 +18,7 @@ final class Transition
     public const BRAINSTORM_DECK_CHOICE = 'brainstormDeckChoice';
     public const BRAINSTORM_REORDER = 'brainstormReorder';
     public const BITE_CHOICE = 'biteChoice';
+    public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
     public const STORY_CHECK_STEP = 'storyCheckStep';
     public const DEFAULT = '';

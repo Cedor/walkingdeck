@@ -163,6 +163,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
@@ -183,6 +184,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
@@ -205,6 +207,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => true,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
@@ -224,6 +227,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => true,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
@@ -778,6 +782,107 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testHealConsequenceLetsPlayerHealUpToItsMaximum(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            14 => [
+                'id' => 14,
+                'location' => Location::MEMORY,
+                'location_arg' => 0,
+                'card_name' => 'Bonfire',
+                'consequence_grey' => ['action' => 'heal', 'number' => 2],
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Ellie and Joel',
+                'wounds' => 2,
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Glenn',
+                'wounds' => 0,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 14,
+            'color' => 'grey',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame([Transition::HEAL_CHOICE], $gamestate->transitions);
+        self::assertSame(2, $this->game->argHealChoice()['number']);
+        self::assertSame([8, 9], $this->game->argHealChoice()['eligibleCardsIds']);
+
+        $this->game->actHealCharacters('[8,9]');
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(1, $deckManager->cards[8]['wounds']);
+        self::assertSame(0, $deckManager->cards[9]['wounds']);
+        self::assertSame(
+            [Transition::HEAL_CHOICE, Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            ['applyingConsequence', 'characterWoundsChanged'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    /**
+     * @dataProvider invalidHealSelectionsProvider
+     */
+    public function testHealCharacterSelectionIsValidated(string $selection): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        foreach ([8, 9] as $cardId) {
+            $deckManager->cards[$cardId] = [
+                'id' => $cardId,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Character',
+                'wounds' => 1,
+            ];
+        }
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::HEAL_CHOICE, [
+            'sourceCardId' => 14,
+            'number' => 1,
+        ]);
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+        $this->game->actHealCharacters($selection);
+    }
+
+    public function invalidHealSelectionsProvider(): array
+    {
+        return [
+            'more than the maximum' => ['[8,9]'],
+            'duplicate character' => ['[8,8]'],
+            'unknown character' => ['[99]'],
+            'non-list JSON' => ['{"8":true}'],
+        ];
+    }
+
     /**
      * @dataProvider invalidBiteAllocationsProvider
      */
@@ -913,6 +1018,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => true,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
@@ -963,6 +1069,7 @@ final class GameRulesTest extends TestCase
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(

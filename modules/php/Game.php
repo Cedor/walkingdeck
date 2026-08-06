@@ -189,6 +189,15 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::BITE_CHOICE);
                     return;
 
+                case EventType::HEAL_CHOICE:
+                    $this->getPendingHealChoiceEvent();
+                    if (!$this->hasCharactersInPlay()) {
+                        $this->popEvent($event['id']);
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::HEAL_CHOICE);
+                    return;
+
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
                     if (!$this->hasCharactersInPlay()) {
@@ -231,6 +240,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
                             || $outcome['disasterChoices'] !== []
+                            || $outcome['healChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A bite choice cannot be combined with another deferred consequence'
@@ -247,6 +257,32 @@ class Game extends \Bga\GameFramework\Table
                     }
 
                     if (
+                        $outcome['healChoices'] !== []
+                        && $this->hasCharactersInPlay()
+                    ) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['disasterChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A heal choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (array_reverse($outcome['healChoices']) as $healChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::HEAL_CHOICE,
+                                $healChoice
+                            );
+                        }
+                        break;
+                    }
+
+                    if (
                         $outcome['disasterChoices'] !== []
                         && $this->hasCharactersInPlay()
                     ) {
@@ -256,6 +292,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['healChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A disaster choice cannot be combined with another deferred consequence'
@@ -501,6 +538,7 @@ class Game extends \Bga\GameFramework\Table
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ];
 
@@ -545,6 +583,16 @@ class Game extends \Bga\GameFramework\Table
                 $outcome['biteChoices'][] = [
                     'sourceCardId' => intval($card['id']),
                     'bite' => $bite,
+                ];
+                break;
+            case 'heal':
+                $number = intval($consequence['number'] ?? 0);
+                if ($number < 1) {
+                    throw new SystemException('Invalid heal character count');
+                }
+                $outcome['healChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                    'number' => $number,
                 ];
                 break;
             case 'disaster':
@@ -617,6 +665,7 @@ class Game extends \Bga\GameFramework\Table
             'avoidZombieChoice' => false,
             'brainstorm' => false,
             'biteChoices' => [],
+            'healChoices' => [],
             'disasterChoices' => [],
         ];
 
@@ -657,6 +706,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['biteChoices'] = array_merge(
                 $outcome['biteChoices'],
                 $currentOutcome['biteChoices']
+            );
+            $outcome['healChoices'] = array_merge(
+                $outcome['healChoices'],
+                $currentOutcome['healChoices']
             );
             $outcome['disasterChoices'] = array_merge(
                 $outcome['disasterChoices'],
@@ -896,6 +949,119 @@ class Game extends \Bga\GameFramework\Table
             throw new SystemException('Invalid pending bite choice');
         }
 
+        return $event;
+    }
+
+    public function argHealChoice(): array
+    {
+        $event = $this->getPendingHealChoiceEvent();
+        $characters = array_values(
+            $this->deckManager->getCardsInLocation(
+                Location::CHARACTERS_IN_PLAY
+            )
+        );
+
+        return [
+            'number' => intval($event['parameters']['number']),
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'eligibleCharacters' => $characters,
+            'eligibleCardsIds' => array_map(
+                'intval',
+                array_column($characters, 'id')
+            ),
+        ];
+    }
+
+    public function actHealCharacters(string $selected_character_ids): void
+    {
+        $this->checkAction('actHealCharacters');
+        $event = $this->getPendingHealChoiceEvent();
+
+        try {
+            $submittedIds = json_decode(
+                $selected_character_ids,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid character selection')
+            );
+        }
+        if (!is_array($submittedIds) || $submittedIds !== array_values($submittedIds)) {
+            throw new UserException(
+                \clienttranslate('Invalid character selection')
+            );
+        }
+
+        $maximum = intval($event['parameters']['number']);
+        if (count($submittedIds) > $maximum) {
+            throw new UserException(
+                \clienttranslate('Too many characters selected')
+            );
+        }
+
+        $eligibleCharactersById = [];
+        foreach ($this->deckManager->getCardsInLocation(
+            Location::CHARACTERS_IN_PLAY
+        ) as $character) {
+            $eligibleCharactersById[intval($character['id'])] = $character;
+        }
+
+        $selectedIds = [];
+        foreach ($submittedIds as $cardId) {
+            if (!is_int($cardId) || $cardId < 1
+                || !isset($eligibleCharactersById[$cardId])
+                || isset($selectedIds[$cardId])) {
+                throw new UserException(
+                    \clienttranslate('Invalid character selection')
+                );
+            }
+            $selectedIds[$cardId] = true;
+        }
+
+        foreach (array_keys($selectedIds) as $cardId) {
+            $currentWounds = intval(
+                $eligibleCharactersById[$cardId]['wounds'] ?? 0
+            );
+            if ($currentWounds === 0) {
+                continue;
+            }
+
+            $card = $this->deckManager->setCardWounds(
+                $cardId,
+                $currentWounds - 1
+            );
+            $this->notify->all(
+                'characterWoundsChanged',
+                \clienttranslate('${card_name} heals 1 wound'),
+                [
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'wounds' => -1,
+                ]
+            );
+        }
+
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingHealChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null || $event['type'] !== EventType::HEAL_CHOICE) {
+            throw new SystemException('There is no pending heal choice');
+        }
+        if (
+            intval($event['parameters']['sourceCardId'] ?? 0) < 1
+            || intval($event['parameters']['number'] ?? 0) < 1
+        ) {
+            throw new SystemException('Invalid pending heal choice');
+        }
         return $event;
     }
 
