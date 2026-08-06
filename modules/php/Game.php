@@ -903,6 +903,14 @@ class Game extends \Bga\GameFramework\Table
     {
         $event = $this->getPendingDisasterChoiceEvent();
         $resolution = $this->getDisasterResolution($event);
+        $normalizedResolution = $this->skipInactiveDisasterCharacteristics(
+            $event,
+            $resolution
+        );
+        if ($normalizedResolution !== $resolution) {
+            $resolution = $normalizedResolution;
+            $this->updateDisasterResolution($event, $resolution);
+        }
         $consequence = $event['parameters']['consequence'];
         $requiredDraws = intval($consequence['number']);
         $drawnDisasters = array_values(
@@ -1031,6 +1039,10 @@ class Game extends \Bga\GameFramework\Table
 
         $resolution['confirmedDraws']++;
         $resolution['pendingDrawCardId'] = 0;
+        $resolution = $this->skipInactiveDisasterCharacteristics(
+            $event,
+            $resolution
+        );
         $this->updateDisasterResolution($event, $resolution);
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
@@ -1086,6 +1098,10 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $resolution['characteristicIndex']++;
+        $resolution = $this->skipInactiveDisasterCharacteristics(
+            $event,
+            $resolution
+        );
         $this->updateDisasterResolution($event, $resolution);
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
@@ -1198,6 +1214,38 @@ class Game extends \Bga\GameFramework\Table
         $parameters = $event['parameters'];
         $parameters['resolution'] = $resolution;
         $this->eventStack->updateEventParameters($event['id'], $parameters);
+    }
+
+    private function skipInactiveDisasterCharacteristics(
+        array $event,
+        array $resolution
+    ): array {
+        $requiredDraws = intval($event['parameters']['consequence']['number']);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] !== $requiredDraws
+        ) {
+            return $resolution;
+        }
+
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        while ($resolution['characteristicIndex'] < count(self::DISASTER_CHARACTERISTICS)) {
+            $characteristic = self::DISASTER_CHARACTERISTICS[
+                $resolution['characteristicIndex']
+            ];
+            if ($this->disasterCharacteristicIsPresent(
+                $characteristic,
+                $drawnDisasters,
+                $event['parameters']['consequence']
+            )) {
+                break;
+            }
+            $resolution['characteristicIndex']++;
+        }
+        return $resolution;
     }
 
     private function disasterCharacteristicIsPresent(

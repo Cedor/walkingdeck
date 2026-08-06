@@ -645,7 +645,7 @@ define([
             const disasterArgs = args.args || args;
             if (disasterArgs.phase === "draw") {
               this.statusBar.setTitle(
-                _("Draw disaster ${current} of ${total} by clicking the disaster bag"),
+                _("Draw disaster ${current} of ${total}"),
                 {
                   current: Number(disasterArgs.confirmedDraws) + 1,
                   total: disasterArgs.requiredDraws,
