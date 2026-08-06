@@ -68,6 +68,12 @@ final class FakeCardDeck
         $this->moves[] = [$cardId, $location, $locationArg];
     }
 
+    public function setCardWounds(int $cardId, int $wounds): array
+    {
+        $this->cards[$cardId]['wounds'] = $wounds;
+        return $this->cards[$cardId];
+    }
+
     public function moveAllCardsInLocation(
         ?string $fromLocation,
         ?string $toLocation,

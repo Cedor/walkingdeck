@@ -37,9 +37,9 @@ class TWDDisaster
     return $disaster_info;
   }
 
-  public function getCardsInLocation(string $location): array
+  public function getCardsInLocation(string $location, ?int $location_arg = null): array
   {
-    $disasters = $this->game->getDisaster()->getCardsInLocation($location);
+    $disasters = $this->game->getDisaster()->getCardsInLocation($location, $location_arg);
     return array_map(function ($disaster) {
       $disaster_info = $this->getExtendedCardInfo($disaster['type']);
       return array_merge($disaster, $disaster_info);

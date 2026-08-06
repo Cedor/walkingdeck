@@ -77,6 +77,30 @@ final class TWDDeckTest extends TestCase
         );
     }
 
+    public function testCharacterAtFourWoundsIsReturnedFaceDown(): void
+    {
+        $game = new FakeGame();
+        $game->cardDeck->cards[8] = [
+            'id' => 8,
+            'type' => 2,
+            'type_arg' => 8,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+        ];
+        $game->cardInfo[2][8] = [
+            'card_name' => 'Ellie and Joel',
+            'is_character' => 1,
+            'consequence_black' => null,
+            'consequence_white' => null,
+            'consequence_grey' => null,
+            'wounds' => 4,
+        ];
+
+        $card = (new TWDDeck($game))->getCard(8);
+
+        self::assertTrue($card['face_down']);
+    }
+
     /**
      * @dataProvider fakeCardTypeProvider
      */

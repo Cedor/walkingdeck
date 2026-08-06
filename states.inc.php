@@ -215,10 +215,15 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argDisasterChoice')
         ->possibleactions([
+            'actDrawDisaster',
+            'actConfirmDisasterDraw',
+            'actConfirmDisasterCharacteristic',
             'actResolveDisaster',
         ])
         ->transitions([
+            Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+            Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()

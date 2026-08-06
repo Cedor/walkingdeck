@@ -266,26 +266,85 @@ final class GameRulesTest extends TestCase
         ];
     }
 
+    public function testDisasterIgnoreRemovesTheNamedCharacteristic(): void
+    {
+        $disasters = [[
+            'disaster_hunger' => 1,
+            'disaster_break' => 1,
+            'disaster_stress' => 0,
+        ]];
+        $consequence = [
+            'action' => 'disasterignore',
+            'number' => 1,
+            'ignore' => 'hunger',
+        ];
+
+        self::assertFalse($this->invoke(
+            'disasterCharacteristicIsPresent',
+            ['hunger', $disasters, $consequence]
+        ));
+        self::assertTrue($this->invoke(
+            'disasterCharacteristicIsPresent',
+            ['break', $disasters, $consequence]
+        ));
+    }
+
     public function testDisasterWaitsForThePlayerThenResumesEvents(): void
     {
-        $consequence = ['action' => 'disaster', 'number' => 1];
-        $deckManager = new class($consequence) {
-            private array $card;
-
-            public function __construct(array $consequence)
-            {
-                $this->card = [
-                    'id' => 8,
-                    'card_name' => 'Ellie and Joel',
-                    'consequence_grey' => $consequence,
-                ];
-            }
-
-            public function getCard(int $cardId): ?array
-            {
-                return $cardId === 8 ? $this->card : null;
-            }
-        };
+        $consequence = ['action' => 'disaster', 'number' => 2];
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            8 => [
+                'id' => 8,
+                'location' => Location::STORY_CURRENT,
+                'location_arg' => 0,
+                'card_name' => 'Site Manager',
+                'consequence_grey' => $consequence,
+            ],
+            25 => [
+                'id' => 25,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Glenn',
+                'is_character' => 1,
+                'weakness_hunger' => 1,
+                'weakness_break' => 0,
+                'weakness_stress' => 1,
+                'wounds' => 3,
+            ],
+            26 => [
+                'id' => 26,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Murphy',
+                'is_character' => 1,
+                'weakness_hunger' => 0,
+                'weakness_break' => 1,
+                'weakness_stress' => 0,
+                'wounds' => 1,
+            ],
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards = [
+            1 => [
+                'id' => 1,
+                'type' => 4,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 1,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ],
+            2 => [
+                'id' => 2,
+                'type' => 3,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 0,
+                'disaster_stress' => 1,
+            ],
+        ];
         $eventStack = $this->createEventStack();
         $eventStack->pushEvent(EventType::CONSEQUENCE, [
             'cardId' => 8,
@@ -300,8 +359,10 @@ final class GameRulesTest extends TestCase
             }
         };
         $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
         $this->setProperty('eventStack', $eventStack);
         $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
 
         $this->game->stEventDispatcher();
 
@@ -314,13 +375,37 @@ final class GameRulesTest extends TestCase
             $this->game->argDisasterChoice()['consequence']
         );
 
+        self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
+        $this->game->actDrawDisaster();
+        self::assertSame('confirmDraw', $this->game->argDisasterChoice()['phase']);
+        $this->game->actConfirmDisasterDraw();
+        self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
+        $this->game->actDrawDisaster();
+        $this->game->actConfirmDisasterDraw();
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('characteristic', $args['phase']);
+        self::assertSame('hunger', $args['characteristic']);
+        self::assertTrue($args['characteristicPresent']);
+        self::assertSame([25], array_column($args['affectedCharacters'], 'id'));
+
+        $this->game->actConfirmDisasterCharacteristic();
+        self::assertSame(4, $deckManager->cards[25]['wounds']);
+        self::assertSame('break', $this->game->argDisasterChoice()['characteristic']);
+        $this->game->actConfirmDisasterCharacteristic();
+        self::assertSame(2, $deckManager->cards[26]['wounds']);
+        self::assertSame('stress', $this->game->argDisasterChoice()['characteristic']);
+        self::assertSame([], $this->game->argDisasterChoice()['affectedCharacters']);
+        $this->game->actConfirmDisasterCharacteristic();
+        self::assertSame('complete', $this->game->argDisasterChoice()['phase']);
+
         $this->game->actResolveDisaster();
 
         self::assertTrue($eventStack->isEmpty());
-        self::assertSame(
-            [Transition::DISASTER_CHOICE, Transition::DISPATCH_EVENTS],
-            $gamestate->transitions
-        );
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[25]['location']);
+        self::assertSame('deck', $disasterManager->cards[1]['location']);
+        self::assertSame('deck', $disasterManager->cards[2]['location']);
+        self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
     }
 
     public function testBiteConsequencePausesForACharacterChoice(): void
@@ -1241,6 +1326,16 @@ final class GameRulesTest extends TestCase
             public function popEvent(): ?array
             {
                 return array_pop($this->events);
+            }
+
+            public function updateEventParameters(int $eventId, array $parameters): void
+            {
+                foreach ($this->events as &$event) {
+                    if ($event['id'] === $eventId) {
+                        $event['parameters'] = $parameters;
+                        return;
+                    }
+                }
             }
 
             public function isEmpty(): bool
