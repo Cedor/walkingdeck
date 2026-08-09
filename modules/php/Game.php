@@ -34,6 +34,7 @@ class Game extends \Bga\GameFramework\Table
 {
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
+    private const REMOVED_DISASTER_LOCATION = 'removed';
     private const REVEALED_DECK_CARD_STATES = [
         Location::RURAL => 'revealedRuralCardId',
         Location::URBAN => 'revealedUrbanCardId',
@@ -825,6 +826,19 @@ class Game extends \Bga\GameFramework\Table
                 $this->revealTopDeckCard(Location::RURAL);
                 $this->revealTopDeckCard(Location::URBAN);
                 break;
+            case 'removedisaster':
+                $characteristic = strval($consequence['disaster'] ?? '');
+                if (!in_array(
+                    $characteristic,
+                    self::DISASTER_CHARACTERISTICS,
+                    true
+                )) {
+                    throw new SystemException(
+                        'Invalid removedisaster characteristic'
+                    );
+                }
+                $this->removeSingleCharacteristicDisasters($characteristic);
+                break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
                 break;
@@ -1459,6 +1473,47 @@ class Game extends \Bga\GameFramework\Table
             'resourceAvailable' => $resourceAvailable,
             'affectedCharacters' => $affectedCharacters,
         ];
+    }
+
+    private function removeSingleCharacteristicDisasters(
+        string $characteristic
+    ): void {
+        $otherCharacteristics = array_values(array_diff(
+            self::DISASTER_CHARACTERISTICS,
+            [$characteristic]
+        ));
+        $removedDisasters = [];
+        foreach ($this->disasterManager->getCardsInLocation('deck') as $disaster) {
+            if (
+                intval($disaster['disaster_' . $characteristic] ?? 0) !== 1
+                || intval(
+                    $disaster['disaster_' . $otherCharacteristics[0]] ?? 0
+                ) !== 0
+                || intval(
+                    $disaster['disaster_' . $otherCharacteristics[1]] ?? 0
+                ) !== 0
+            ) {
+                continue;
+            }
+
+            $this->disasterManager->moveCard(
+                intval($disaster['id']),
+                self::REMOVED_DISASTER_LOCATION
+            );
+            $removedDisasters[] = $disaster;
+        }
+
+        if ($removedDisasters !== []) {
+            $this->notify->all(
+                'disastersRemoved',
+                \clienttranslate('${count} disaster(s) with only ${characteristic} removed'),
+                [
+                    'count' => count($removedDisasters),
+                    'characteristic' => $characteristic,
+                    'disasters' => $removedDisasters,
+                ]
+            );
+        }
     }
 
     public function actDrawDisaster(): void

@@ -338,6 +338,82 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testRemoveDisasterRemovesOnlyTheRequestedSingleSymbol(): void
+    {
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards = [
+            1 => [
+                'id' => 1,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ],
+            2 => [
+                'id' => 2,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ],
+            3 => [
+                'id' => 3,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 1,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ],
+            4 => [
+                'id' => 4,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 0,
+                'disaster_stress' => 1,
+            ],
+        ];
+        $this->setProperty('disasterManager', $disasterManager);
+        $card = [
+            'id' => 20,
+            'consequence_black' => [
+                'action' => 'removedisaster',
+                'disaster' => 'break',
+            ],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame('removed', $disasterManager->cards[1]['location']);
+        self::assertSame('removed', $disasterManager->cards[2]['location']);
+        self::assertSame('deck', $disasterManager->cards[3]['location']);
+        self::assertSame('deck', $disasterManager->cards[4]['location']);
+        $notification = end($this->game->notify->events);
+        self::assertSame('disastersRemoved', $notification['type']);
+        self::assertSame(2, $notification['arguments']['count']);
+        self::assertSame('break', $notification['arguments']['characteristic']);
+    }
+
+    public function testRemoveDisasterRejectsAnUnknownCharacteristic(): void
+    {
+        $this->setProperty(
+            'disasterManager',
+            new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck()
+        );
+        $card = [
+            'id' => 20,
+            'consequence_black' => [
+                'action' => 'removedisaster',
+                'disaster' => 'unknown',
+            ],
+        ];
+
+        $this->expectException(SystemException::class);
+        $this->invoke('applyConsequences', [$card, 'black']);
+    }
+
     public function testAvoidZombieRequestsAHandZombieChoice(): void
     {
         $card = [
