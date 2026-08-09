@@ -384,9 +384,19 @@ define([
         console.log("Protagonist slot is empty");
       }
       // Urban Deck gamedatas
-      this.urbanDeck.setCardNumber(this.gamedatas.urbanDeckNb);
+      this.urbanDeck.setCardNumber(
+        this.gamedatas.urbanDeckNb - (this.gamedatas.urbanDeckTop ? 1 : 0)
+      );
+      if (this.gamedatas.urbanDeckTop) {
+        this.urbanDeck.addCard(this.gamedatas.urbanDeckTop);
+      }
       // Rural Deck gamedatas
-      this.ruralDeck.setCardNumber(this.gamedatas.ruralDeckNb);
+      this.ruralDeck.setCardNumber(
+        this.gamedatas.ruralDeckNb - (this.gamedatas.ruralDeckTop ? 1 : 0)
+      );
+      if (this.gamedatas.ruralDeckTop) {
+        this.ruralDeck.addCard(this.gamedatas.ruralDeckTop);
+      }
       // Memory gamedatas
       console.log("Memory gamedatas", this.gamedatas.memoryNb, this.gamedatas.memoryTop);
       if (this.gamedatas.memoryNb > 0) {
@@ -1458,6 +1468,13 @@ define([
         document.getElementById("brainstorm_wrap").style.display = "block";
       }
       await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
+    },
+
+    notif_deckTopRevealed: async function (args) {
+      const deck = this.getLocation(args.location);
+      if (!deck) return;
+      deck.setCardNumber(Math.max(0, Number(args.cardNumber) - 1));
+      await deck.addCard(args.card);
     },
   });
 });

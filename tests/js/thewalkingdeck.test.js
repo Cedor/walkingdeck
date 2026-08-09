@@ -740,6 +740,27 @@ describe("player actions", () => {
 });
 
 describe("notifications", () => {
+  it("shows a revealed card on top of its deck", async () => {
+    const deck = {
+      setCardNumber: spy(),
+      addCard: spy(async () => undefined),
+    };
+    const context = {
+      getLocation: spy(() => deck),
+    };
+    const card = { id: 20, type: "3", face_down: false };
+
+    await game.notif_deckTopRevealed.call(context, {
+      card,
+      location: "deck_urban",
+      cardNumber: 4,
+    });
+
+    assert.equal(context.getLocation.calls[0][0], "deck_urban");
+    assert.equal(deck.setCardNumber.calls[0][0], 3);
+    assert.equal(deck.addCard.calls[0][0], card);
+  });
+
   it("waits until the face-down Memory card is installed when Story Check starts", async () => {
     let finishAdding;
     const addPromise = new Promise((resolve) => {

@@ -34,6 +34,10 @@ class Game extends \Bga\GameFramework\Table
 {
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
+    private const REVEALED_DECK_CARD_STATES = [
+        Location::RURAL => 'revealedRuralCardId',
+        Location::URBAN => 'revealedUrbanCardId',
+    ];
 
     /**
      * Your global variables labels:
@@ -64,6 +68,8 @@ class Game extends \Bga\GameFramework\Table
             'ressource_hunger' => 13,
             'ressource_break' => 14,
             'ressource_stress' => 15,
+            'revealedRuralCardId' => 16,
+            'revealedUrbanCardId' => 17,
         ]);
 
         $this->cards = $this->bga->deckFactory->createDeck('twd_card');
@@ -579,6 +585,64 @@ class Game extends \Bga\GameFramework\Table
         return $card;
     }
 
+    private function revealTopDeckCard(string $location): void
+    {
+        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        if ($state === null) {
+            throw new SystemException('Invalid deck reveal location');
+        }
+
+        $card = $this->deckManager->getCardOnTop($location);
+        $cardId = $card === null ? 0 : intval($card['id']);
+        $this->setGameStateValue($state, $cardId);
+        if ($card === null) {
+            return;
+        }
+
+        $this->notify->all(
+            'deckTopRevealed',
+            \clienttranslate('${card_name} is revealed on top of its deck'),
+            [
+                'card' => $this->withFaceDown($card, false),
+                'card_name' => $card['card_name'],
+                'location' => $location,
+                'cardNumber' => $this->deckManager->countCardInLocation(
+                    $location
+                ),
+            ]
+        );
+    }
+
+    private function getRevealedDeckTop(string $location): ?array
+    {
+        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        if ($state === null) {
+            throw new SystemException('Invalid revealed deck location');
+        }
+
+        $topCard = $this->deckManager->getCardOnTop($location);
+        if (
+            $topCard === null
+            || intval($topCard['id']) !== intval($this->getGameStateValue($state))
+        ) {
+            return null;
+        }
+        return $this->withFaceDown($topCard, false);
+    }
+
+    private function clearDeckRevealIfCardLeaves(
+        int $cardId,
+        string $location
+    ): void {
+        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        if (
+            $state !== null
+            && intval($this->getGameStateValue($state)) === $cardId
+        ) {
+            $this->setGameStateValue($state, 0);
+        }
+    }
+
     /**
      * Player action, play a card from hand
      *
@@ -756,6 +820,10 @@ class Game extends \Bga\GameFramework\Table
                 $outcome['recoverChoices'][] = [
                     'sourceCardId' => intval($card['id']),
                 ];
+                break;
+            case 'reveal':
+                $this->revealTopDeckCard(Location::RURAL);
+                $this->revealTopDeckCard(Location::URBAN);
                 break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
@@ -2009,6 +2077,7 @@ class Game extends \Bga\GameFramework\Table
         $cards = $this->deckManager->getCardsOnTop(2, $location);
         foreach (array_reverse($cards) as $card) {
             $cardId = intval($card['id']);
+            $this->clearDeckRevealIfCardLeaves($cardId, $location);
             $this->deckManager->insertCardOnExtremePosition(
                 $cardId,
                 Location::MEMORY,
@@ -2045,6 +2114,7 @@ class Game extends \Bga\GameFramework\Table
         $cards = $this->deckManager->getCardsOnTop(3, $location);
         foreach ($cards as $position => $card) {
             $cardId = intval($card['id']);
+            $this->clearDeckRevealIfCardLeaves($cardId, $location);
             $this->deckManager->moveCard(
                 $cardId,
                 $brainstormLocation,
@@ -2266,6 +2336,10 @@ class Game extends \Bga\GameFramework\Table
         }
         // pick the card
         $cardPicked = $this->deckManager->pickCard($location, 0);
+        $this->clearDeckRevealIfCardLeaves(
+            intval($cardPicked['id']),
+            $location
+        );
 
         $isSpecialDraw = $cardPicked['special_draw'] == 1;
         if ($isSpecialDraw) {
@@ -2684,6 +2758,8 @@ class Game extends \Bga\GameFramework\Table
         $result['graveyardTop'] = $graveyardTop ?  $this->deckManager->generateFakeCard($graveyardTop) : null;
         $result['ruralDeckNb'] = $this->deckManager->countCardInLocation(Location::RURAL);
         $result['urbanDeckNb'] = $this->deckManager->countCardInLocation(Location::URBAN);
+        $result['ruralDeckTop'] = $this->getRevealedDeckTop(Location::RURAL);
+        $result['urbanDeckTop'] = $this->getRevealedDeckTop(Location::URBAN);
         $brainstormLocation = $this->getCurrentBrainstormLocation();
         $result['brainstorm'] = $brainstormLocation === null
             ? []
@@ -2754,6 +2830,8 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('gamePhase', 1);
         // Loss condition : number of buried events (default 5)
         $this->setGameStateInitialValue('lossCondition', 5);
+        $this->setGameStateInitialValue('revealedRuralCardId', 0);
+        $this->setGameStateInitialValue('revealedUrbanCardId', 0);
         // Init game statistics.
         //
         // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.

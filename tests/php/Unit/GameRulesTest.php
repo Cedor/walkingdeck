@@ -246,6 +246,98 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testRevealTurnsBothDeckTopCardsFaceUp(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            11 => [
+                'id' => 11,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural second',
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::RURAL,
+                'location_arg' => 2,
+                'card_name' => 'Rural top',
+            ],
+            20 => [
+                'id' => 20,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban top',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $card = [
+            'id' => 32,
+            'consequence_black' => ['action' => 'reveal'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame(10, $this->game->getGameStateValue('revealedRuralCardId'));
+        self::assertSame(20, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(10, $this->invoke('getRevealedDeckTop', [Location::RURAL])['id']);
+        self::assertSame(20, $this->invoke('getRevealedDeckTop', [Location::URBAN])['id']);
+        $revealEvents = array_values(array_filter(
+            $this->game->notify->events,
+            static fn(array $event): bool => $event['type'] === 'deckTopRevealed'
+        ));
+        self::assertCount(2, $revealEvents);
+        self::assertFalse($revealEvents[0]['arguments']['card']['face_down']);
+        self::assertSame(2, $revealEvents[0]['arguments']['cardNumber']);
+        self::assertFalse($revealEvents[1]['arguments']['card']['face_down']);
+        self::assertSame(1, $revealEvents[1]['arguments']['cardNumber']);
+    }
+
+    public function testRevealIgnoresAnEmptyDeckAndExpiresWhenTheCardLeaves(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[20] = [
+            'id' => 20,
+            'location' => Location::URBAN,
+            'location_arg' => 1,
+            'card_name' => 'Urban top',
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $card = [
+            'id' => 32,
+            'consequence_black' => ['action' => 'reveal'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame(0, $this->game->getGameStateValue('revealedRuralCardId'));
+        self::assertSame(20, $this->game->getGameStateValue('revealedUrbanCardId'));
+
+        $this->invoke('clearDeckRevealIfCardLeaves', [20, Location::URBAN]);
+
+        self::assertSame(0, $this->game->getGameStateValue('revealedUrbanCardId'));
+    }
+
+    public function testRevealIsIgnoredWhenBothDecksAreEmpty(): void
+    {
+        $this->setProperty(
+            'deckManager',
+            new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck()
+        );
+        $card = [
+            'id' => 32,
+            'consequence_black' => ['action' => 'reveal'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame(0, $this->game->getGameStateValue('revealedRuralCardId'));
+        self::assertSame(0, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(
+            ['applyingConsequence'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
     public function testAvoidZombieRequestsAHandZombieChoice(): void
     {
         $card = [

@@ -108,7 +108,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (29, '3', 7, 'Canned food', 0, 0, '{"action" : "nothing"}', '{"action" : "consume", "ressource" : "ressource_hunger"}', '{"action" : "heal", "number" : 2}', 0),
 (30, '3', 8, 'Warehouse', 0, 0, '{"action" : "unearth"}', NULL, '{"action" : "heal", "number" : 5}', 0),
 (31, '3', 9, 'Medical alcohol', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "heal", "number" : 3, "condition" : "break"}', 0),
-(32, '3', 10, 'Map', 0, 0, '{"action" : "other"}', NULL, '{"action" : "heal", "number" : 2, "condition" : "stress"}', 0),
+(32, '3', 10, 'Map', 0, 0, '{"action" : "reveal"}', NULL, '{"action" : "heal", "number" : 2, "condition" : "stress"}', 0),
 (33, '3', 11, 'Domitille', 0, 1, '{"action" : "avoid", "avoid" : "zombieordie"}', NULL, '{"action" : "bite", "bite" : 1}', 0),
 (34, '3', 12, 'The reaper', 1, 0, '{"action" : "bury", "bury" : "character"}', NULL, '{"action" : "bite", "bite" : 3}', 0),
 (35, '3', 13, 'Controller', 1, 0, '{"action" : "fastmemorise"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
