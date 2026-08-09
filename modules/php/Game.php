@@ -626,6 +626,17 @@ class Game extends \Bga\GameFramework\Table
             case 'escapeTalla':
                 $outcome['escapeTallaChoice'] = true;
                 break;
+            case 'unearth':
+                $graveyardTop = $this->deckManager->getCardOnTop(
+                    Location::GRAVEYARD
+                );
+                if ($graveyardTop !== null) {
+                    $this->moveCard(
+                        intval($graveyardTop['id']),
+                        Location::ESCAPED
+                    );
+                }
+                break;
             case 'brainstorm':
                 $outcome['brainstorm'] = true;
                 break;

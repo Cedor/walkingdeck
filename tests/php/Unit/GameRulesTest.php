@@ -189,6 +189,56 @@ final class GameRulesTest extends TestCase
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
+    public function testUnearthMovesTheTopGraveyardCardToEscaped(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            41 => [
+                'id' => 41,
+                'location' => Location::GRAVEYARD,
+                'location_arg' => 1,
+                'card_name' => 'First buried card',
+            ],
+            42 => [
+                'id' => 42,
+                'location' => Location::GRAVEYARD,
+                'location_arg' => 2,
+                'card_name' => 'Top buried card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $card = [
+            'id' => 30,
+            'consequence_black' => ['action' => 'unearth'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[41]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[42]['location']);
+        self::assertSame([42, Location::ESCAPED, 0], $deckManager->moves[0]);
+        self::assertSame('cardMoved', end($this->game->notify->events)['type']);
+    }
+
+    public function testUnearthDoesNothingWhenTheGraveyardIsEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $this->setProperty('deckManager', $deckManager);
+        $card = [
+            'id' => 30,
+            'consequence_black' => ['action' => 'unearth'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame([], $deckManager->moves);
+        self::assertCount(1, $this->game->notify->events);
+        self::assertSame(
+            'applyingConsequence',
+            $this->game->notify->events[0]['type']
+        );
+    }
+
     public function testAvoidZombieRequestsAHandZombieChoice(): void
     {
         $card = [
