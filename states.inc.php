@@ -92,6 +92,7 @@ $machinestates = [
             Transition::AVOID_HAND_CHOICE => GameStep::AVOID_HAND_CHOICE,
             Transition::BURY_CHARACTER_CHOICE => GameStep::BURY_CHARACTER_CHOICE,
             Transition::BURY_TOP_CARD_CHOICE => GameStep::BURY_TOP_CARD_CHOICE,
+            Transition::DRAFT_DISASTER_CHOICE => GameStep::DRAFT_DISASTER_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -342,6 +343,21 @@ $machinestates = [
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END,
+        ])
+        ->build(),
+    GameStep::DRAFT_DISASTER_CHOICE => GameStateBuilder::create()
+        ->name(Transition::DRAFT_DISASTER_CHOICE)
+        ->description(clienttranslate('${actplayer} must draft a disaster'))
+        ->descriptionmyturn(clienttranslate('You must draw two disasters and choose one to destroy'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argDraftDisasterChoice')
+        ->possibleactions([
+            'actDrawDraftDisasters',
+            'actResolveDraftDisaster',
+        ])
+        ->transitions([
+            Transition::DRAFT_DISASTER_CHOICE => GameStep::DRAFT_DISASTER_CHOICE,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()

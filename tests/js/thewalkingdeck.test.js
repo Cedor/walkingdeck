@@ -523,6 +523,49 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDisaster");
   });
 
+  it("draws both draft disasters with one click on the bag", () => {
+    const context = {
+      gamePhase: 1,
+      draftDisasterPhase: "draw",
+      bgaPerformAction: spy(),
+    };
+
+    game.onDisasterBagClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDraftDisasters");
+  });
+
+  it("selects and confirms a drafted disaster", () => {
+    const firstToken = { classList: { add: spy(), remove: spy() } };
+    const secondToken = { classList: { add: spy(), remove: spy() } };
+    const button = { style: {} };
+    documentElementOverrides["token-1"] = firstToken;
+    documentElementOverrides["token-2"] = secondToken;
+    documentElementOverrides.confirm_draft_disaster = button;
+    const context = {
+      draftDisasterEligibleIds: [1, 2],
+      draftDisasterSelectedId: null,
+      bgaPerformAction: spy(),
+    };
+
+    try {
+      game.onDraftDisasterClick.call(context, { id: 2 });
+      assert.equal(context.draftDisasterSelectedId, 2);
+      assert.equal(secondToken.classList.add.calls.length, 1);
+      assert.equal(button.style.visibility, "visible");
+
+      game.confirmDraftDisaster.call(context);
+      assert.equal(context.bgaPerformAction.calls.length, 1);
+      assert.equal(context.bgaPerformAction.calls[0][0], "actResolveDraftDisaster");
+      assert.equal(context.bgaPerformAction.calls[0][1].disaster_id, 2);
+    } finally {
+      delete documentElementOverrides["token-1"];
+      delete documentElementOverrides["token-2"];
+      delete documentElementOverrides.confirm_draft_disaster;
+    }
+  });
+
   it("uses a separate action to draw for Wolf Trap during phase one", () => {
     const context = {
       gamePhase: 1,
