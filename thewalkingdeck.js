@@ -30,7 +30,6 @@ define([
       this.difficulty = 1;
       this.gamePhase = 1;
       this.lossCondition = 5; //default value
-      this.stateConnectors = [];
     },
 
     /*
@@ -519,76 +518,52 @@ define([
         }
         case "drawCards":
         case "specialDraw":
-          this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
-          this.stateConnectors.push(dojo.connect(this.ruralDeck, "onCardClick", this, "onRuralDeckCardClick"));
+          this.enableDeckSelection(
+            ["deck_rural", "deck_urban"],
+            (location) => location === "deck_rural"
+              ? this.onRuralDeckCardClick()
+              : this.onUrbanDeckCardClick()
+          );
           break;
         case "brainstormDeckChoice":
           const brainstormChoiceArgs = args.args || args;
           this.brainstormAvailableDecks = brainstormChoiceArgs.availableDecks || [];
-          if (this.brainstormAvailableDecks.includes("deck_urban")) {
-            document.getElementById("deck_urban").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.urbanDeck, "onCardClick", this, "onBrainstormUrbanDeckClick")
-            );
-          }
-          if (this.brainstormAvailableDecks.includes("deck_rural")) {
-            document.getElementById("deck_rural").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.ruralDeck, "onCardClick", this, "onBrainstormRuralDeckClick")
-            );
-          }
+          this.enableDeckSelection(
+            this.brainstormAvailableDecks,
+            (location) => location === "deck_rural"
+              ? this.onBrainstormRuralDeckClick()
+              : this.onBrainstormUrbanDeckClick()
+          );
           break;
         case "fastMemoriseDeckChoice": {
           const fastMemoriseArgs = args.args || args;
           this.fastMemoriseAvailableDecks = fastMemoriseArgs.availableDecks || [];
-          if (this.fastMemoriseAvailableDecks.includes("deck_urban")) {
-            document.getElementById("deck_urban").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.urbanDeck, "onCardClick", this, "onFastMemoriseUrbanDeckClick")
-            );
-          }
-          if (this.fastMemoriseAvailableDecks.includes("deck_rural")) {
-            document.getElementById("deck_rural").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.ruralDeck, "onCardClick", this, "onFastMemoriseRuralDeckClick")
-            );
-          }
+          this.enableDeckSelection(
+            this.fastMemoriseAvailableDecks,
+            (location) => location === "deck_rural"
+              ? this.onFastMemoriseRuralDeckClick()
+              : this.onFastMemoriseUrbanDeckClick()
+          );
           break;
         }
         case "buryTopCardChoice": {
           const buryArgs = args.args || args;
           this.buryTopCardAvailableDecks = buryArgs.availableDecks || [];
           this.buryTopCardSelectedDeck = null;
-          if (this.buryTopCardAvailableDecks.includes("deck_urban")) {
-            document.getElementById("deck_urban").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.urbanDeck, "onCardClick", this, "onBuryTopCardUrbanDeckClick")
-            );
-          }
-          if (this.buryTopCardAvailableDecks.includes("deck_rural")) {
-            document.getElementById("deck_rural").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.ruralDeck, "onCardClick", this, "onBuryTopCardRuralDeckClick")
-            );
-          }
+          this.enableDeckSelection(
+            this.buryTopCardAvailableDecks,
+            (location) => this.selectBuryTopCardDeck(location)
+          );
           break;
         }
         case "avoidDeckChoice": {
           const avoidArgs = args.args || args;
           this.avoidDeckAvailableDecks = avoidArgs.availableDecks || [];
           this.avoidDeckSelectedDeck = null;
-          if (this.avoidDeckAvailableDecks.includes("deck_urban")) {
-            document.getElementById("deck_urban").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.urbanDeck, "onCardClick", this, "onAvoidUrbanDeckClick")
-            );
-          }
-          if (this.avoidDeckAvailableDecks.includes("deck_rural")) {
-            document.getElementById("deck_rural").classList.add("twd-highlight");
-            this.stateConnectors.push(
-              dojo.connect(this.ruralDeck, "onCardClick", this, "onAvoidRuralDeckClick")
-            );
-          }
+          this.enableDeckSelection(
+            this.avoidDeckAvailableDecks,
+            (location) => this.selectAvoidDeck(location)
+          );
           break;
         }
         case "draftDisasterChoice": {
@@ -717,24 +692,23 @@ define([
           break;
         case "drawCards":
         case "specialDraw":
-          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
-          this.stateConnectors = [];
+          this.disableDeckSelection();
           break;
         case "brainstormDeckChoice":
+          this.disableDeckSelection();
+          this.brainstormAvailableDecks = [];
+          break;
         case "fastMemoriseDeckChoice":
+          this.disableDeckSelection();
+          this.fastMemoriseAvailableDecks = [];
+          break;
         case "buryTopCardChoice":
-          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
-          this.stateConnectors = [];
-          document.getElementById("deck_urban").classList.remove("twd-highlight");
-          document.getElementById("deck_rural").classList.remove("twd-highlight");
+          this.disableDeckSelection();
           this.buryTopCardSelectedDeck = null;
           this.buryTopCardAvailableDecks = [];
           break;
         case "avoidDeckChoice":
-          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
-          this.stateConnectors = [];
-          document.getElementById("deck_urban").classList.remove("twd-highlight");
-          document.getElementById("deck_rural").classList.remove("twd-highlight");
+          this.disableDeckSelection();
           this.avoidDeckSelectedDeck = null;
           this.avoidDeckAvailableDecks = [];
           break;
@@ -1171,18 +1145,11 @@ define([
         */
     setupConnections: function () {
       console.log("Setting up connections");
-      dojo.connect(document.getElementById("game_play_area"), "onclick", this, "dispellHighlight");
       dojo.connect(document.getElementById("escaped"), "onclick", this, "onEscapedClick");
       dojo.connect(document.getElementById("memory"), "onclick", this, "onMemoryClick");
       dojo.connect(document.getElementById("graveyard"), "onclick", this, "onGraveyardClick");
       dojo.connect(this.ressourcesSlots, "onCardClick", this, "onRessourceClick");
       dojo.connect(document.getElementById("disasters_bag"), "onclick", this, "onDisasterBagClick");
-    },
-
-    dispellHighlight: function () {
-      document.querySelectorAll(".twd-highlight").forEach((el) => {
-        el.classList.remove("twd-highlight");
-      });
     },
 
     onProtagonistSelectionChange: function (selection, lastchange) {
@@ -1410,6 +1377,46 @@ define([
       this.bgaPerformAction("actResolveDisaster");
     },
 
+    enableDeckSelection: function (availableDecks, onSelected) {
+      const decks = {
+        deck_rural: this.ruralDeck,
+        deck_urban: this.urbanDeck,
+      };
+
+      Object.entries(decks).forEach(([location, stock]) => {
+        stock.onSelectionChange = null;
+        stock.unselectAll();
+
+        if (!availableDecks.includes(location)) {
+          stock.setSelectionMode("none");
+          return;
+        }
+
+        stock.setSelectionMode("single");
+        stock.onSelectionChange = (selection) => {
+          if (selection.length === 0) return;
+
+          Object.entries(decks).forEach(([otherLocation, otherStock]) => {
+            if (otherLocation === location) return;
+
+            const otherSelectionChange = otherStock.onSelectionChange;
+            otherStock.onSelectionChange = null;
+            otherStock.unselectAll();
+            otherStock.onSelectionChange = otherSelectionChange;
+          });
+          onSelected(location);
+        };
+      });
+    },
+
+    disableDeckSelection: function () {
+      [this.ruralDeck, this.urbanDeck].forEach((stock) => {
+        stock.onSelectionChange = null;
+        stock.unselectAll();
+        stock.setSelectionMode("none");
+      });
+    },
+
     onRuralDeckCardClick: function (card) {
       console.log("onRuralDeckCardClick");
       this.bgaPerformAction("actDrawFromDeck", { location: "deck_rural" });
@@ -1436,22 +1443,10 @@ define([
       this.bgaPerformAction("actFastMemorise", { location: "deck_urban" });
     },
 
-    onBuryTopCardRuralDeckClick: function () {
-      this.selectBuryTopCardDeck("deck_rural");
-    },
-
-    onBuryTopCardUrbanDeckClick: function () {
-      this.selectBuryTopCardDeck("deck_urban");
-    },
-
     selectBuryTopCardDeck: function (location) {
       if (!(this.buryTopCardAvailableDecks || []).includes(location)) return;
 
       this.buryTopCardSelectedDeck = location;
-      ["deck_rural", "deck_urban"].forEach((deck) => {
-        document.getElementById(deck).classList.remove("twd-highlight");
-      });
-      document.getElementById(location).classList.add("twd-highlight");
       const button = document.getElementById("confirm_bury_top_card");
       if (button) button.style.visibility = "visible";
     },
@@ -1467,22 +1462,10 @@ define([
       }
     },
 
-    onAvoidRuralDeckClick: function () {
-      this.selectAvoidDeck("deck_rural");
-    },
-
-    onAvoidUrbanDeckClick: function () {
-      this.selectAvoidDeck("deck_urban");
-    },
-
     selectAvoidDeck: function (location) {
       if (!(this.avoidDeckAvailableDecks || []).includes(location)) return;
 
       this.avoidDeckSelectedDeck = location;
-      ["deck_rural", "deck_urban"].forEach((deck) => {
-        document.getElementById(deck).classList.remove("twd-highlight");
-      });
-      document.getElementById(location).classList.add("twd-highlight");
       const button = document.getElementById("confirm_avoid_deck");
       if (button) button.style.visibility = "visible";
     },
