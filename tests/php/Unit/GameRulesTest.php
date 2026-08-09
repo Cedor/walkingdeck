@@ -416,6 +416,74 @@ final class GameRulesTest extends TestCase
         $this->invoke('applyConsequences', [$card, 'black']);
     }
 
+    public function testAddEmptyDisastersMovesTheReserveToTheBagAndShuffles(): void
+    {
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards = [
+            1 => [
+                'id' => 1,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'type' => 1,
+            ],
+            13 => [
+                'id' => 13,
+                'location' => 'reserve',
+                'location_arg' => 0,
+                'type' => 7,
+            ],
+            14 => [
+                'id' => 14,
+                'location' => 'reserve',
+                'location_arg' => 0,
+                'type' => 7,
+            ],
+        ];
+        $this->setProperty('disasterManager', $disasterManager);
+        $card = [
+            'id' => 21,
+            'consequence_black' => ['action' => 'addemptydisasters'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame('deck', $disasterManager->cards[13]['location']);
+        self::assertSame('deck', $disasterManager->cards[14]['location']);
+        self::assertSame(['deck'], $disasterManager->shuffledLocations);
+        $notification = end($this->game->notify->events);
+        self::assertSame('emptyDisastersAdded', $notification['type']);
+        self::assertSame(2, $notification['arguments']['count']);
+        self::assertSame([13, 14], array_map(
+            'intval',
+            array_column($notification['arguments']['disasters'], 'id')
+        ));
+    }
+
+    public function testAddEmptyDisastersDoesNothingWhenTheReserveIsEmpty(): void
+    {
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[1] = [
+            'id' => 1,
+            'location' => 'deck',
+            'location_arg' => 0,
+            'type' => 1,
+        ];
+        $this->setProperty('disasterManager', $disasterManager);
+        $card = [
+            'id' => 21,
+            'consequence_black' => ['action' => 'addemptydisasters'],
+        ];
+
+        $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame([], $disasterManager->moves);
+        self::assertSame([], $disasterManager->shuffledLocations);
+        self::assertSame(
+            ['applyingConsequence'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
     public function testAvoidZombieRequestsAHandZombieChoice(): void
     {
         $card = [

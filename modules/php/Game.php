@@ -891,6 +891,26 @@ class Game extends \Bga\GameFramework\Table
                 }
                 $this->removeSingleCharacteristicDisasters($characteristic);
                 break;
+            case 'addemptydisasters':
+                $emptyDisasters = $this->disasterManager->getCardsInLocation(
+                    'reserve'
+                );
+                if ($emptyDisasters !== []) {
+                    $this->disasterManager->moveAllCardsInLocation(
+                        'reserve',
+                        'deck'
+                    );
+                    $this->disasterManager->shuffle('deck');
+                    $this->notify->all(
+                        'emptyDisastersAdded',
+                        \clienttranslate('${count} empty disaster token(s) added to the bag'),
+                        [
+                            'count' => count($emptyDisasters),
+                            'disasters' => $emptyDisasters,
+                        ]
+                    );
+                }
+                break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
                 break;
