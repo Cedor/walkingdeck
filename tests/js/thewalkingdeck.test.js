@@ -749,7 +749,7 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[8,11]");
   });
 
-  it("does not confirm quick memorisation without a selected hand card", () => {
+  it("confirms quick memorisation with no selected hand card", () => {
     const context = {
       hand: { getSelection: () => [] },
       bgaPerformAction: spy(),
@@ -757,7 +757,49 @@ describe("player actions", () => {
 
     game.confirmFastMemoriseFromHand.call(context);
 
-    assert.equal(context.bgaPerformAction.calls.length, 0);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actFastMemoriseFromHand");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[]");
+  });
+
+  it("limits avoid hand2 to two selected cards", () => {
+    const thirdCard = { id: 3 };
+    const context = {
+      avoidHandMaximumCards: 2,
+      hand: { unselectCard: spy() },
+    };
+
+    game.onAvoidHandSelectionChange.call(
+      context,
+      [{ id: 1 }, { id: 2 }, thirdCard],
+      thirdCard
+    );
+
+    assert.equal(context.hand.unselectCard.calls.length, 1);
+    assert.equal(context.hand.unselectCard.calls[0][0], thirdCard);
+  });
+
+  it("confirms one or two hand cards to escape without playing them", () => {
+    const context = {
+      hand: { getSelection: () => [{ id: "4" }, { id: 9 }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmAvoidFromHand.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actAvoidFromHand");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[4,9]");
+  });
+
+  it("confirms avoid hand2 without a selected card", () => {
+    const context = {
+      hand: { getSelection: () => [] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmAvoidFromHand.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actAvoidFromHand");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[]");
   });
 
   it("confirms disaster resolution through the shared player action", () => {

@@ -24,6 +24,7 @@ final class Transition
     public const RECOVER_CHOICE = 'recoverChoice';
     public const FAST_MEMORISE_DECK_CHOICE = 'fastMemoriseDeckChoice';
     public const FAST_MEMORISE_HAND_CHOICE = 'fastMemoriseHandChoice';
+    public const AVOID_HAND_CHOICE = 'avoidHandChoice';
     public const STORY_CHECK_STEP = 'storyCheckStep';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';

@@ -553,6 +553,14 @@ define([
             this.onFastMemoriseHandSelectionChange(selection, lastChange);
           break;
         }
+        case "avoidHandChoice": {
+          const avoidHandArgs = args.args || args;
+          this.avoidHandMaximumCards = Number(avoidHandArgs.maximumCards) || 2;
+          this.hand.setSelectionMode("multiple");
+          this.hand.onSelectionChange = (selection, lastChange) =>
+            this.onAvoidHandSelectionChange(selection, lastChange);
+          break;
+        }
         case "brainstormReorder":
           this.setHandVisible(false);
           document.getElementById("brainstorm_wrap").style.display = "block";
@@ -656,6 +664,12 @@ define([
           this.hand.unselectAll();
           this.hand.setSelectionMode("single");
           this.fastMemoriseMaximumCards = 0;
+          break;
+        case "avoidHandChoice":
+          this.hand.onSelectionChange = null;
+          this.hand.unselectAll();
+          this.hand.setSelectionMode("single");
+          this.avoidHandMaximumCards = 0;
           break;
         case "brainstormReorder":
           this.disableBrainstormReorder();
@@ -837,7 +851,17 @@ define([
                 id: "confirm_fast_memorise_hand",
                 color: "primary",
               }
-            ).style.visibility = "hidden";
+            );
+            break;
+          case "avoidHandChoice":
+            this.statusBar.addActionButton(
+              _("Confirm escape"),
+              () => this.confirmAvoidFromHand(),
+              {
+                id: "confirm_avoid_hand",
+                color: "primary",
+              }
+            );
             break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
@@ -1256,16 +1280,39 @@ define([
 
       const button = document.getElementById("confirm_fast_memorise_hand");
       if (button) {
-        button.style.visibility = selection.length > 0 ? "visible" : "hidden";
+        button.style.visibility = "visible";
       }
     },
 
     confirmFastMemoriseFromHand: function () {
       const selectedCardIds = this.hand.getSelection().map((card) => Number(card.id));
-      if (selectedCardIds.length < 1 || selectedCardIds.length > 2) {
+      if (selectedCardIds.length > 2) {
         return;
       }
       this.bgaPerformAction("actFastMemoriseFromHand", {
+        card_ids: JSON.stringify(selectedCardIds),
+      });
+    },
+
+    onAvoidHandSelectionChange: function (selection, lastChange) {
+      const maximumCards = this.avoidHandMaximumCards || 2;
+      if (selection.length > maximumCards && lastChange) {
+        this.hand.unselectCard(lastChange);
+        return;
+      }
+
+      const button = document.getElementById("confirm_avoid_hand");
+      if (button) {
+        button.style.visibility = "visible";
+      }
+    },
+
+    confirmAvoidFromHand: function () {
+      const selectedCardIds = this.hand.getSelection().map((card) => Number(card.id));
+      if (selectedCardIds.length > 2) {
+        return;
+      }
+      this.bgaPerformAction("actAvoidFromHand", {
         card_ids: JSON.stringify(selectedCardIds),
       });
     },
