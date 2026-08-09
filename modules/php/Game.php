@@ -254,6 +254,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
                             || $outcome['disasterChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
                             || $outcome['recoverChoices'] !== []
@@ -283,6 +284,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
                             || $outcome['disasterChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
                             || $outcome['recoverChoices'] !== []
@@ -311,6 +313,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
                             || $outcome['healChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
                             || $outcome['recoverChoices'] !== []
@@ -334,6 +337,7 @@ class Game extends \Bga\GameFramework\Table
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
                             || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
                             || $outcome['biteChoices'] !== []
                             || $outcome['healChoices'] !== []
                             || $outcome['disasterChoices'] !== []
@@ -381,6 +385,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
                             || $outcome['biteChoices'] !== []
                             || $outcome['healChoices'] !== []
                             || $outcome['disasterChoices'] !== []
@@ -406,15 +411,42 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['fastMemorise']
                         ) {
                             throw new SystemException(
                                 'brainstorm cannot be combined with another deferred consequence'
                             );
                         }
 
-                        if (count($this->getBrainstormAvailableDecks()) > 0) {
+                        if (count($this->getAvailableDrawDecks()) > 0) {
                             $this->gamestate->nextState(
                                 Transition::BRAINSTORM_DECK_CHOICE
+                            );
+                            return;
+                        }
+                    }
+
+                    if ($outcome['fastMemorise']) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'fastmemorise cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        if (count($this->getAvailableDrawDecks()) > 0) {
+                            $this->gamestate->nextState(
+                                Transition::FAST_MEMORISE_DECK_CHOICE
                             );
                             return;
                         }
@@ -629,6 +661,7 @@ class Game extends \Bga\GameFramework\Table
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -744,6 +777,9 @@ class Game extends \Bga\GameFramework\Table
             case 'brainstorm':
                 $outcome['brainstorm'] = true;
                 break;
+            case 'fastmemorise':
+                $outcome['fastMemorise'] = true;
+                break;
             case 'avoid':
                 switch ($consequence['avoid'] ?? null) {
                     case 'zombie':
@@ -791,6 +827,7 @@ class Game extends \Bga\GameFramework\Table
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -837,6 +874,7 @@ class Game extends \Bga\GameFramework\Table
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
             $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
             $outcome['brainstorm'] = $outcome['brainstorm'] || $currentOutcome['brainstorm'];
+            $outcome['fastMemorise'] = $outcome['fastMemorise'] || $currentOutcome['fastMemorise'];
             $outcome['biteChoices'] = array_merge(
                 $outcome['biteChoices'],
                 $currentOutcome['biteChoices']
@@ -1933,7 +1971,7 @@ class Game extends \Bga\GameFramework\Table
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
-    private function getBrainstormAvailableDecks(): array
+    private function getAvailableDrawDecks(): array
     {
         return array_values(array_filter(
             [Location::RURAL, Location::URBAN],
@@ -1946,15 +1984,57 @@ class Game extends \Bga\GameFramework\Table
     public function argBrainstormDeckChoice(): array
     {
         return [
-            'availableDecks' => $this->getBrainstormAvailableDecks(),
+            'availableDecks' => $this->getAvailableDrawDecks(),
         ];
+    }
+
+    public function argFastMemoriseDeckChoice(): array
+    {
+        return [
+            'availableDecks' => $this->getAvailableDrawDecks(),
+        ];
+    }
+
+    public function actFastMemorise(string $location): void
+    {
+        $this->checkAction('actFastMemorise');
+
+        if (!in_array($location, $this->getAvailableDrawDecks(), true)) {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('You cannot memorise from this deck'),
+                ['location' => $location]
+            ));
+        }
+
+        $cards = $this->deckManager->getCardsOnTop(2, $location);
+        foreach (array_reverse($cards) as $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->insertCardOnExtremePosition(
+                $cardId,
+                Location::MEMORY,
+                true
+            );
+            $card = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is quickly memorised'),
+                [
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'destination' => Location::MEMORY,
+                    'source' => $location,
+                ]
+            );
+        }
+
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     public function actStartBrainstorm(string $location): void
     {
         $this->checkAction('actStartBrainstorm');
 
-        if (!in_array($location, $this->getBrainstormAvailableDecks(), true)) {
+        if (!in_array($location, $this->getAvailableDrawDecks(), true)) {
             throw new UserException(new NotificationMessage(
                 \clienttranslate('You cannot brainstorm this deck'),
                 ['location' => $location]
