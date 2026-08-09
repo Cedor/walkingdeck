@@ -85,6 +85,7 @@ $machinestates = [
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
             Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
+            Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -237,6 +238,22 @@ $machinestates = [
         ])
         ->transitions([
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+            Transition::GAME_END => GameStep::GAME_END,
+        ])
+        ->build(),
+    GameStep::WOLF_TRAP_CHOICE => GameStateBuilder::create()
+        ->name(Transition::WOLF_TRAP_CHOICE)
+        ->description(clienttranslate('${actplayer} must draw for Wolf Trap'))
+        ->descriptionmyturn(clienttranslate('You must draw for Wolf Trap'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argWolfTrapChoice')
+        ->possibleactions([
+            'actDrawWolfTrapDisaster',
+            'actResolveWolfTrap',
+        ])
+        ->transitions([
+            Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END,
         ])

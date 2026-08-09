@@ -414,6 +414,51 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawDisaster");
   });
 
+  it("uses a separate action to draw for Wolf Trap during phase one", () => {
+    const context = {
+      gamePhase: 1,
+      wolfTrapPhase: "draw",
+      disasterResolutionPhase: null,
+      bgaPerformAction: spy(),
+    };
+
+    game.onDisasterBagClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actDrawWolfTrapDisaster"
+    );
+  });
+
+  it("resolves Wolf Trap through its dedicated player action", () => {
+    let resolveCallback;
+    const context = {
+      statusBar: {
+        setTitle: spy(),
+        addActionButton: spy((_label, callback) => {
+          resolveCallback = callback;
+          return { style: {} };
+        }),
+      },
+      getActivePlayerId: () => 1,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onUpdateActionButtons.call(context, "wolfTrapChoice", {
+      phase: "resolve",
+      willBury: true,
+    });
+
+    assert.equal(
+      context.statusBar.setTitle.calls[0][0],
+      "The disaster has break and another symbol: bury Wolf Trap"
+    );
+    resolveCallback();
+    assert.equal(context.bgaPerformAction.calls[0][0], "actResolveWolfTrap");
+  });
+
   it("consumes only the matching resource during a disaster characteristic", () => {
     const context = {
       disasterResolutionPhase: "characteristic",
