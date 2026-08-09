@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bga\Games\TheWalkingDeck\Tests\Unit;
 
 use Bga\GameFramework\UserException;
+use Bga\GameFramework\SystemException;
 use Bga\Games\TheWalkingDeck\Constants\EventType;
 use Bga\Games\TheWalkingDeck\Constants\Location;
 use Bga\Games\TheWalkingDeck\Constants\Transition;
@@ -165,6 +166,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -186,6 +188,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -259,6 +262,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -279,6 +283,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -570,6 +575,167 @@ final class GameRulesTest extends TestCase
         self::assertFalse($args['characteristicPresent']);
         self::assertFalse($args['resourceAvailable']);
         self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
+    }
+
+    public function testWolfTrapBuriesItselfForBreakAndAnotherCharacteristic(): void
+    {
+        [$deckManager, $disasterManager, $eventStack, $gamestate] =
+            $this->prepareWolfTrapDisaster([
+                'disaster_hunger' => 1,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ]);
+
+        $this->game->stEventDispatcher();
+        self::assertSame([Transition::WOLF_TRAP_CHOICE], $gamestate->transitions);
+
+        $this->game->actDrawWolfTrapDisaster();
+
+        $args = $this->game->argWolfTrapChoice();
+        self::assertSame('resolve', $args['phase']);
+        self::assertTrue($args['willBury']);
+
+        $this->game->actResolveWolfTrap();
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[6]['location']);
+        self::assertSame('deck', $disasterManager->cards[1]['location']);
+        self::assertSame(
+            ['deck', 'deck'],
+            $disasterManager->shuffledLocations
+        );
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
+    }
+
+    public function testWolfTrapStaysEscapedWithoutBreak(): void
+    {
+        [$deckManager] = $this->prepareWolfTrapDisaster([
+            'disaster_hunger' => 1,
+            'disaster_break' => 0,
+            'disaster_stress' => 1,
+        ]);
+
+        $this->game->actDrawWolfTrapDisaster();
+
+        self::assertFalse($this->game->argWolfTrapChoice()['willBury']);
+
+        $this->game->actResolveWolfTrap();
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[6]['location']);
+    }
+
+    public function testWolfTrapBuriesItselfForBreakAndStress(): void
+    {
+        [$deckManager] = $this->prepareWolfTrapDisaster([
+            'disaster_hunger' => 0,
+            'disaster_break' => 1,
+            'disaster_stress' => 1,
+        ]);
+
+        $this->game->actDrawWolfTrapDisaster();
+
+        self::assertTrue($this->game->argWolfTrapChoice()['willBury']);
+
+        $this->game->actResolveWolfTrap();
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[6]['location']);
+    }
+
+    public function testWolfTrapDisasterDoesNotWoundCharacters(): void
+    {
+        [$deckManager] = $this->prepareWolfTrapDisaster([
+            'disaster_hunger' => 1,
+            'disaster_break' => 1,
+            'disaster_stress' => 0,
+        ]);
+        $deckManager->cards[25] = [
+            'id' => 25,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+            'card_name' => 'Glenn',
+            'is_character' => 1,
+            'weakness_hunger' => 1,
+            'weakness_break' => 1,
+            'weakness_stress' => 0,
+            'wounds' => 2,
+        ];
+
+        $this->game->actDrawWolfTrapDisaster();
+
+        self::assertSame('resolve', $this->game->argWolfTrapChoice()['phase']);
+
+        $this->game->actResolveWolfTrap();
+
+        self::assertSame(2, $deckManager->cards[25]['wounds']);
+        self::assertSame(
+            Location::CHARACTERS_IN_PLAY,
+            $deckManager->cards[25]['location']
+        );
+    }
+
+    public function testWolfTrapBlackConsequencesResolveEscapeBeforeDisaster(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            6 => [
+                'id' => 6,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Wolf Trap',
+                'consequence_black' => [
+                    'action' => 'multiple',
+                    'number' => 2,
+                    '0' => ['action' => 'avoid', 'avoid' => 'zombie'],
+                    '1' => ['action' => 'wolftrap'],
+                ],
+            ],
+            7 => [
+                'id' => 7,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Clown',
+                'is_zombie' => 1,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 6,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame([Transition::AVOID_ZOMBIE_CHOICE], $gamestate->transitions);
+        self::assertSame(
+            EventType::WOLF_TRAP_CHOICE,
+            $eventStack->getCurrentEvent()['type']
+        );
+        self::assertSame(
+            6,
+            $eventStack->getCurrentEvent()['parameters']['sourceCardId']
+        );
+    }
+
+    public function testWolfTrapConsequenceIsRejectedOutsideBlack(): void
+    {
+        $card = [
+            'id' => 6,
+            'consequence_grey' => ['action' => 'wolftrap'],
+        ];
+
+        $this->expectException(SystemException::class);
+        $this->invoke('applyConsequences', [$card, 'grey']);
     }
 
     public function testAbsentAndConsequenceIgnoredDisasterCharacteristicsAreSkipped(): void
@@ -1188,6 +1354,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -1239,6 +1406,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,
@@ -1840,6 +2008,43 @@ final class GameRulesTest extends TestCase
         $reflection = new ReflectionMethod(Game::class, $method);
         $reflection->setAccessible(true);
         return $reflection->invokeArgs($this->game, $arguments);
+    }
+
+    private function prepareWolfTrapDisaster(array $characteristics): array
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[6] = [
+            'id' => 6,
+            'location' => Location::ESCAPED,
+            'location_arg' => 0,
+            'card_name' => 'Wolf Trap',
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[1] = array_merge([
+            'id' => 1,
+            'type' => 4,
+            'location' => 'deck',
+            'location_arg' => 0,
+        ], $characteristics);
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::WOLF_TRAP_CHOICE, [
+            'sourceCardId' => 6,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        return [$deckManager, $disasterManager, $eventStack, $gamestate];
     }
 
     private function setProperty(string $property, object $value): void

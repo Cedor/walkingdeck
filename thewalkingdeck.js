@@ -482,6 +482,9 @@ define([
         case "disasterChoice":
           this.prepareDisasterChoice(args.args || args);
           break;
+        case "wolfTrapChoice":
+          this.prepareWolfTrapChoice(args.args || args);
+          break;
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -575,6 +578,10 @@ define([
           this.disasterResourceId = null;
           document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
           this.clearDisasterResourceHighlight();
+          break;
+        case "wolfTrapChoice":
+          this.wolfTrapPhase = null;
+          document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
           break;
         case "drawCards":
         case "specialDraw":
@@ -729,6 +736,27 @@ define([
                 () => this.resolveDisaster(),
                 {
                   id: "resolve_disaster",
+                  color: "primary",
+                }
+              );
+            }
+            break;
+          }
+          case "wolfTrapChoice": {
+            const wolfTrapArgs = args.args || args;
+            if (wolfTrapArgs.phase === "draw") {
+              this.statusBar.setTitle(_("Draw one disaster for Wolf Trap"));
+            } else if (wolfTrapArgs.phase === "resolve") {
+              this.statusBar.setTitle(
+                wolfTrapArgs.willBury
+                  ? _("The disaster has break and another symbol: bury Wolf Trap")
+                  : _("The disaster does not bury Wolf Trap")
+              );
+              this.statusBar.addActionButton(
+                _("Confirm resolution"),
+                () => this.bgaPerformAction("actResolveWolfTrap"),
+                {
+                  id: "resolve_wolf_trap",
                   color: "primary",
                 }
               );
@@ -1095,6 +1123,16 @@ define([
       }
     },
 
+    prepareWolfTrapChoice: function (args) {
+      this.wolfTrapPhase = args.phase;
+      const bag = document.getElementById("disasters_bag");
+      if (args.phase === "draw") {
+        bag?.classList.add("twd-highlight");
+      } else {
+        bag?.classList.remove("twd-highlight");
+      }
+    },
+
     clearDisasterResourceHighlight: function () {
       ["hunger", "break", "stress"].forEach((characteristic) => {
         document
@@ -1236,7 +1274,9 @@ define([
     // PHASE2 allowing only in phase 2
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
-      if (this.disasterResolutionPhase === "draw") {
+      if (this.wolfTrapPhase === "draw") {
+        this.bgaPerformAction("actDrawWolfTrapDisaster");
+      } else if (this.disasterResolutionPhase === "draw") {
         this.bgaPerformAction("actDrawDisaster");
       } else if (!this.disasterResolutionPhase && this.gamePhase == 2) {
         this.bgaPerformAction("actDrawFromDisasterBag");

@@ -14,6 +14,7 @@ final class TWDEventStack
         EventType::BITE_CHOICE,
         EventType::HEAL_CHOICE,
         EventType::DISASTER_CHOICE,
+        EventType::WOLF_TRAP_CHOICE,
         EventType::DRAW_CARD,
         EventType::SPECIAL_DRAW,
         EventType::ADDITIONAL_DRAW,

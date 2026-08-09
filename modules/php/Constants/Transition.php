@@ -20,6 +20,7 @@ final class Transition
     public const BITE_CHOICE = 'biteChoice';
     public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
+    public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const STORY_CHECK_STEP = 'storyCheckStep';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';

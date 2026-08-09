@@ -208,6 +208,11 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::DISASTER_CHOICE);
                     return;
 
+                case EventType::WOLF_TRAP_CHOICE:
+                    $this->getPendingWolfTrapChoiceEvent();
+                    $this->gamestate->nextState(Transition::WOLF_TRAP_CHOICE);
+                    return;
+
                 case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
@@ -241,6 +246,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
                             || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
                             || $outcome['healChoices'] !== []
                         ) {
                             throw new SystemException(
@@ -268,6 +274,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
                             || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A heal choice cannot be combined with another deferred consequence'
@@ -294,6 +301,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['avoidZombieChoice']
                             || $outcome['brainstorm']
                             || $outcome['healChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A disaster choice cannot be combined with another deferred consequence'
@@ -305,6 +313,50 @@ class Game extends \Bga\GameFramework\Table
                                 EventType::DISASTER_CHOICE,
                                 $disasterChoice
                             );
+                        }
+                        break;
+                    }
+
+                    if ($outcome['wolfTrapChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['brainstorm']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A Wolf Trap choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (array_reverse($outcome['wolfTrapChoices']) as $wolfTrapChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::WOLF_TRAP_CHOICE,
+                                $wolfTrapChoice
+                            );
+                        }
+
+                        $hasEscapeChoice = $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice'];
+                        if ($hasEscapeChoice) {
+                            if ($outcome['escapeTallaChoice'] && $outcome['avoidZombieChoice']) {
+                                throw new SystemException(
+                                    'Multiple escape choices cannot be resolved together'
+                                );
+                            }
+                            $choiceIsAvailable = $outcome['escapeTallaChoice']
+                                ? $this->escapeTallaChoiceIsAvailable()
+                                : $this->zombieEscapeChoiceIsAvailable();
+                            if ($choiceIsAvailable) {
+                                $this->gamestate->nextState(
+                                    $outcome['escapeTallaChoice']
+                                        ? Transition::PLAYER_CHOICE
+                                        : Transition::AVOID_ZOMBIE_CHOICE
+                                );
+                                return;
+                            }
                         }
                         break;
                     }
@@ -541,6 +593,7 @@ class Game extends \Bga\GameFramework\Table
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ];
 
         switch ($consequence['action']) {
@@ -621,6 +674,11 @@ class Game extends \Bga\GameFramework\Table
                     'consequence' => $consequence,
                 ];
                 break;
+            case 'wolftrap':
+                $outcome['wolfTrapChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                ];
+                break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
                 break;
@@ -691,6 +749,7 @@ class Game extends \Bga\GameFramework\Table
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
+            'wolfTrapChoices' => [],
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -714,6 +773,11 @@ class Game extends \Bga\GameFramework\Table
 
         foreach ($consequences as $currentConsequence) {
             $action = strval($currentConsequence['action'] ?? 'none');
+            if ($action === 'wolftrap' && $color !== 'black') {
+                throw new SystemException(
+                    'Wolf Trap consequence is only valid as a black consequence'
+                );
+            }
             $this->notify->all(
                 'applyingConsequence',
                 \clienttranslate("Applying consequence: $action"),
@@ -738,6 +802,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['disasterChoices'] = array_merge(
                 $outcome['disasterChoices'],
                 $currentOutcome['disasterChoices']
+            );
+            $outcome['wolfTrapChoices'] = array_merge(
+                $outcome['wolfTrapChoices'],
+                $currentOutcome['wolfTrapChoices']
             );
         }
 
@@ -1219,7 +1287,6 @@ class Game extends \Bga\GameFramework\Table
         $affectedCharacters = $present
             ? $this->getCharactersAffectedByDisaster($characteristic)
             : [];
-
         return [
             'consequence' => $consequence,
             'sourceCard' => $this->deckManager->getCard(
@@ -1572,6 +1639,121 @@ class Game extends \Bga\GameFramework\Table
         }
 
         return $event;
+    }
+
+    public function argWolfTrapChoice(): array
+    {
+        $event = $this->getPendingWolfTrapChoiceEvent();
+        $drawnDisasters = array_values(
+            $this->disasterManager->getCardsInLocation('hand', $event['id'])
+        );
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'phase' => $drawnDisasters === [] ? 'draw' : 'resolve',
+            'drawnDisasters' => $drawnDisasters,
+            'willBury' => $this->wolfTrapDisasterRequiresBurial(
+                $drawnDisasters
+            ),
+        ];
+    }
+
+    public function actDrawWolfTrapDisaster(): void
+    {
+        $this->checkAction('actDrawWolfTrapDisaster');
+        $event = $this->getPendingWolfTrapChoiceEvent();
+        if ($this->disasterManager->getCardsInLocation('hand', $event['id']) !== []) {
+            throw new UserException(
+                \clienttranslate('The Wolf Trap disaster has already been drawn')
+            );
+        }
+
+        $this->disasterManager->shuffle('deck');
+        $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+        if ($disaster === null) {
+            throw new SystemException('The disaster deck is empty');
+        }
+
+        $this->notify->all(
+            'disasterDrawnFromBag',
+            \clienttranslate('Disaster drawn for Wolf Trap'),
+            [
+                'disaster' => $disaster,
+                'shuffle' => true,
+            ]
+        );
+        $this->gamestate->nextState(Transition::WOLF_TRAP_CHOICE);
+    }
+
+    public function actResolveWolfTrap(): void
+    {
+        $this->checkAction('actResolveWolfTrap');
+        $event = $this->getPendingWolfTrapChoiceEvent();
+        $drawnDisasters = array_values(
+            $this->disasterManager->getCardsInLocation('hand', $event['id'])
+        );
+        if (count($drawnDisasters) !== 1) {
+            throw new UserException(
+                \clienttranslate('You must draw one disaster for Wolf Trap')
+            );
+        }
+
+        if ($this->wolfTrapDisasterRequiresBurial($drawnDisasters)) {
+            $sourceCard = $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            );
+            if ($sourceCard !== null) {
+                $this->moveCard(intval($sourceCard['id']), Location::GRAVEYARD);
+            }
+        }
+
+        $this->disasterManager->moveAllCardsInLocation(
+            'hand',
+            'deck',
+            $event['id']
+        );
+        $this->disasterManager->shuffle('deck');
+        $this->notify->all(
+            'disasterShuffledBack',
+            \clienttranslate('Wolf Trap disaster shuffled back into the bag')
+        );
+
+        $this->popEvent($event['id']);
+        if ($this->isLossReached()) {
+            $this->notify->all('gameLoss', \clienttranslate('You lost the game'));
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingWolfTrapChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null || $event['type'] !== EventType::WOLF_TRAP_CHOICE) {
+            throw new SystemException('There is no pending Wolf Trap choice');
+        }
+        $sourceCardId = intval($event['parameters']['sourceCardId'] ?? 0);
+        if ($sourceCardId < 1 || $this->deckManager->getCard($sourceCardId) === null) {
+            throw new SystemException('Invalid pending Wolf Trap choice');
+        }
+        return $event;
+    }
+
+    private function wolfTrapDisasterRequiresBurial(array $drawnDisasters): bool
+    {
+        foreach ($drawnDisasters as $disaster) {
+            $hasBreak = intval($disaster['disaster_break'] ?? 0) === 1;
+            $hasAnotherCharacteristic = intval(
+                $disaster['disaster_hunger'] ?? 0
+            ) === 1 || intval($disaster['disaster_stress'] ?? 0) === 1;
+            if ($hasBreak && $hasAnotherCharacteristic) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

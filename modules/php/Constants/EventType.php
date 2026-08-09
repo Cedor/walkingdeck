@@ -10,6 +10,7 @@ final class EventType
     public const BITE_CHOICE = 'biteChoice';
     public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
+    public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const DRAW_CARD = 'drawCard';
     public const SPECIAL_DRAW = 'specialDraw';
     public const ADDITIONAL_DRAW = 'additionalDraw';

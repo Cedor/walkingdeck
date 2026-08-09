@@ -82,7 +82,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (3, '1', 3, 'Adrien', 0, 0, NULL, NULL, NULL, 0),
 (4, '1', 4, 'Eleonore', 0, 0, NULL, NULL, NULL, 0),
 (5, '2', 1, 'Punk', 1, 0, '{"action" : "bury", "bury" : "this"}', NULL, NULL, 0),
-(6, '2', 2, 'Wolf Trap', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "disasterignore", "number" : 1, "ignore" : "stress"}', 0),
+(6, '2', 2, 'Wolf Trap', 0, 0, '{"action" : "multiple", "number" : 2, "0" : {"action" : "avoid", "avoid" : "zombie"}, "1" : {"action" : "wolftrap"}}', NULL, '{"action" : "disasterignore", "number" : 1, "ignore" : "stress"}', 0),
 (7, '2', 3, 'Clown', 1, 0, NULL, NULL, '{"action" : "bury", "bury" : "this"}', 0),
 (8, '2', 4, 'Ellie and Joel', 0, 1, NULL, NULL, '{"action" : "disaster", "number" : 1}', 0),
 (9, '2', 5, 'Kieren', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
