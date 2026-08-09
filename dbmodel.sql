@@ -113,7 +113,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (34, '3', 12, 'The reaper', 1, 0, '{"action" : "bury", "bury" : "character"}', NULL, '{"action" : "bite", "bite" : 3}', 0),
 (35, '3', 13, 'Controller', 1, 0, '{"action" : "fastmemorise", "from" : "deck"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (36, '3', 14, 'Zoey', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "fastmemorise", "from" : "hand"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
-(37, '3', 15, 'Jill', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
+(37, '3', 15, 'Jill', 0, 1, '{"action" : "multiple", "number" : 3, "0" : {"action" : "draw", "number" : 1}, "1" :{"action" : "avoid", "avoid" : "hand2"}, "2" :  {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
 (38, '3', 16, 'Shaun', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "bury", "bury" : "this"}, "1" : {"action" : "draw", "number" : 2}}', '{"action" : "consume", "ressource" : "ressource_break"}', '{"action" : "nothing"}', 0),
 (39, '3', 17, 'LGS', 0, 0, '{"action" : "recover"}', NULL, '{"action" : "restore", "ressource" : "ressource_hunger"}', 0),
 (40, '3', 18, 'Teacher', 1, 0, '{"action" : "bury", "bury" : "topCard"}', NULL, NULL, 0)

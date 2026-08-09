@@ -89,6 +89,7 @@ $machinestates = [
             Transition::RECOVER_CHOICE => GameStep::RECOVER_CHOICE,
             Transition::FAST_MEMORISE_DECK_CHOICE => GameStep::FAST_MEMORISE_DECK_CHOICE,
             Transition::FAST_MEMORISE_HAND_CHOICE => GameStep::FAST_MEMORISE_HAND_CHOICE,
+            Transition::AVOID_HAND_CHOICE => GameStep::AVOID_HAND_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -290,11 +291,24 @@ $machinestates = [
     GameStep::FAST_MEMORISE_HAND_CHOICE => GameStateBuilder::create()
         ->name(Transition::FAST_MEMORISE_HAND_CHOICE)
         ->description(clienttranslate('${actplayer} must choose up to two cards from their hand to memorise'))
-        ->descriptionmyturn(clienttranslate('You must choose one or two cards from your hand to memorise'))
+        ->descriptionmyturn(clienttranslate('You may choose up to two cards from your hand to memorise'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argFastMemoriseHandChoice')
         ->possibleactions([
             'actFastMemoriseFromHand',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::AVOID_HAND_CHOICE => GameStateBuilder::create()
+        ->name(Transition::AVOID_HAND_CHOICE)
+        ->description(clienttranslate('${actplayer} must choose up to two cards from their hand to escape'))
+        ->descriptionmyturn(clienttranslate('You may choose up to two cards from your hand to escape'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argAvoidHandChoice')
+        ->possibleactions([
+            'actAvoidFromHand',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,

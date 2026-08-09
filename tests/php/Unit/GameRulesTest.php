@@ -162,6 +162,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -186,6 +187,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => true,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -430,6 +432,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -453,6 +456,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => true,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -1826,6 +1830,31 @@ final class GameRulesTest extends TestCase
         $this->game->actFastMemoriseFromHand('[1,2,3]');
     }
 
+    public function testOptionalHandChoicesAcceptNoSelectedCards(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actFastMemoriseFromHand('[]');
+        $this->game->actAvoidFromHand('[]');
+
+        self::assertSame([], $deckManager->moves);
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS, Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame([], $this->game->notify->events);
+    }
+
     /**
      * @dataProvider emptyDeckChoiceConsequenceProvider
      */
@@ -1877,6 +1906,160 @@ final class GameRulesTest extends TestCase
         ];
     }
 
+    public function testAvoidHand2WaitsForAChoiceAndKeepsAdditionalDrawsPending(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            37 => [
+                'id' => 37,
+                'location' => Location::MEMORY,
+                'location_arg' => 0,
+                'card_name' => 'Jill',
+                'consequence_white' => [
+                    'action' => 'multiple',
+                    'number' => 2,
+                    '0' => ['action' => 'draw', 'number' => 1],
+                    '1' => ['action' => 'avoid', 'avoid' => 'hand2'],
+                ],
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'Hand card',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Draw card',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 37,
+            'color' => 'white',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::AVOID_HAND_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            EventType::ADDITIONAL_DRAW,
+            $eventStack->getCurrentEvent()['type']
+        );
+        self::assertSame(
+            ['maximumCards' => 1],
+            $this->game->argAvoidHandChoice()
+        );
+    }
+
+    public function testAvoidHand2IsIgnoredWhenTheHandIsEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[37] = [
+            'id' => 37,
+            'location' => Location::MEMORY,
+            'location_arg' => 0,
+            'card_name' => 'Jill',
+            'consequence_white' => [
+                'action' => 'avoid',
+                'avoid' => 'hand2',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 37,
+            'color' => 'white',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame([Transition::STORY_CHECK], $gamestate->transitions);
+    }
+
+    public function testAvoidFromHandMovesCardsToEscapedWithoutConsequences(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'First card',
+                'consequence_black' => ['action' => 'bite', 'bite' => 3],
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'Second card',
+                'consequence_black' => ['action' => 'disaster', 'number' => 1],
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actAvoidFromHand('[10,11]');
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[10]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[11]['location']);
+        self::assertSame(
+            [[10, Location::ESCAPED, 0], [11, Location::ESCAPED, 0]],
+            $deckManager->moves
+        );
+        self::assertSame(
+            ['cardMoved', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+    }
+
+    public function testAvoidFromHandRejectsMoreThanTwoCards(): void
+    {
+        $this->expectException(UserException::class);
+
+        $this->game->actAvoidFromHand('[1,2,3]');
+    }
+
     public function testZombieOrDieRequestsAChoiceWhenAZombieIsInHand(): void
     {
         $this->setProperty('deckManager', new class {
@@ -1901,6 +2084,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -1955,6 +2139,7 @@ final class GameRulesTest extends TestCase
             'checkLoss' => true,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],

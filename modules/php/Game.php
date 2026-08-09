@@ -260,6 +260,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['fastMemorise']
                             || $outcome['disasterChoices'] !== []
@@ -290,6 +291,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['fastMemorise']
                             || $outcome['disasterChoices'] !== []
@@ -319,6 +321,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['fastMemorise']
                             || $outcome['healChoices'] !== []
@@ -343,6 +346,7 @@ class Game extends \Bga\GameFramework\Table
                         if (
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['fastMemorise']
                             || $outcome['biteChoices'] !== []
@@ -391,6 +395,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['fastMemorise']
                             || $outcome['biteChoices'] !== []
@@ -418,6 +423,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['fastMemorise']
                         ) {
                             throw new SystemException(
@@ -439,6 +445,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['startNormalDraw']
                             || $outcome['escapeTallaChoice']
                             || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
                             || $outcome['brainstorm']
                             || $outcome['biteChoices'] !== []
                             || $outcome['healChoices'] !== []
@@ -467,6 +474,37 @@ class Game extends \Bga\GameFramework\Table
                         ) {
                             $this->gamestate->nextState(
                                 Transition::FAST_MEMORISE_DECK_CHOICE
+                            );
+                            return;
+                        }
+                    }
+
+                    if ($outcome['avoidHandChoice']) {
+                        if (
+                            $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'avoid hand2 cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        if ($this->deckManager->countCardInLocation(Location::HAND) > 0) {
+                            if ($outcome['additionalDraws'] > 0) {
+                                $this->pushAdditionalDrawEvents($outcome['additionalDraws']);
+                            }
+                            if ($outcome['startNormalDraw']) {
+                                $this->eventStack->pushEvent(EventType::DRAW_CARD);
+                            }
+                            $this->gamestate->nextState(
+                                Transition::AVOID_HAND_CHOICE
                             );
                             return;
                         }
@@ -738,6 +776,7 @@ class Game extends \Bga\GameFramework\Table
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -895,6 +934,9 @@ class Game extends \Bga\GameFramework\Table
                             $outcome['checkLoss'] = true;
                         }
                         break;
+                    case 'hand2':
+                        $outcome['avoidHandChoice'] = true;
+                        break;
                     default:
                         throw new SystemException(
                             'Invalid avoid consequence target'
@@ -925,6 +967,7 @@ class Game extends \Bga\GameFramework\Table
             'checkLoss' => false,
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
+            'avoidHandChoice' => false,
             'brainstorm' => false,
             'fastMemorise' => false,
             'biteChoices' => [],
@@ -972,6 +1015,7 @@ class Game extends \Bga\GameFramework\Table
             $outcome['checkLoss'] = $outcome['checkLoss'] || $currentOutcome['checkLoss'];
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
             $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
+            $outcome['avoidHandChoice'] = $outcome['avoidHandChoice'] || $currentOutcome['avoidHandChoice'];
             $outcome['brainstorm'] = $outcome['brainstorm'] || $currentOutcome['brainstorm'];
             if ($currentOutcome['fastMemorise'] !== false) {
                 if ($outcome['fastMemorise'] !== false) {
@@ -2213,12 +2257,11 @@ class Game extends \Bga\GameFramework\Table
 
         $selectedCardIds = array_map('intval', $submittedCardIds);
         if (
-            count($selectedCardIds) < 1
-            || count($selectedCardIds) > 2
+            count($selectedCardIds) > 2
             || count(array_unique($selectedCardIds)) !== count($selectedCardIds)
         ) {
             throw new UserException(
-                \clienttranslate('You must select one or two different cards')
+                \clienttranslate('You may select up to two different cards')
             );
         }
 
@@ -2252,6 +2295,87 @@ class Game extends \Bga\GameFramework\Table
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
                     'destination' => Location::MEMORY,
+                    'source' => Location::HAND,
+                ]
+            );
+        }
+
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    public function argAvoidHandChoice(): array
+    {
+        return [
+            'maximumCards' => min(
+                2,
+                $this->deckManager->countCardInLocation(Location::HAND)
+            ),
+        ];
+    }
+
+    public function actAvoidFromHand(string $card_ids): void
+    {
+        $this->checkAction('actAvoidFromHand');
+
+        try {
+            $submittedCardIds = json_decode(
+                $card_ids,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected to escape')
+            );
+        }
+
+        if (!is_array($submittedCardIds)) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected to escape')
+            );
+        }
+
+        $selectedCardIds = array_map('intval', $submittedCardIds);
+        if (
+            count($selectedCardIds) > 2
+            || count(array_unique($selectedCardIds)) !== count($selectedCardIds)
+        ) {
+            throw new UserException(
+                \clienttranslate('You may select up to two different cards')
+            );
+        }
+
+        $handCardsById = [];
+        foreach ($this->deckManager->getCardsInLocation(Location::HAND) as $handCard) {
+            $handCardsById[intval($handCard['id'])] = $handCard;
+        }
+
+        $cards = [];
+        foreach ($selectedCardIds as $cardId) {
+            if (!isset($handCardsById[$cardId])) {
+                throw new UserException(
+                    \clienttranslate('You can only escape cards from your hand')
+                );
+            }
+            $cards[] = $handCardsById[$cardId];
+        }
+
+        foreach ($cards as $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->insertCardOnExtremePosition(
+                $cardId,
+                Location::ESCAPED,
+                true
+            );
+            $movedCard = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} escapes directly from the hand'),
+                [
+                    'card' => $movedCard,
+                    'card_name' => $movedCard['card_name'],
+                    'destination' => Location::ESCAPED,
                     'source' => Location::HAND,
                 ]
             );
