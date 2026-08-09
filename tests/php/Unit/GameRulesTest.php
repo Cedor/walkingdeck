@@ -212,12 +212,14 @@ final class GameRulesTest extends TestCase
         $deckManager->cards = [
             41 => [
                 'id' => 41,
+                'type' => '2',
                 'location' => Location::GRAVEYARD,
                 'location_arg' => 1,
                 'card_name' => 'First buried card',
             ],
             42 => [
                 'id' => 42,
+                'type' => '3',
                 'location' => Location::GRAVEYARD,
                 'location_arg' => 2,
                 'card_name' => 'Top buried card',
@@ -234,7 +236,45 @@ final class GameRulesTest extends TestCase
         self::assertSame(Location::GRAVEYARD, $deckManager->cards[41]['location']);
         self::assertSame(Location::ESCAPED, $deckManager->cards[42]['location']);
         self::assertSame([42, Location::ESCAPED, 0], $deckManager->moves[0]);
-        self::assertSame('cardMoved', end($this->game->notify->events)['type']);
+        $notification = end($this->game->notify->events);
+        self::assertSame('cardMoved', $notification['type']);
+        self::assertSame(1, $notification['arguments']['graveyardNb']);
+        self::assertSame(
+            [
+                'id' => 41,
+                'type' => '4',
+                'type_arg' => '20',
+                'location' => Location::GRAVEYARD,
+                'location_arg' => 1,
+            ],
+            $notification['arguments']['graveyardTop']
+        );
+    }
+
+    public function testBuriedCardsAreInsertedOnTopOfTheGraveyard(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[40] = [
+            'id' => 40,
+            'location' => Location::ESCAPED,
+            'location_arg' => 0,
+            'card_name' => 'Buried card',
+            'consequence_black' => [
+                'action' => 'bury',
+                'bury' => 'this',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $this->invoke(
+            'applyConsequences',
+            [$deckManager->cards[40], 'black']
+        );
+
+        self::assertSame(
+            [[40, Location::GRAVEYARD, true]],
+            $deckManager->extremeInsertions
+        );
     }
 
     public function testUnearthDoesNothingWhenTheGraveyardIsEmpty(): void
@@ -2871,6 +2911,14 @@ final class GameRulesTest extends TestCase
                 int $locationArg = 0
             ): void {
                 $this->cards[$cardId]['location'] = $location;
+            }
+
+            public function insertCardOnExtremePosition(
+                int $cardId,
+                string $location,
+                bool $onTop
+            ): void {
+                $this->moveCard($cardId, $location);
             }
         };
         $this->setProperty('deckManager', $deckManager);

@@ -1829,6 +1829,18 @@ define([
         document.getElementById("brainstorm_wrap").style.display = "block";
       }
       await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
+      if (args.source === "graveyard" && args.graveyardNb !== undefined) {
+        const graveyardTop = args.graveyardTop || null;
+        this.graveyard.setCardNumber(
+          Math.max(0, Number(args.graveyardNb) - (graveyardTop ? 1 : 0))
+        );
+        if (graveyardTop) {
+          await this.graveyard.addCard(graveyardTop, {
+            autoupdateCardNumber: false,
+            autoRemovePreviousCards: true,
+          });
+        }
+      }
     },
 
     notif_deckTopRevealed: async function (args) {

@@ -998,14 +998,37 @@ class Game extends \Bga\GameFramework\Table
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
     {
         $source = $this->deckManager->getCard($card_id)['location'];
-        $this->deckManager->moveCard($card_id, $location, $location_arg);
+        if ($location === Location::GRAVEYARD) {
+            $this->deckManager->insertCardOnExtremePosition(
+                $card_id,
+                $location,
+                true
+            );
+        } else {
+            $this->deckManager->moveCard($card_id, $location, $location_arg);
+        }
         $card = $this->deckManager->getCard($card_id);
         $card_name = $card['card_name'];
-        $this->notify->all('cardMoved', \clienttranslate("Card $card_name moved from $source to $location"), array(
+        $notificationArguments = array(
             'card' => $card,
             'destination' => $location,
             'source' => $source
-        ));
+        );
+        if ($source === Location::GRAVEYARD && $location !== Location::GRAVEYARD) {
+            $graveyardTop = $this->deckManager->getCardOnTop(
+                Location::GRAVEYARD
+            );
+            $notificationArguments['graveyardNb'] = $this->deckManager
+                ->countCardInLocation(Location::GRAVEYARD);
+            $notificationArguments['graveyardTop'] = $graveyardTop === null
+                ? null
+                : $this->deckManager->generateFakeCard($graveyardTop);
+        }
+        $this->notify->all(
+            'cardMoved',
+            \clienttranslate("Card $card_name moved from $source to $location"),
+            $notificationArguments
+        );
     }
 
     /**
