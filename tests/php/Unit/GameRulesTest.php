@@ -443,6 +443,93 @@ final class GameRulesTest extends TestCase
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
+    public function testAvoidDeckEscapesBothTopCardsAndBuriesCharacters(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban lower card',
+                'is_character' => '0',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::URBAN,
+                'location_arg' => 2,
+                'card_name' => 'Urban top card',
+                'is_character' => '0',
+                'consequence_black' => ['action' => 'bite', 'bite' => 3],
+            ],
+            20 => [
+                'id' => 20,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural lower card',
+                'is_character' => '0',
+            ],
+            21 => [
+                'id' => 21,
+                'location' => Location::RURAL,
+                'location_arg' => 2,
+                'card_name' => 'Rural top character',
+                'is_character' => '1',
+                'consequence_black' => ['action' => 'disaster', 'number' => 1],
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('revealedUrbanCardId', 11);
+        $this->game->setGameStateValue('revealedRuralCardId', 21);
+        $sourceCard = [
+            'id' => 19,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'deck',
+            ],
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$sourceCard, 'black']);
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[11]['location']);
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[21]['location']);
+        self::assertSame(Location::URBAN, $deckManager->cards[10]['location']);
+        self::assertSame(Location::RURAL, $deckManager->cards[20]['location']);
+        self::assertSame(
+            [[11, Location::ESCAPED, 0], [21, Location::GRAVEYARD, 0]],
+            $deckManager->moves
+        );
+        self::assertTrue($outcome['checkLoss']);
+        self::assertSame(0, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(0, $this->game->getGameStateValue('revealedRuralCardId'));
+        self::assertSame(
+            ['applyingConsequence', 'cardMoved', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    public function testAvoidDeckIsIgnoredWhenBothDecksAreEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $this->setProperty('deckManager', $deckManager);
+        $sourceCard = [
+            'id' => 19,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'deck',
+            ],
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$sourceCard, 'black']);
+
+        self::assertSame([], $deckManager->moves);
+        self::assertFalse($outcome['checkLoss']);
+        self::assertSame(
+            ['applyingConsequence'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
     public function testBrainstormRequestsDeckSelection(): void
     {
         $card = [

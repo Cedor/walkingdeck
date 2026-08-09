@@ -937,6 +937,24 @@ class Game extends \Bga\GameFramework\Table
                     case 'hand2':
                         $outcome['avoidHandChoice'] = true;
                         break;
+                    case 'deck':
+                        foreach ([Location::URBAN, Location::RURAL] as $location) {
+                            $deckTop = $this->deckManager->getCardOnTop($location);
+                            if ($deckTop === null) {
+                                continue;
+                            }
+
+                            $cardId = intval($deckTop['id']);
+                            $this->clearDeckRevealIfCardLeaves($cardId, $location);
+                            $destination = intval($deckTop['is_character'] ?? 0) === 1
+                                ? Location::GRAVEYARD
+                                : Location::ESCAPED;
+                            $this->moveCard($cardId, $destination);
+                            if ($destination === Location::GRAVEYARD) {
+                                $outcome['checkLoss'] = true;
+                            }
+                        }
+                        break;
                     default:
                         throw new SystemException(
                             'Invalid avoid consequence target'

@@ -95,7 +95,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (16, '2', 12, 'RV', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "restore", "ressource" : "ressource_break"}', 0),
 (17, '2', 13, 'Cellar', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "heal", "number" : 3, "condition" : "hunger", "condition2" : "stress"}', 0),
 (18, '2', 14, 'Teddy Bear', 0, 0, '{"action" : "restore", "ressource" : "ressource_stress"}', NULL, '{"action" : "heal", "number" : 2, "condition" : "stress"}', 0),
-(19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "other"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
+(19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "avoid", "avoid" : "deck"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (20, '2', 16, 'Voodoo', 1, 0, '{"action" : "removedisaster", "disaster" : "break"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (21, '2', 17, 'Mutt', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
 (22, '2', 18, 'Grenade', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
