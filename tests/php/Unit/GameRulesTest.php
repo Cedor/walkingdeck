@@ -890,10 +890,9 @@ final class GameRulesTest extends TestCase
 
         self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
         $this->game->actDrawDisaster();
-        self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
-        self::assertSame(1, $this->game->argDisasterChoice()['confirmedDraws']);
-        $this->game->actDrawDisaster();
         self::assertSame('confirmDraw', $this->game->argDisasterChoice()['phase']);
+        self::assertSame(1, $this->game->argDisasterChoice()['confirmedDraws']);
+        self::assertCount(2, $this->game->argDisasterChoice()['drawnDisasters']);
         $this->game->actConfirmDisasterDraw();
 
         $args = $this->game->argDisasterChoice();
