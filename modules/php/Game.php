@@ -206,6 +206,27 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::HEAL_CHOICE);
                     return;
 
+                case EventType::BURY_CHARACTER_CHOICE:
+                    $buryEvent = $this->getPendingBuryCharacterChoiceEvent();
+                    if ($this->getCharactersInHand() === []) {
+                        $this->popEvent($buryEvent['id']);
+                        $this->moveCard(
+                            intval($buryEvent['parameters']['sourceCardId']),
+                            Location::GRAVEYARD
+                        );
+                        if ($this->isLossReached()) {
+                            $this->notify->all(
+                                'gameLoss',
+                                \clienttranslate('You lost the game')
+                            );
+                            $this->gamestate->nextState(Transition::GAME_END);
+                            return;
+                        }
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::BURY_CHARACTER_CHOICE);
+                    return;
+
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
                     if (!$this->hasCharactersInPlay()) {
@@ -249,6 +270,34 @@ class Game extends \Bga\GameFramework\Table
                         );
                         $this->gamestate->nextState(Transition::GAME_END);
                         return;
+                    }
+
+                    if ($outcome['buryCharacterChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A bury character choice cannot be combined with another deferred consequence'
+                            );
+                        }
+                        foreach (array_reverse($outcome['buryCharacterChoices']) as $buryChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::BURY_CHARACTER_CHOICE,
+                                $buryChoice
+                            );
+                        }
+                        break;
                     }
 
                     if (
@@ -781,6 +830,7 @@ class Game extends \Bga\GameFramework\Table
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -807,7 +857,14 @@ class Game extends \Bga\GameFramework\Table
                         $outcome['checkLoss'] = true;
                         break;
                     case 'character':
-                        // CONS implement bury character
+                        if ($this->getCharactersInHand() === []) {
+                            $this->moveCard(intval($card['id']), Location::GRAVEYARD);
+                            $outcome['checkLoss'] = true;
+                        } else {
+                            $outcome['buryCharacterChoices'][] = [
+                                'sourceCardId' => intval($card['id']),
+                            ];
+                        }
                         break;
                     case 'topCard':
                         // CONS implement bury top card
@@ -1010,6 +1067,7 @@ class Game extends \Bga\GameFramework\Table
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1074,6 +1132,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['disasterChoices'] = array_merge(
                 $outcome['disasterChoices'],
                 $currentOutcome['disasterChoices']
+            );
+            $outcome['buryCharacterChoices'] = array_merge(
+                $outcome['buryCharacterChoices'],
+                $currentOutcome['buryCharacterChoices']
             );
             $outcome['wolfTrapChoices'] = array_merge(
                 $outcome['wolfTrapChoices'],
@@ -1361,6 +1423,75 @@ class Game extends \Bga\GameFramework\Table
         }
 
         return $event;
+    }
+
+    public function argBuryCharacterChoice(): array
+    {
+        $event = $this->getPendingBuryCharacterChoiceEvent();
+        $characters = $this->getCharactersInHand();
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'eligibleCharacters' => $characters,
+            'eligibleCardsIds' => array_map(
+                'intval',
+                array_column($characters, 'id')
+            ),
+        ];
+    }
+
+    public function actBuryCharacter(int $card_id): void
+    {
+        $this->checkAction('actBuryCharacter');
+        $event = $this->getPendingBuryCharacterChoiceEvent();
+
+        $eligibleCharactersById = [];
+        foreach ($this->getCharactersInHand() as $character) {
+            $eligibleCharactersById[intval($character['id'])] = $character;
+        }
+        if (!isset($eligibleCharactersById[$card_id])) {
+            throw new UserException(
+                \clienttranslate('You must choose a character from your hand')
+            );
+        }
+
+        $this->moveCard($card_id, Location::GRAVEYARD);
+        $this->popEvent($event['id']);
+
+        if ($this->isLossReached()) {
+            $this->notify->all(
+                'gameLoss',
+                \clienttranslate('You lost the game')
+            );
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingBuryCharacterChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::BURY_CHARACTER_CHOICE
+            || intval($event['parameters']['sourceCardId'] ?? 0) < 1
+        ) {
+            throw new SystemException('There is no pending bury character choice');
+        }
+        return $event;
+    }
+
+    private function getCharactersInHand(): array
+    {
+        return array_values(array_filter(
+            $this->deckManager->getCardsInLocation(Location::HAND),
+            static function (array $card): bool {
+                return intval($card['is_character'] ?? 0) === 1;
+            }
+        ));
     }
 
     public function argHealChoice(): array

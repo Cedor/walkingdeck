@@ -167,6 +167,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -192,6 +193,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -505,6 +507,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -616,6 +619,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1282,6 +1286,144 @@ final class GameRulesTest extends TestCase
             [Transition::STORY_CHECK_STEP],
             $gamestate->transitions
         );
+    }
+
+    public function testBuryCharacterConsequencePausesForAHandCharacterChoice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            34 => [
+                'id' => 34,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'The reaper',
+                'is_character' => '0',
+                'consequence_black' => [
+                    'action' => 'bury',
+                    'bury' => 'character',
+                ],
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Character',
+                'is_character' => '1',
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Not a character',
+                'is_character' => '0',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 34,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::BURY_CHARACTER_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            [8],
+            $this->game->argBuryCharacterChoice()['eligibleCardsIds']
+        );
+
+        $this->game->actBuryCharacter(8);
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[8]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[34]['location']);
+        self::assertSame(
+            [
+                Transition::BURY_CHARACTER_CHOICE,
+                Transition::DISPATCH_EVENTS,
+            ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testBuryCharacterConsequenceBuriesSourceWithoutAHandCharacter(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            34 => [
+                'id' => 34,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'The reaper',
+                'is_character' => '0',
+                'consequence_black' => [
+                    'action' => 'bury',
+                    'bury' => 'character',
+                ],
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Not a character',
+                'is_character' => '0',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $outcome = $this->invoke(
+            'applyConsequences',
+            [$deckManager->cards[34], 'black']
+        );
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[34]['location']);
+        self::assertTrue($outcome['checkLoss']);
+        self::assertSame([], $outcome['buryCharacterChoices']);
+    }
+
+    public function testBuryCharacterRejectsANonCharacterFromHand(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            8 => [
+                'id' => 8,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Character',
+                'is_character' => '1',
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Not a character',
+                'is_character' => '0',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BURY_CHARACTER_CHOICE, [
+            'sourceCardId' => 34,
+        ]);
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+        $this->game->actBuryCharacter(9);
     }
 
     public function testBiteConsequencePausesForACharacterChoice(): void
@@ -2244,6 +2386,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -2299,6 +2442,7 @@ final class GameRulesTest extends TestCase
             'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
+            'buryCharacterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],

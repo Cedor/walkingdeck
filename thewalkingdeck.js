@@ -507,6 +507,15 @@ define([
           );
           break;
         }
+        case "buryCharacterChoice": {
+          const buryArgs = args.args || args;
+          this.buryCharacterEligibleCardIds = (buryArgs.eligibleCardsIds || []).map(Number);
+          this.hand.unselectAll();
+          this.hand.setSelectionMode("single");
+          this.hand.onSelectionChange = (selection, lastChange) =>
+            this.onBuryCharacterSelectionChange(selection, lastChange);
+          break;
+        }
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -626,6 +635,11 @@ define([
             this.healChoiceConnector = null;
           }
           this.clearHealSelection();
+          break;
+        case "buryCharacterChoice":
+          this.hand.onSelectionChange = null;
+          this.hand.unselectAll();
+          this.buryCharacterEligibleCardIds = [];
           break;
         case "disasterChoice":
           this.disasterResolutionPhase = null;
@@ -853,6 +867,16 @@ define([
               }
             );
             break;
+          case "buryCharacterChoice":
+            this.statusBar.addActionButton(
+              _("Confirm burial"),
+              () => this.confirmBuryCharacter(),
+              {
+                id: "confirm_bury_character",
+                color: "primary",
+              }
+            ).style.visibility = "hidden";
+            break;
           case "avoidHandChoice":
             this.statusBar.addActionButton(
               _("Confirm escape"),
@@ -1077,6 +1101,32 @@ define([
       const card = this.hand.getSelection()[0];
       if (card && Boolean(parseInt(card.is_zombie))) {
         this.bgaPerformAction("actEscapeZombie", { card_id: card.id });
+      }
+    },
+
+    onBuryCharacterSelectionChange: function (selection, lastChange) {
+      const selectedCard = selection[0];
+      const isEligible = selectedCard
+        && (this.buryCharacterEligibleCardIds || []).includes(Number(selectedCard.id))
+        && Boolean(Number(selectedCard.is_character));
+      if (selectedCard && !isEligible) {
+        this.hand.unselectCard(lastChange || selectedCard);
+      }
+
+      const button = document.getElementById("confirm_bury_character");
+      if (button) {
+        button.style.visibility = isEligible ? "visible" : "hidden";
+      }
+    },
+
+    confirmBuryCharacter: function () {
+      const card = this.hand.getSelection()[0];
+      if (
+        card
+        && Boolean(Number(card.is_character))
+        && (this.buryCharacterEligibleCardIds || []).includes(Number(card.id))
+      ) {
+        this.bgaPerformAction("actBuryCharacter", { card_id: Number(card.id) });
       }
     },
 
