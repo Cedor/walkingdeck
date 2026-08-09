@@ -390,6 +390,34 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
   });
 
+  it("recovers only an eligible escaped card", () => {
+    const context = {
+      recoverChoiceActive: true,
+      recoverEligibleCardIds: [12],
+      bgaPerformAction: spy(),
+    };
+
+    game.onRecoverCardClick.call(context, { id: 13 });
+    game.onRecoverCardClick.call(context, { id: 12 });
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actRecoverCard");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 12);
+  });
+
+  it("does not play a hand card to escaped during a recover choice", () => {
+    const context = {
+      recoverChoiceActive: true,
+      hand: { getSelection: spy(() => [{ id: 5 }]) },
+      canCardBePlayedInLocation: spy(() => true),
+      bgaPerformAction: spy(),
+    };
+
+    game.onEscapedClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
+
   it("only draws a disaster during phase two", () => {
     const context = { gamePhase: 1, bgaPerformAction: spy() };
 

@@ -167,6 +167,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -189,6 +190,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -263,6 +265,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -284,7 +287,87 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testRecoverMovesAChosenEscapedCardToHand(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            39 => [
+                'id' => 39,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'LGS',
+                'consequence_black' => ['action' => 'recover'],
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Robert',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 39,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame([Transition::RECOVER_CHOICE], $gamestate->transitions);
+        self::assertSame(
+            [39, 12],
+            $this->game->argRecoverChoice()['eligibleCardsIds']
+        );
+
+        $this->game->actRecoverCard(12);
+
+        self::assertSame(Location::HAND, $deckManager->cards[12]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[39]['location']);
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
+    }
+
+    public function testRecoverRejectsACardOutsideEscaped(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            39 => [
+                'id' => 39,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'LGS',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Robert',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::RECOVER_CHOICE, [
+            'sourceCardId' => 39,
+        ]);
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+        $this->game->actRecoverCard(12);
     }
 
     /**
@@ -1355,6 +1438,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -1407,6 +1491,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,

@@ -86,6 +86,7 @@ $machinestates = [
             Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
+            Transition::RECOVER_CHOICE => GameStep::RECOVER_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -256,6 +257,19 @@ $machinestates = [
             Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END,
+        ])
+        ->build(),
+    GameStep::RECOVER_CHOICE => GameStateBuilder::create()
+        ->name(Transition::RECOVER_CHOICE)
+        ->description(clienttranslate('${actplayer} must recover an escaped card'))
+        ->descriptionmyturn(clienttranslate('You must choose an escaped card to recover'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argRecoverChoice')
+        ->possibleactions([
+            'actRecoverCard',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()

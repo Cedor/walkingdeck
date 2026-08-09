@@ -213,6 +213,15 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::WOLF_TRAP_CHOICE);
                     return;
 
+                case EventType::RECOVER_CHOICE:
+                    $this->getPendingRecoverChoiceEvent();
+                    if ($this->deckManager->countCardInLocation(Location::ESCAPED) === 0) {
+                        $this->popEvent($event['id']);
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::RECOVER_CHOICE);
+                    return;
+
                 case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
@@ -247,6 +256,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['brainstorm']
                             || $outcome['disasterChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
                             || $outcome['healChoices'] !== []
                         ) {
                             throw new SystemException(
@@ -275,6 +285,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['brainstorm']
                             || $outcome['disasterChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A heal choice cannot be combined with another deferred consequence'
@@ -302,6 +313,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['brainstorm']
                             || $outcome['healChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A disaster choice cannot be combined with another deferred consequence'
@@ -325,6 +337,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['biteChoices'] !== []
                             || $outcome['healChoices'] !== []
                             || $outcome['disasterChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
                                 'A Wolf Trap choice cannot be combined with another deferred consequence'
@@ -357,6 +370,32 @@ class Game extends \Bga\GameFramework\Table
                                 );
                                 return;
                             }
+                        }
+                        break;
+                    }
+
+                    if ($outcome['recoverChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A recover choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (array_reverse($outcome['recoverChoices']) as $recoverChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::RECOVER_CHOICE,
+                                $recoverChoice
+                            );
                         }
                         break;
                     }
@@ -594,6 +633,7 @@ class Game extends \Bga\GameFramework\Table
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ];
 
         switch ($consequence['action']) {
@@ -679,6 +719,11 @@ class Game extends \Bga\GameFramework\Table
                     'sourceCardId' => intval($card['id']),
                 ];
                 break;
+            case 'recover':
+                $outcome['recoverChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                ];
+                break;
             case 'forcePass':
                 $outcome['startNormalDraw'] = true;
                 break;
@@ -750,6 +795,7 @@ class Game extends \Bga\GameFramework\Table
             'healChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
+            'recoverChoices' => [],
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -806,6 +852,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['wolfTrapChoices'] = array_merge(
                 $outcome['wolfTrapChoices'],
                 $currentOutcome['wolfTrapChoices']
+            );
+            $outcome['recoverChoices'] = array_merge(
+                $outcome['recoverChoices'],
+                $currentOutcome['recoverChoices']
             );
         }
 
@@ -1754,6 +1804,60 @@ class Game extends \Bga\GameFramework\Table
             }
         }
         return false;
+    }
+
+    public function argRecoverChoice(): array
+    {
+        $event = $this->getPendingRecoverChoiceEvent();
+        $eligibleCards = array_values(
+            $this->deckManager->getCardsInLocation(Location::ESCAPED)
+        );
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'eligibleCards' => $eligibleCards,
+            'eligibleCardsIds' => array_map(
+                'intval',
+                array_column($eligibleCards, 'id')
+            ),
+        ];
+    }
+
+    public function actRecoverCard(int $card_id): void
+    {
+        $this->checkAction('actRecoverCard');
+        $event = $this->getPendingRecoverChoiceEvent();
+        $eligibleCardIds = array_map(
+            'intval',
+            array_column(
+                $this->deckManager->getCardsInLocation(Location::ESCAPED),
+                'id'
+            )
+        );
+        if (!in_array($card_id, $eligibleCardIds, true)) {
+            throw new UserException(
+                \clienttranslate('You must choose a card from the escaped area')
+            );
+        }
+
+        $this->moveCard($card_id, Location::HAND);
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingRecoverChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null || $event['type'] !== EventType::RECOVER_CHOICE) {
+            throw new SystemException('There is no pending recover choice');
+        }
+        $sourceCardId = intval($event['parameters']['sourceCardId'] ?? 0);
+        if ($sourceCardId < 1 || $this->deckManager->getCard($sourceCardId) === null) {
+            throw new SystemException('Invalid pending recover choice');
+        }
+        return $event;
     }
 
     /**

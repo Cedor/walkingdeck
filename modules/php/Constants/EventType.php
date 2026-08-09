@@ -11,6 +11,7 @@ final class EventType
     public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
+    public const RECOVER_CHOICE = 'recoverChoice';
     public const DRAW_CARD = 'drawCard';
     public const SPECIAL_DRAW = 'specialDraw';
     public const ADDITIONAL_DRAW = 'additionalDraw';
