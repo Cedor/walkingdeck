@@ -520,7 +520,7 @@ final class GameRulesTest extends TestCase
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
-    public function testAvoidDeckEscapesBothTopCardsAndBuriesCharacters(): void
+    public function testAvoidBothDeckEscapesBothTopCardsAndBuriesCharacters(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards = [
@@ -562,7 +562,7 @@ final class GameRulesTest extends TestCase
             'id' => 19,
             'consequence_black' => [
                 'action' => 'avoid',
-                'avoid' => 'deck',
+                'avoid' => 'bothdeck',
             ],
         ];
 
@@ -585,7 +585,7 @@ final class GameRulesTest extends TestCase
         );
     }
 
-    public function testAvoidDeckIsIgnoredWhenBothDecksAreEmpty(): void
+    public function testAvoidBothDeckIsIgnoredWhenBothDecksAreEmpty(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $this->setProperty('deckManager', $deckManager);
@@ -593,7 +593,7 @@ final class GameRulesTest extends TestCase
             'id' => 19,
             'consequence_black' => [
                 'action' => 'avoid',
-                'avoid' => 'deck',
+                'avoid' => 'bothdeck',
             ],
         ];
 

@@ -1130,7 +1130,7 @@ class Game extends \Bga\GameFramework\Table
                     case 'hand2':
                         $outcome['avoidHandChoice'] = true;
                         break;
-                    case 'deck':
+                    case 'bothdeck':
                         foreach ([Location::URBAN, Location::RURAL] as $location) {
                             $deckTop = $this->deckManager->getCardOnTop($location);
                             if ($deckTop === null) {
