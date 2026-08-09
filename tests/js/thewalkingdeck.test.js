@@ -59,6 +59,7 @@ describe("card helpers", () => {
         prepareBrainstormReorder: spy(),
         disableBrainstormReorder: spy(),
         brainstormAvailableDecks: [],
+        enableDeckSelection: spy(),
       };
 
       game.onEnteringState.call(context, "brainstormDeckChoice", {
@@ -88,6 +89,171 @@ describe("card helpers", () => {
       delete documentElementOverrides.hand_wrap;
     }
   });
+
+  it("uses native deck selection during brainstorm deck choice", () => {
+    const urbanDeck = {
+      setSelectionMode: spy(),
+      unselectAll: spy(),
+      onSelectionChange: null,
+    };
+    const ruralDeck = {
+      setSelectionMode: spy(),
+      unselectAll: spy(),
+      onSelectionChange: null,
+    };
+    const context = {
+      urbanDeck,
+      ruralDeck,
+      brainstormAvailableDecks: [],
+      onBrainstormUrbanDeckClick: game.onBrainstormUrbanDeckClick,
+      onBrainstormRuralDeckClick: game.onBrainstormRuralDeckClick,
+      bgaPerformAction: spy(),
+      getActivePlayerId: spy(),
+      enableDeckSelection: game.enableDeckSelection,
+    };
+
+    game.onEnteringState.call(context, "brainstormDeckChoice", {
+      args: { availableDecks: ["deck_urban", "deck_rural"] },
+    });
+
+    assert.equal(urbanDeck.setSelectionMode.calls[0][0], "single");
+    assert.equal(ruralDeck.setSelectionMode.calls[0][0], "single");
+
+    urbanDeck.onSelectionChange([{ id: "urban-top-card" }]);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actStartBrainstorm");
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].location,
+      "deck_urban"
+    );
+  });
+
+  it("coordinates native selection across the two deck stocks", () => {
+    const ruralDeck = {
+      setSelectionMode: spy(),
+      unselectAll: spy(),
+      onSelectionChange: null,
+    };
+    const urbanDeck = {
+      setSelectionMode: spy(),
+      unselectAll: spy(),
+      onSelectionChange: null,
+    };
+    const onSelected = spy();
+    const context = { ruralDeck, urbanDeck };
+
+    game.enableDeckSelection.call(
+      context,
+      ["deck_rural"],
+      onSelected
+    );
+
+    assert.equal(ruralDeck.setSelectionMode.calls[0][0], "single");
+    assert.equal(urbanDeck.setSelectionMode.calls[0][0], "none");
+
+    ruralDeck.onSelectionChange([{ id: "rural-top-card" }]);
+
+    assert.equal(onSelected.calls[0][0], "deck_rural");
+    assert.equal(urbanDeck.unselectAll.calls.length, 2);
+
+    game.disableDeckSelection.call(context);
+
+    assert.equal(ruralDeck.setSelectionMode.calls.at(-1)[0], "none");
+    assert.equal(urbanDeck.setSelectionMode.calls.at(-1)[0], "none");
+    assert.equal(ruralDeck.onSelectionChange, null);
+    assert.equal(urbanDeck.onSelectionChange, null);
+  });
+
+  for (const [stateName, stateArgs, actionName] of [
+    ["drawCards", {}, "actDrawFromDeck"],
+    [
+      "fastMemoriseDeckChoice",
+      { args: { availableDecks: ["deck_rural"] } },
+      "actFastMemorise",
+    ],
+  ]) {
+    it(`uses native deck selection during ${stateName}`, () => {
+      const ruralDeck = {
+        setSelectionMode: spy(),
+        unselectAll: spy(),
+        onSelectionChange: null,
+      };
+      const urbanDeck = {
+        setSelectionMode: spy(),
+        unselectAll: spy(),
+        onSelectionChange: null,
+      };
+      const context = {
+        ruralDeck,
+        urbanDeck,
+        enableDeckSelection: game.enableDeckSelection,
+        onRuralDeckCardClick: game.onRuralDeckCardClick,
+        onUrbanDeckCardClick: game.onUrbanDeckCardClick,
+        onFastMemoriseRuralDeckClick: game.onFastMemoriseRuralDeckClick,
+        onFastMemoriseUrbanDeckClick: game.onFastMemoriseUrbanDeckClick,
+        bgaPerformAction: spy(),
+        getActivePlayerId: spy(),
+      };
+
+      game.onEnteringState.call(context, stateName, stateArgs);
+      ruralDeck.onSelectionChange([{ id: "rural-top-card" }]);
+
+      assert.equal(context.bgaPerformAction.calls[0][0], actionName);
+      assert.equal(
+        context.bgaPerformAction.calls[0][1].location,
+        "deck_rural"
+      );
+    });
+  }
+
+  for (const [stateName, selectedProperty, buttonId] of [
+    [
+      "buryTopCardChoice",
+      "buryTopCardSelectedDeck",
+      "confirm_bury_top_card",
+    ],
+    [
+      "avoidDeckChoice",
+      "avoidDeckSelectedDeck",
+      "confirm_avoid_deck",
+    ],
+  ]) {
+    it(`keeps confirmation after native selection during ${stateName}`, () => {
+      const ruralDeck = {
+        setSelectionMode: spy(),
+        unselectAll: spy(),
+        onSelectionChange: null,
+      };
+      const urbanDeck = {
+        setSelectionMode: spy(),
+        unselectAll: spy(),
+        onSelectionChange: null,
+      };
+      const button = { style: {} };
+      documentElementOverrides[buttonId] = button;
+      const context = {
+        ruralDeck,
+        urbanDeck,
+        enableDeckSelection: game.enableDeckSelection,
+        selectBuryTopCardDeck: game.selectBuryTopCardDeck,
+        selectAvoidDeck: game.selectAvoidDeck,
+        getActivePlayerId: spy(),
+      };
+
+      try {
+        game.onEnteringState.call(context, stateName, {
+          args: { availableDecks: ["deck_rural", "deck_urban"] },
+        });
+        ruralDeck.onSelectionChange([{ id: "rural-top-card" }]);
+
+        assert.equal(context[selectedProperty], "deck_rural");
+        assert.equal(button.style.visibility, "visible");
+      } finally {
+        delete documentElementOverrides[buttonId];
+      }
+    });
+  }
 
   for (const [wounds, expectedRotation] of [
     ["1", 1],
@@ -409,11 +575,7 @@ describe("player actions", () => {
   });
 
   it("selects a deck before confirming top-card burial", () => {
-    const ruralDeck = { classList: { add: spy(), remove: spy() } };
-    const urbanDeck = { classList: { add: spy(), remove: spy() } };
     const button = { style: {} };
-    documentElementOverrides.deck_rural = ruralDeck;
-    documentElementOverrides.deck_urban = urbanDeck;
     documentElementOverrides.confirm_bury_top_card = button;
     const context = {
       buryTopCardAvailableDecks: ["deck_rural", "deck_urban"],
@@ -424,11 +586,8 @@ describe("player actions", () => {
       game.selectBuryTopCardDeck.call(context, "deck_urban");
 
       assert.equal(context.buryTopCardSelectedDeck, "deck_urban");
-      assert.equal(urbanDeck.classList.add.calls.length, 1);
       assert.equal(button.style.visibility, "visible");
     } finally {
-      delete documentElementOverrides.deck_rural;
-      delete documentElementOverrides.deck_urban;
       delete documentElementOverrides.confirm_bury_top_card;
     }
   });
@@ -448,11 +607,7 @@ describe("player actions", () => {
   });
 
   it("selects a deck before confirming deck avoidance", () => {
-    const ruralDeck = { classList: { add: spy(), remove: spy() } };
-    const urbanDeck = { classList: { add: spy(), remove: spy() } };
     const button = { style: {} };
-    documentElementOverrides.deck_rural = ruralDeck;
-    documentElementOverrides.deck_urban = urbanDeck;
     documentElementOverrides.confirm_avoid_deck = button;
     const context = {
       avoidDeckAvailableDecks: ["deck_rural", "deck_urban"],
@@ -463,11 +618,8 @@ describe("player actions", () => {
       game.selectAvoidDeck.call(context, "deck_urban");
 
       assert.equal(context.avoidDeckSelectedDeck, "deck_urban");
-      assert.equal(urbanDeck.classList.add.calls.length, 1);
       assert.equal(button.style.visibility, "visible");
     } finally {
-      delete documentElementOverrides.deck_rural;
-      delete documentElementOverrides.deck_urban;
       delete documentElementOverrides.confirm_avoid_deck;
     }
   });
