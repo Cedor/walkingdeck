@@ -1,2 +1,2 @@
-carte tallahassee : est ce qu'on ignore les consequences de toutes les cartes, ou est ce que l'on ignore uniquement quand la carte vient de la memoire?
+carte tallahassee : si j'evite la derniere carte de la memoire, ça veut dire que j'hevite tallahassee, non?
 café jeux : si l'evité est vide, au moment ou l'on evite le café jeux, c'est donc la seule carte de l'evité, donc il remonte dans la main, c'est normal?

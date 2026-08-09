@@ -447,6 +447,45 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][1].location, "deck_rural");
   });
 
+  it("selects a deck before confirming deck avoidance", () => {
+    const ruralDeck = { classList: { add: spy(), remove: spy() } };
+    const urbanDeck = { classList: { add: spy(), remove: spy() } };
+    const button = { style: {} };
+    documentElementOverrides.deck_rural = ruralDeck;
+    documentElementOverrides.deck_urban = urbanDeck;
+    documentElementOverrides.confirm_avoid_deck = button;
+    const context = {
+      avoidDeckAvailableDecks: ["deck_rural", "deck_urban"],
+      avoidDeckSelectedDeck: null,
+    };
+
+    try {
+      game.selectAvoidDeck.call(context, "deck_urban");
+
+      assert.equal(context.avoidDeckSelectedDeck, "deck_urban");
+      assert.equal(urbanDeck.classList.add.calls.length, 1);
+      assert.equal(button.style.visibility, "visible");
+    } finally {
+      delete documentElementOverrides.deck_rural;
+      delete documentElementOverrides.deck_urban;
+      delete documentElementOverrides.confirm_avoid_deck;
+    }
+  });
+
+  it("submits the selected deck for avoidance", () => {
+    const context = {
+      avoidDeckAvailableDecks: ["deck_rural", "deck_urban"],
+      avoidDeckSelectedDeck: "deck_rural",
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmAvoidDeck.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actAvoidDeck");
+    assert.equal(context.bgaPerformAction.calls[0][1].location, "deck_rural");
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },

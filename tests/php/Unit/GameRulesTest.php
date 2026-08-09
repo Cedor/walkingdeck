@@ -170,6 +170,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -198,6 +199,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -514,6 +516,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -607,6 +610,141 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testAvoidDeckRequestsADeckAndEscapesItsTopTwoCards(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            22 => [
+                'id' => 22,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Grenade',
+                'consequence_black' => [
+                    'action' => 'avoid',
+                    'avoid' => 'deck',
+                ],
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban lower card',
+                'consequence_black' => ['action' => 'bite', 'bite' => 3],
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::URBAN,
+                'location_arg' => 2,
+                'card_name' => 'Urban second card',
+                'is_character' => '1',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::URBAN,
+                'location_arg' => 3,
+                'card_name' => 'Urban top card',
+            ],
+            20 => [
+                'id' => 20,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural card',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 22,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame([Transition::AVOID_DECK_CHOICE], $gamestate->transitions);
+        self::assertSame(
+            [Location::RURAL, Location::URBAN],
+            $this->game->argAvoidDeckChoice()['availableDecks']
+        );
+
+        $this->game->actAvoidDeck(Location::URBAN);
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::URBAN, $deckManager->cards[10]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[11]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[12]['location']);
+        self::assertSame(Location::RURAL, $deckManager->cards[20]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[22]['location']);
+        self::assertSame(
+            [Transition::AVOID_DECK_CHOICE, Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            ['applyingConsequence', 'cardMoved', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    public function testAvoidDeckUsesTheOnlyNonEmptyDeckImmediately(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural lower card',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::RURAL,
+                'location_arg' => 2,
+                'card_name' => 'Rural top card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $sourceCard = [
+            'id' => 22,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'deck',
+            ],
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$sourceCard, 'black']);
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[10]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[11]['location']);
+        self::assertSame([], $outcome['avoidDeckChoices']);
+    }
+
+    public function testAvoidDeckIsIgnoredWhenBothDecksAreEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $this->setProperty('deckManager', $deckManager);
+        $sourceCard = [
+            'id' => 22,
+            'consequence_black' => [
+                'action' => 'avoid',
+                'avoid' => 'deck',
+            ],
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$sourceCard, 'black']);
+
+        self::assertSame([], $deckManager->moves);
+        self::assertSame([], $outcome['avoidDeckChoices']);
+    }
+
     public function testBrainstormRequestsDeckSelection(): void
     {
         $card = [
@@ -628,6 +766,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -2630,6 +2769,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -2688,6 +2828,7 @@ final class GameRulesTest extends TestCase
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],

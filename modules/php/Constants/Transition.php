@@ -28,6 +28,7 @@ final class Transition
     public const BURY_CHARACTER_CHOICE = 'buryCharacterChoice';
     public const BURY_TOP_CARD_CHOICE = 'buryTopCardChoice';
     public const DRAFT_DISASTER_CHOICE = 'draftDisasterChoice';
+    public const AVOID_DECK_CHOICE = 'avoidDeckChoice';
     public const STORY_CHECK_STEP = 'storyCheckStep';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';
