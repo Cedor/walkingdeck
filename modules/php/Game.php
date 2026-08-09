@@ -451,7 +451,20 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        if (count($this->getAvailableDrawDecks()) > 0) {
+                        if (
+                            $outcome['fastMemorise'] === Location::HAND
+                            && $this->deckManager->countCardInLocation(Location::HAND) > 0
+                        ) {
+                            $this->gamestate->nextState(
+                                Transition::FAST_MEMORISE_HAND_CHOICE
+                            );
+                            return;
+                        }
+
+                        if (
+                            $outcome['fastMemorise'] === 'deck'
+                            && count($this->getAvailableDrawDecks()) > 0
+                        ) {
                             $this->gamestate->nextState(
                                 Transition::FAST_MEMORISE_DECK_CHOICE
                             );
@@ -860,7 +873,11 @@ class Game extends \Bga\GameFramework\Table
                 $outcome['brainstorm'] = true;
                 break;
             case 'fastmemorise':
-                $outcome['fastMemorise'] = true;
+                $from = strval($consequence['from'] ?? '');
+                if (!in_array($from, ['deck', Location::HAND], true)) {
+                    throw new SystemException('Invalid fastmemorise source');
+                }
+                $outcome['fastMemorise'] = $from;
                 break;
             case 'avoid':
                 switch ($consequence['avoid'] ?? null) {
@@ -956,7 +973,14 @@ class Game extends \Bga\GameFramework\Table
             $outcome['escapeTallaChoice'] = $outcome['escapeTallaChoice'] || $currentOutcome['escapeTallaChoice'];
             $outcome['avoidZombieChoice'] = $outcome['avoidZombieChoice'] || $currentOutcome['avoidZombieChoice'];
             $outcome['brainstorm'] = $outcome['brainstorm'] || $currentOutcome['brainstorm'];
-            $outcome['fastMemorise'] = $outcome['fastMemorise'] || $currentOutcome['fastMemorise'];
+            if ($currentOutcome['fastMemorise'] !== false) {
+                if ($outcome['fastMemorise'] !== false) {
+                    throw new SystemException(
+                        'Multiple fastmemorise consequences cannot be resolved together'
+                    );
+                }
+                $outcome['fastMemorise'] = $currentOutcome['fastMemorise'];
+            }
             $outcome['biteChoices'] = array_merge(
                 $outcome['biteChoices'],
                 $currentOutcome['biteChoices']
@@ -2118,6 +2142,16 @@ class Game extends \Bga\GameFramework\Table
         ];
     }
 
+    public function argFastMemoriseHandChoice(): array
+    {
+        return [
+            'maximumCards' => min(
+                2,
+                $this->deckManager->countCardInLocation(Location::HAND)
+            ),
+        ];
+    }
+
     public function actFastMemorise(string $location): void
     {
         $this->checkAction('actFastMemorise');
@@ -2147,6 +2181,78 @@ class Game extends \Bga\GameFramework\Table
                     'card_name' => $card['card_name'],
                     'destination' => Location::MEMORY,
                     'source' => $location,
+                ]
+            );
+        }
+
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    public function actFastMemoriseFromHand(string $card_ids): void
+    {
+        $this->checkAction('actFastMemoriseFromHand');
+
+        try {
+            $submittedCardIds = json_decode(
+                $card_ids,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected for quick memorisation')
+            );
+        }
+
+        if (!is_array($submittedCardIds)) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected for quick memorisation')
+            );
+        }
+
+        $selectedCardIds = array_map('intval', $submittedCardIds);
+        if (
+            count($selectedCardIds) < 1
+            || count($selectedCardIds) > 2
+            || count(array_unique($selectedCardIds)) !== count($selectedCardIds)
+        ) {
+            throw new UserException(
+                \clienttranslate('You must select one or two different cards')
+            );
+        }
+
+        $handCardsById = [];
+        foreach ($this->deckManager->getCardsInLocation(Location::HAND) as $handCard) {
+            $handCardsById[intval($handCard['id'])] = $handCard;
+        }
+
+        $cards = [];
+        foreach ($selectedCardIds as $cardId) {
+            if (!isset($handCardsById[$cardId])) {
+                throw new UserException(
+                    \clienttranslate('You can only quickly memorise cards from your hand')
+                );
+            }
+            $cards[] = $handCardsById[$cardId];
+        }
+
+        foreach ($cards as $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->insertCardOnExtremePosition(
+                $cardId,
+                Location::MEMORY,
+                true
+            );
+            $movedCard = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is quickly memorised from the hand'),
+                [
+                    'card' => $movedCard,
+                    'card_name' => $movedCard['card_name'],
+                    'destination' => Location::MEMORY,
+                    'source' => Location::HAND,
                 ]
             );
         }

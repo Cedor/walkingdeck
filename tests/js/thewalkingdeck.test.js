@@ -720,6 +720,46 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
   });
 
+  it("limits quick memorisation from hand to two selected cards", () => {
+    const thirdCard = { id: 3 };
+    const context = {
+      fastMemoriseMaximumCards: 2,
+      hand: { unselectCard: spy() },
+    };
+
+    game.onFastMemoriseHandSelectionChange.call(
+      context,
+      [{ id: 1 }, { id: 2 }, thirdCard],
+      thirdCard
+    );
+
+    assert.equal(context.hand.unselectCard.calls.length, 1);
+    assert.equal(context.hand.unselectCard.calls[0][0], thirdCard);
+  });
+
+  it("confirms one or two cards selected from hand for quick memorisation", () => {
+    const context = {
+      hand: { getSelection: () => [{ id: "8" }, { id: 11 }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmFastMemoriseFromHand.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actFastMemoriseFromHand");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[8,11]");
+  });
+
+  it("does not confirm quick memorisation without a selected hand card", () => {
+    const context = {
+      hand: { getSelection: () => [] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmFastMemoriseFromHand.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
+
   it("confirms disaster resolution through the shared player action", () => {
     const context = { bgaPerformAction: spy() };
 

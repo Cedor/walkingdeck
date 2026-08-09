@@ -545,6 +545,14 @@ define([
           }
           break;
         }
+        case "fastMemoriseHandChoice": {
+          const fastMemoriseArgs = args.args || args;
+          this.fastMemoriseMaximumCards = Number(fastMemoriseArgs.maximumCards) || 2;
+          this.hand.setSelectionMode("multiple");
+          this.hand.onSelectionChange = (selection, lastChange) =>
+            this.onFastMemoriseHandSelectionChange(selection, lastChange);
+          break;
+        }
         case "brainstormReorder":
           this.setHandVisible(false);
           document.getElementById("brainstorm_wrap").style.display = "block";
@@ -642,6 +650,12 @@ define([
           this.stateConnectors = [];
           document.getElementById("deck_urban").classList.remove("twd-highlight");
           document.getElementById("deck_rural").classList.remove("twd-highlight");
+          break;
+        case "fastMemoriseHandChoice":
+          this.hand.onSelectionChange = null;
+          this.hand.unselectAll();
+          this.hand.setSelectionMode("single");
+          this.fastMemoriseMaximumCards = 0;
           break;
         case "brainstormReorder":
           this.disableBrainstormReorder();
@@ -814,6 +828,16 @@ define([
           }
           case "recoverChoice":
             this.statusBar.setTitle(_("Choose a card from the escaped area to recover"));
+            break;
+          case "fastMemoriseHandChoice":
+            this.statusBar.addActionButton(
+              _("Confirm memorisation"),
+              () => this.confirmFastMemoriseFromHand(),
+              {
+                id: "confirm_fast_memorise_hand",
+                color: "primary",
+              }
+            ).style.visibility = "hidden";
             break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
@@ -1221,6 +1245,29 @@ define([
 
     onFastMemoriseUrbanDeckClick: function () {
       this.bgaPerformAction("actFastMemorise", { location: "deck_urban" });
+    },
+
+    onFastMemoriseHandSelectionChange: function (selection, lastChange) {
+      const maximumCards = this.fastMemoriseMaximumCards || 2;
+      if (selection.length > maximumCards && lastChange) {
+        this.hand.unselectCard(lastChange);
+        return;
+      }
+
+      const button = document.getElementById("confirm_fast_memorise_hand");
+      if (button) {
+        button.style.visibility = selection.length > 0 ? "visible" : "hidden";
+      }
+    },
+
+    confirmFastMemoriseFromHand: function () {
+      const selectedCardIds = this.hand.getSelection().map((card) => Number(card.id));
+      if (selectedCardIds.length < 1 || selectedCardIds.length > 2) {
+        return;
+      }
+      this.bgaPerformAction("actFastMemoriseFromHand", {
+        card_ids: JSON.stringify(selectedCardIds),
+      });
     },
 
     prepareBrainstormReorder: async function (cards) {

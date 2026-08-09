@@ -1590,7 +1590,10 @@ final class GameRulesTest extends TestCase
                 'location' => Location::ESCAPED,
                 'location_arg' => 0,
                 'card_name' => 'Controller',
-                'consequence_black' => ['action' => 'fastmemorise'],
+                'consequence_black' => [
+                    'action' => 'fastmemorise',
+                    'from' => 'deck',
+                ],
             ],
             12 => [
                 'id' => 12,
@@ -1681,6 +1684,148 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testFastMemoriseFromHandWaitsForAHandChoice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            36 => [
+                'id' => 36,
+                'location' => Location::GRAVEYARD,
+                'location_arg' => 0,
+                'card_name' => 'Zoey',
+                'consequence_black' => [
+                    'action' => 'fastmemorise',
+                    'from' => 'hand',
+                ],
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'Hand card',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 36,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::FAST_MEMORISE_HAND_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            ['maximumCards' => 1],
+            $this->game->argFastMemoriseHandChoice()
+        );
+    }
+
+    public function testFastMemoriseFromHandIsSkippedWhenTheHandIsEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[36] = [
+            'id' => 36,
+            'location' => Location::GRAVEYARD,
+            'location_arg' => 0,
+            'card_name' => 'Zoey',
+            'consequence_black' => [
+                'action' => 'fastmemorise',
+                'from' => 'hand',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 36,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame([Transition::STORY_CHECK], $gamestate->transitions);
+    }
+
+    public function testFastMemoriseMovesOneOrTwoHandCardsWithoutConsequences(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'First card',
+                'consequence_white' => ['action' => 'draw', 'number' => 1],
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'Second card',
+                'consequence_white' => ['action' => 'bite', 'bite' => 2],
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actFastMemoriseFromHand('[10,11]');
+
+        self::assertSame(Location::MEMORY, $deckManager->cards[10]['location']);
+        self::assertSame(Location::MEMORY, $deckManager->cards[11]['location']);
+        self::assertSame(
+            [[10, Location::MEMORY, 0], [11, Location::MEMORY, 0]],
+            $deckManager->moves
+        );
+        self::assertSame(
+            ['cardMoved', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+    }
+
+    public function testFastMemoriseFromHandRejectsMoreThanTwoCards(): void
+    {
+        $this->expectException(UserException::class);
+
+        $this->game->actFastMemoriseFromHand('[1,2,3]');
+    }
+
     /**
      * @dataProvider emptyDeckChoiceConsequenceProvider
      */
@@ -1696,7 +1841,9 @@ final class GameRulesTest extends TestCase
                 : Location::MEMORY,
             'location_arg' => 0,
             'card_name' => 'Deck choice card',
-            'consequence_' . $color => ['action' => $action],
+            'consequence_' . $color => $action === 'fastmemorise'
+                ? ['action' => $action, 'from' => 'deck']
+                : ['action' => $action],
         ];
         $eventStack = $this->createEventStack();
         $eventStack->pushEvent(EventType::CONSEQUENCE, [
