@@ -342,6 +342,7 @@ define([
         this.disastersManager,
         document.getElementById("disasters_drawn_slot"),
         {
+          cardClickEventFilter: "all",
           direction: "row",
           center: false,
         }
@@ -572,6 +573,23 @@ define([
           }
           break;
         }
+        case "draftDisasterChoice": {
+          const draftArgs = args.args || args;
+          this.draftDisasterPhase = draftArgs.phase;
+          this.draftDisasterEligibleIds = (draftArgs.eligibleDisasterIds || []).map(Number);
+          this.draftDisasterSelectedId = null;
+          if (this.draftDisasterPhase === "draw") {
+            document.getElementById("disasters_bag")?.classList.add("twd-highlight");
+          } else if (this.draftDisasterPhase === "choose") {
+            this.draftDisasterChoiceConnector = dojo.connect(
+              this.disastersDrawnSlot,
+              "onCardClick",
+              this,
+              "onDraftDisasterClick"
+            );
+          }
+          break;
+        }
         case "fastMemoriseHandChoice": {
           const fastMemoriseArgs = args.args || args;
           this.fastMemoriseMaximumCards = Number(fastMemoriseArgs.maximumCards) || 2;
@@ -693,6 +711,19 @@ define([
           document.getElementById("deck_rural").classList.remove("twd-highlight");
           this.buryTopCardSelectedDeck = null;
           this.buryTopCardAvailableDecks = [];
+          break;
+        case "draftDisasterChoice":
+          this.draftDisasterPhase = null;
+          (this.draftDisasterEligibleIds || []).forEach((id) => {
+            document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+          });
+          this.draftDisasterEligibleIds = [];
+          this.draftDisasterSelectedId = null;
+          if (this.draftDisasterChoiceConnector) {
+            dojo.disconnect(this.draftDisasterChoiceConnector);
+            this.draftDisasterChoiceConnector = null;
+          }
+          document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
           break;
         case "fastMemoriseHandChoice":
           this.hand.onSelectionChange = null;
@@ -908,6 +939,23 @@ define([
               }
             ).style.visibility = "hidden";
             break;
+          case "draftDisasterChoice": {
+            const draftArgs = args.args || args;
+            if (draftArgs.phase === "draw") {
+              this.statusBar.setTitle(_("Draw two disasters from the bag"));
+            } else {
+              this.statusBar.setTitle(_("Choose a disaster to destroy"));
+              this.statusBar.addActionButton(
+                _("Confirm destruction"),
+                () => this.confirmDraftDisaster(),
+                {
+                  id: "confirm_draft_disaster",
+                  color: "primary",
+                }
+              ).style.visibility = "hidden";
+            }
+            break;
+          }
           case "avoidHandChoice":
             this.statusBar.addActionButton(
               _("Confirm escape"),
@@ -1552,12 +1600,35 @@ define([
     // PHASE2 allowing only in phase 2
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
-      if (this.wolfTrapPhase === "draw") {
+      if (this.draftDisasterPhase === "draw") {
+        this.bgaPerformAction("actDrawDraftDisasters");
+      } else if (this.wolfTrapPhase === "draw") {
         this.bgaPerformAction("actDrawWolfTrapDisaster");
       } else if (this.disasterResolutionPhase === "draw") {
         this.bgaPerformAction("actDrawDisaster");
       } else if (!this.disasterResolutionPhase && this.gamePhase == 2) {
         this.bgaPerformAction("actDrawFromDisasterBag");
+      }
+    },
+
+    onDraftDisasterClick: function (disaster) {
+      const disasterId = Number(disaster?.id);
+      if (!(this.draftDisasterEligibleIds || []).includes(disasterId)) return;
+
+      (this.draftDisasterEligibleIds || []).forEach((id) => {
+        document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+      });
+      this.draftDisasterSelectedId = disasterId;
+      document.getElementById(`token-${disasterId}`)?.classList.add("twd-highlight");
+      const button = document.getElementById("confirm_draft_disaster");
+      if (button) button.style.visibility = "visible";
+    },
+
+    confirmDraftDisaster: function () {
+      if ((this.draftDisasterEligibleIds || []).includes(this.draftDisasterSelectedId)) {
+        this.bgaPerformAction("actResolveDraftDisaster", {
+          disaster_id: this.draftDisasterSelectedId,
+        });
       }
     },
 
@@ -1640,6 +1711,16 @@ define([
       console.log("notif_disasterShuffledBack");
       console.log(args);
       this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
+    },
+    notif_draftDisasterResolved: async function (args) {
+      if (args.removedDisaster) {
+        await this.disastersDrawnSlot.removeCard(args.removedDisaster);
+      }
+      for (const disaster of args.returnedDisasters || []) {
+        await this.disastersDrawnSlot.removeCard(disaster, {
+          slideTo: document.getElementById("disasters_bag"),
+        });
+      }
     },
     notif_emptyDisastersAdded: function (args) {
       console.log("notif_emptyDisastersAdded");

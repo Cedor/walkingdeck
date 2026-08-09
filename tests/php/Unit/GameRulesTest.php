@@ -169,6 +169,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -196,6 +197,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -511,6 +513,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -624,6 +627,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -707,6 +711,109 @@ final class GameRulesTest extends TestCase
 
         $this->expectException(UserException::class);
         $this->game->actRecoverCard(12);
+    }
+
+    public function testDraftDisasterDrawsTwoAndRemovesTheSelectedToken(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[21] = [
+            'id' => 21,
+            'location' => Location::ESCAPED,
+            'location_arg' => 0,
+            'card_name' => 'Mutt',
+            'consequence_black' => ['action' => 'draftdisaster'],
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards = [
+            1 => [
+                'id' => 1,
+                'type' => 1,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 1,
+                'disaster_break' => 0,
+                'disaster_stress' => 0,
+            ],
+            2 => [
+                'id' => 2,
+                'type' => 2,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 1,
+                'disaster_stress' => 0,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 21,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::DRAFT_DISASTER_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame('draw', $this->game->argDraftDisasterChoice()['phase']);
+
+        $this->game->actDrawDraftDisasters();
+
+        $args = $this->game->argDraftDisasterChoice();
+        self::assertSame('choose', $args['phase']);
+        self::assertSame([1, 2], $args['eligibleDisasterIds']);
+        self::assertCount(2, $args['drawnDisasters']);
+
+        $this->game->actResolveDraftDisaster(1);
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame('removed', $disasterManager->cards[1]['location']);
+        self::assertSame('deck', $disasterManager->cards[2]['location']);
+        self::assertSame(
+            [
+                Transition::DRAFT_DISASTER_CHOICE,
+                Transition::DRAFT_DISASTER_CHOICE,
+                Transition::DISPATCH_EVENTS,
+            ],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            'draftDisasterResolved',
+            end($this->game->notify->events)['type']
+        );
+    }
+
+    public function testDraftDisasterRejectsATokenThatWasNotDrawn(): void
+    {
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[1] = [
+            'id' => 1,
+            'type' => 1,
+            'location' => 'hand',
+            'location_arg' => 1,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DRAFT_DISASTER_CHOICE, [
+            'sourceCardId' => 21,
+        ]);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+        $this->game->actResolveDraftDisaster(99);
     }
 
     /**
@@ -2522,6 +2629,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -2579,6 +2687,7 @@ final class GameRulesTest extends TestCase
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],

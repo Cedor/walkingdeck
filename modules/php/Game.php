@@ -253,6 +253,18 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::BURY_TOP_CARD_CHOICE);
                     return;
 
+                case EventType::DRAFT_DISASTER_CHOICE:
+                    $draftEvent = $this->getPendingDraftDisasterChoiceEvent();
+                    if (
+                        $this->disasterManager->countCardInLocation('deck') === 0
+                        && $this->disasterManager->countCardInLocation('hand') === 0
+                    ) {
+                        $this->popEvent($draftEvent['id']);
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::DRAFT_DISASTER_CHOICE);
+                    return;
+
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
                     if (!$this->hasCharactersInPlay()) {
@@ -296,6 +308,36 @@ class Game extends \Bga\GameFramework\Table
                         );
                         $this->gamestate->nextState(Transition::GAME_END);
                         return;
+                    }
+
+                    if ($outcome['draftDisasterChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['buryCharacterChoices'] !== []
+                            || $outcome['buryTopCardChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A draft disaster choice cannot be combined with another deferred consequence'
+                            );
+                        }
+                        foreach (array_reverse($outcome['draftDisasterChoices']) as $draftChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::DRAFT_DISASTER_CHOICE,
+                                $draftChoice
+                            );
+                        }
+                        break;
                     }
 
                     if ($outcome['buryCharacterChoices'] !== []) {
@@ -888,6 +930,7 @@ class Game extends \Bga\GameFramework\Table
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1016,6 +1059,11 @@ class Game extends \Bga\GameFramework\Table
                 }
                 $this->removeSingleCharacteristicDisasters($characteristic);
                 break;
+            case 'draftdisaster':
+                $outcome['draftDisasterChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                ];
+                break;
             case 'addemptydisasters':
                 $emptyDisasters = $this->disasterManager->getCardsInLocation(
                     'reserve'
@@ -1137,6 +1185,7 @@ class Game extends \Bga\GameFramework\Table
             'healChoices' => [],
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
+            'draftDisasterChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1209,6 +1258,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['buryTopCardChoices'] = array_merge(
                 $outcome['buryTopCardChoices'],
                 $currentOutcome['buryTopCardChoices']
+            );
+            $outcome['draftDisasterChoices'] = array_merge(
+                $outcome['draftDisasterChoices'],
+                $currentOutcome['draftDisasterChoices']
             );
             $outcome['wolfTrapChoices'] = array_merge(
                 $outcome['wolfTrapChoices'],
@@ -1710,6 +1763,126 @@ class Game extends \Bga\GameFramework\Table
                 return false;
             }
         ));
+    }
+
+    public function argDraftDisasterChoice(): array
+    {
+        $event = $this->getPendingDraftDisasterChoiceEvent();
+        $drawnDisasters = array_values(
+            $this->disasterManager->getCardsInLocation('hand', $event['id'])
+        );
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'phase' => $drawnDisasters === [] ? 'draw' : 'choose',
+            'drawnDisasters' => $drawnDisasters,
+            'eligibleDisasterIds' => array_map(
+                'intval',
+                array_column($drawnDisasters, 'id')
+            ),
+        ];
+    }
+
+    public function actDrawDraftDisasters(): void
+    {
+        $this->checkAction('actDrawDraftDisasters');
+        $event = $this->getPendingDraftDisasterChoiceEvent();
+        if ($this->disasterManager->getCardsInLocation('hand', $event['id']) !== []) {
+            throw new UserException(
+                \clienttranslate('The disasters have already been drawn')
+            );
+        }
+
+        $this->disasterManager->moveAllCardsInLocation('hand', 'deck');
+        $this->disasterManager->shuffle('deck');
+        $numberToDraw = min(
+            2,
+            $this->disasterManager->countCardInLocation('deck')
+        );
+        if ($numberToDraw === 0) {
+            $this->popEvent($event['id']);
+            $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+            return;
+        }
+
+        for ($drawIndex = 0; $drawIndex < $numberToDraw; $drawIndex++) {
+            $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+            if ($disaster === null) {
+                throw new SystemException('The disaster deck is empty');
+            }
+            $this->notify->all(
+                'disasterDrawnFromBag',
+                \clienttranslate('Disaster drawn from bag for draft'),
+                [
+                    'disaster' => $disaster,
+                    'shuffle' => $drawIndex === 0,
+                ]
+            );
+        }
+        $this->gamestate->nextState(Transition::DRAFT_DISASTER_CHOICE);
+    }
+
+    public function actResolveDraftDisaster(int $disaster_id): void
+    {
+        $this->checkAction('actResolveDraftDisaster');
+        $event = $this->getPendingDraftDisasterChoiceEvent();
+        $drawnDisasters = array_values(
+            $this->disasterManager->getCardsInLocation('hand', $event['id'])
+        );
+        $drawnDisastersById = [];
+        foreach ($drawnDisasters as $disaster) {
+            $drawnDisastersById[intval($disaster['id'])] = $disaster;
+        }
+        if (
+            count($drawnDisastersById) < 1
+            || count($drawnDisastersById) > 2
+            || !isset($drawnDisastersById[$disaster_id])
+        ) {
+            throw new UserException(
+                \clienttranslate('You must choose one of the drafted disasters')
+            );
+        }
+
+        $removedDisaster = $drawnDisastersById[$disaster_id];
+        $returnedDisasters = [];
+        foreach ($drawnDisastersById as $drawnId => $disaster) {
+            if ($drawnId === $disaster_id) {
+                $this->disasterManager->moveCard(
+                    $drawnId,
+                    self::REMOVED_DISASTER_LOCATION
+                );
+                continue;
+            }
+            $this->disasterManager->moveCard($drawnId, 'deck');
+            $returnedDisasters[] = $disaster;
+        }
+        $this->disasterManager->shuffle('deck');
+        $this->notify->all(
+            'draftDisasterResolved',
+            \clienttranslate('The selected drafted disaster is destroyed'),
+            [
+                'removedDisaster' => $removedDisaster,
+                'returnedDisasters' => $returnedDisasters,
+            ]
+        );
+
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingDraftDisasterChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::DRAFT_DISASTER_CHOICE
+            || intval($event['parameters']['sourceCardId'] ?? 0) < 1
+        ) {
+            throw new SystemException('There is no pending draft disaster choice');
+        }
+        return $event;
     }
 
     public function argDisasterChoice(): array
