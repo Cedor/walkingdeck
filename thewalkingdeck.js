@@ -1623,16 +1623,16 @@ define([
       let token = args.token;
       this.ressourcesSlots.flipCard(token);
     },
-    notif_disasterDrawnFromBag: function (args) {
+    notif_disasterDrawnFromBag: async function (args) {
       console.log("notif_disasterDrawnFromBag");
       console.log(args);
       let disaster = args.disaster;
       let shuffle = args.shuffle;
       if (shuffle) {
-        this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
+        await this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
       }
       if (disaster) {
-        this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
+        await this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
       }
     },
     // PHASE2 Remove

@@ -1837,7 +1837,7 @@ class Game extends \Bga\GameFramework\Table
             || $resolution['confirmedDraws'] >= $requiredDraws
         ) {
             throw new UserException(
-                \clienttranslate('You must confirm the current disaster before drawing another one')
+                \clienttranslate('The required disasters have already been drawn')
             );
         }
 
@@ -1848,25 +1848,29 @@ class Game extends \Bga\GameFramework\Table
             $shuffle = true;
         }
 
-        $disaster = $this->disasterManager->pickCard('deck', $event['id']);
-        if ($disaster === null) {
-            throw new SystemException('The disaster deck is empty');
-        }
+        $drawsRemaining = $requiredDraws - $resolution['confirmedDraws'];
+        for ($drawIndex = 0; $drawIndex < $drawsRemaining; $drawIndex++) {
+            $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+            if ($disaster === null) {
+                throw new SystemException('The disaster deck is empty');
+            }
 
-        if ($resolution['confirmedDraws'] + 1 < $requiredDraws) {
-            $resolution['confirmedDraws']++;
-        } else {
-            $resolution['pendingDrawCardId'] = intval($disaster['id']);
+            $isFinalDraw = $drawIndex === $drawsRemaining - 1;
+            if ($isFinalDraw) {
+                $resolution['pendingDrawCardId'] = intval($disaster['id']);
+            } else {
+                $resolution['confirmedDraws']++;
+            }
+            $this->notify->all(
+                'disasterDrawnFromBag',
+                \clienttranslate('Disaster drawn from bag'),
+                [
+                    'disaster' => $disaster,
+                    'shuffle' => $shuffle && $drawIndex === 0,
+                ]
+            );
         }
         $this->updateDisasterResolution($event, $resolution);
-        $this->notify->all(
-            'disasterDrawnFromBag',
-            \clienttranslate('Disaster drawn from bag'),
-            [
-                'disaster' => $disaster,
-                'shuffle' => $shuffle,
-            ]
-        );
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
 
