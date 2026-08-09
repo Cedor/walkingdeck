@@ -91,6 +91,7 @@ $machinestates = [
             Transition::FAST_MEMORISE_HAND_CHOICE => GameStep::FAST_MEMORISE_HAND_CHOICE,
             Transition::AVOID_HAND_CHOICE => GameStep::AVOID_HAND_CHOICE,
             Transition::BURY_CHARACTER_CHOICE => GameStep::BURY_CHARACTER_CHOICE,
+            Transition::BURY_TOP_CARD_CHOICE => GameStep::BURY_TOP_CARD_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -323,6 +324,20 @@ $machinestates = [
         ->args('argBuryCharacterChoice')
         ->possibleactions([
             'actBuryCharacter',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+            Transition::GAME_END => GameStep::GAME_END,
+        ])
+        ->build(),
+    GameStep::BURY_TOP_CARD_CHOICE => GameStateBuilder::create()
+        ->name(Transition::BURY_TOP_CARD_CHOICE)
+        ->description(clienttranslate('${actplayer} must choose a deck whose top card will be buried'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck whose top card will be buried'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argBuryTopCardChoice')
+        ->possibleactions([
+            'actBuryTopCard',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,

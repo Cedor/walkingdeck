@@ -554,6 +554,24 @@ define([
           }
           break;
         }
+        case "buryTopCardChoice": {
+          const buryArgs = args.args || args;
+          this.buryTopCardAvailableDecks = buryArgs.availableDecks || [];
+          this.buryTopCardSelectedDeck = null;
+          if (this.buryTopCardAvailableDecks.includes("deck_urban")) {
+            document.getElementById("deck_urban").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.urbanDeck, "onCardClick", this, "onBuryTopCardUrbanDeckClick")
+            );
+          }
+          if (this.buryTopCardAvailableDecks.includes("deck_rural")) {
+            document.getElementById("deck_rural").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.ruralDeck, "onCardClick", this, "onBuryTopCardRuralDeckClick")
+            );
+          }
+          break;
+        }
         case "fastMemoriseHandChoice": {
           const fastMemoriseArgs = args.args || args;
           this.fastMemoriseMaximumCards = Number(fastMemoriseArgs.maximumCards) || 2;
@@ -668,10 +686,13 @@ define([
           break;
         case "brainstormDeckChoice":
         case "fastMemoriseDeckChoice":
+        case "buryTopCardChoice":
           this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
           this.stateConnectors = [];
           document.getElementById("deck_urban").classList.remove("twd-highlight");
           document.getElementById("deck_rural").classList.remove("twd-highlight");
+          this.buryTopCardSelectedDeck = null;
+          this.buryTopCardAvailableDecks = [];
           break;
         case "fastMemoriseHandChoice":
           this.hand.onSelectionChange = null;
@@ -873,6 +894,16 @@ define([
               () => this.confirmBuryCharacter(),
               {
                 id: "confirm_bury_character",
+                color: "primary",
+              }
+            ).style.visibility = "hidden";
+            break;
+          case "buryTopCardChoice":
+            this.statusBar.addActionButton(
+              _("Confirm deck"),
+              () => this.confirmBuryTopCard(),
+              {
+                id: "confirm_bury_top_card",
                 color: "primary",
               }
             ).style.visibility = "hidden";
@@ -1319,6 +1350,37 @@ define([
 
     onFastMemoriseUrbanDeckClick: function () {
       this.bgaPerformAction("actFastMemorise", { location: "deck_urban" });
+    },
+
+    onBuryTopCardRuralDeckClick: function () {
+      this.selectBuryTopCardDeck("deck_rural");
+    },
+
+    onBuryTopCardUrbanDeckClick: function () {
+      this.selectBuryTopCardDeck("deck_urban");
+    },
+
+    selectBuryTopCardDeck: function (location) {
+      if (!(this.buryTopCardAvailableDecks || []).includes(location)) return;
+
+      this.buryTopCardSelectedDeck = location;
+      ["deck_rural", "deck_urban"].forEach((deck) => {
+        document.getElementById(deck).classList.remove("twd-highlight");
+      });
+      document.getElementById(location).classList.add("twd-highlight");
+      const button = document.getElementById("confirm_bury_top_card");
+      if (button) button.style.visibility = "visible";
+    },
+
+    confirmBuryTopCard: function () {
+      if (
+        this.buryTopCardSelectedDeck
+        && (this.buryTopCardAvailableDecks || []).includes(this.buryTopCardSelectedDeck)
+      ) {
+        this.bgaPerformAction("actBuryTopCard", {
+          location: this.buryTopCardSelectedDeck,
+        });
+      }
     },
 
     onFastMemoriseHandSelectionChange: function (selection, lastChange) {

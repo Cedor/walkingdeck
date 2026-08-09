@@ -168,6 +168,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -194,6 +195,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -508,6 +510,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -620,6 +623,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1286,6 +1290,137 @@ final class GameRulesTest extends TestCase
             [Transition::STORY_CHECK_STEP],
             $gamestate->transitions
         );
+    }
+
+    public function testBuryTopCardConsequencePausesForADeckChoice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            40 => [
+                'id' => 40,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Teacher',
+                'consequence_black' => [
+                    'action' => 'bury',
+                    'bury' => 'topCard',
+                ],
+            ],
+            1 => [
+                'id' => 1,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural top',
+            ],
+            2 => [
+                'id' => 2,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban top',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 40,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 1);
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::BURY_TOP_CARD_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            [Location::RURAL, Location::URBAN],
+            $this->game->argBuryTopCardChoice()['availableDecks']
+        );
+
+        $this->game->actBuryTopCard(Location::RURAL);
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[1]['location']);
+        self::assertSame(Location::URBAN, $deckManager->cards[2]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[40]['location']);
+        self::assertSame(
+            [
+                Transition::BURY_TOP_CARD_CHOICE,
+                Transition::GAME_END,
+            ],
+            $gamestate->transitions
+        );
+        self::assertSame('gameLoss', end($this->game->notify->events)['type']);
+    }
+
+    public function testBuryTopCardConsequenceUsesTheOnlyNonEmptyDeck(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            40 => [
+                'id' => 40,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Teacher',
+                'consequence_black' => [
+                    'action' => 'bury',
+                    'bury' => 'topCard',
+                ],
+            ],
+            2 => [
+                'id' => 2,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban top',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $outcome = $this->invoke(
+            'applyConsequences',
+            [$deckManager->cards[40], 'black']
+        );
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[2]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[40]['location']);
+        self::assertTrue($outcome['checkLoss']);
+        self::assertSame([], $outcome['buryTopCardChoices']);
+    }
+
+    public function testBuryTopCardConsequenceBuriesSourceWhenBothDecksAreEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[40] = [
+            'id' => 40,
+            'location' => Location::ESCAPED,
+            'location_arg' => 0,
+            'card_name' => 'Teacher',
+            'consequence_black' => [
+                'action' => 'bury',
+                'bury' => 'topCard',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $outcome = $this->invoke(
+            'applyConsequences',
+            [$deckManager->cards[40], 'black']
+        );
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[40]['location']);
+        self::assertTrue($outcome['checkLoss']);
+        self::assertSame([], $outcome['buryTopCardChoices']);
     }
 
     public function testBuryCharacterConsequencePausesForAHandCharacterChoice(): void
@@ -2387,6 +2522,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -2443,6 +2579,7 @@ final class GameRulesTest extends TestCase
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
