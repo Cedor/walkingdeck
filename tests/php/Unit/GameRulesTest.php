@@ -1385,12 +1385,70 @@ final class GameRulesTest extends TestCase
 
         self::assertSame([Transition::AVOID_ZOMBIE_CHOICE], $gamestate->transitions);
         self::assertSame(
-            EventType::WOLF_TRAP_CHOICE,
+            EventType::CONSEQUENCE,
             $eventStack->getCurrentEvent()['type']
         );
         self::assertSame(
-            6,
-            $eventStack->getCurrentEvent()['parameters']['sourceCardId']
+            ['action' => 'wolftrap'],
+            $eventStack->getCurrentEvent()['parameters']['consequence']
+        );
+    }
+
+    public function testMultipleConsequencesAreStackedInReverseInsertionOrder(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            50 => [
+                'id' => 50,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Multiple consequence card',
+                'consequence_black' => [
+                    'action' => 'multiple',
+                    'number' => 2,
+                    '0' => ['action' => 'bury', 'bury' => 'character'],
+                    '1' => ['action' => 'bury', 'bury' => 'this'],
+                ],
+            ],
+            51 => [
+                'id' => 51,
+                'location' => Location::HAND,
+                'location_arg' => 1,
+                'card_name' => 'Character in hand',
+                'is_character' => 1,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 50,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::BURY_CHARACTER_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertCount(2, $eventStack->events);
+        self::assertSame(
+            ['action' => 'bury', 'bury' => 'this'],
+            $eventStack->events[0]['parameters']['consequence']
+        );
+        self::assertSame(
+            EventType::BURY_CHARACTER_CHOICE,
+            $eventStack->getCurrentEvent()['type']
         );
     }
 
@@ -2583,7 +2641,7 @@ final class GameRulesTest extends TestCase
         ];
     }
 
-    public function testAvoidHand2WaitsForAChoiceAndKeepsAdditionalDrawsPending(): void
+    public function testDrawResolvesBeforeFollowingAvoidHandChoice(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards = [
@@ -2632,16 +2690,26 @@ final class GameRulesTest extends TestCase
         $this->game->stEventDispatcher();
 
         self::assertSame(
-            [Transition::AVOID_HAND_CHOICE],
+            [Transition::ADDITIONAL_DRAW_CARDS],
             $gamestate->transitions
         );
         self::assertSame(
-            EventType::ADDITIONAL_DRAW,
+            EventType::CONSEQUENCE,
             $eventStack->getCurrentEvent()['type']
         );
         self::assertSame(
-            ['maximumCards' => 1],
-            $this->game->argAvoidHandChoice()
+            ['action' => 'avoid', 'avoid' => 'hand2'],
+            $eventStack->getCurrentEvent()['parameters']['consequence']
+        );
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [
+                Transition::ADDITIONAL_DRAW_CARDS,
+                Transition::AVOID_HAND_CHOICE,
+            ],
+            $gamestate->transitions
         );
     }
 
