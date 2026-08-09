@@ -408,6 +408,45 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
   });
 
+  it("selects a deck before confirming top-card burial", () => {
+    const ruralDeck = { classList: { add: spy(), remove: spy() } };
+    const urbanDeck = { classList: { add: spy(), remove: spy() } };
+    const button = { style: {} };
+    documentElementOverrides.deck_rural = ruralDeck;
+    documentElementOverrides.deck_urban = urbanDeck;
+    documentElementOverrides.confirm_bury_top_card = button;
+    const context = {
+      buryTopCardAvailableDecks: ["deck_rural", "deck_urban"],
+      buryTopCardSelectedDeck: null,
+    };
+
+    try {
+      game.selectBuryTopCardDeck.call(context, "deck_urban");
+
+      assert.equal(context.buryTopCardSelectedDeck, "deck_urban");
+      assert.equal(urbanDeck.classList.add.calls.length, 1);
+      assert.equal(button.style.visibility, "visible");
+    } finally {
+      delete documentElementOverrides.deck_rural;
+      delete documentElementOverrides.deck_urban;
+      delete documentElementOverrides.confirm_bury_top_card;
+    }
+  });
+
+  it("submits the selected deck for top-card burial", () => {
+    const context = {
+      buryTopCardAvailableDecks: ["deck_rural", "deck_urban"],
+      buryTopCardSelectedDeck: "deck_rural",
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmBuryTopCard.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actBuryTopCard");
+    assert.equal(context.bgaPerformAction.calls[0][1].location, "deck_rural");
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },

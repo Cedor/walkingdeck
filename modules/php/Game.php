@@ -227,6 +227,32 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::BURY_CHARACTER_CHOICE);
                     return;
 
+                case EventType::BURY_TOP_CARD_CHOICE:
+                    $buryEvent = $this->getPendingBuryTopCardChoiceEvent();
+                    $availableDecks = $this->getAvailableDrawDecks();
+                    if (count($availableDecks) < 2) {
+                        $this->popEvent($buryEvent['id']);
+                        if ($availableDecks === []) {
+                            $this->moveCard(
+                                intval($buryEvent['parameters']['sourceCardId']),
+                                Location::GRAVEYARD
+                            );
+                        } else {
+                            $this->buryTopCardOfDeck($availableDecks[0]);
+                        }
+                        if ($this->isLossReached()) {
+                            $this->notify->all(
+                                'gameLoss',
+                                \clienttranslate('You lost the game')
+                            );
+                            $this->gamestate->nextState(Transition::GAME_END);
+                            return;
+                        }
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::BURY_TOP_CARD_CHOICE);
+                    return;
+
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
                     if (!$this->hasCharactersInPlay()) {
@@ -283,6 +309,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['fastMemorise']
                             || $outcome['biteChoices'] !== []
                             || $outcome['healChoices'] !== []
+                            || $outcome['buryTopCardChoices'] !== []
                             || $outcome['disasterChoices'] !== []
                             || $outcome['wolfTrapChoices'] !== []
                             || $outcome['recoverChoices'] !== []
@@ -294,6 +321,35 @@ class Game extends \Bga\GameFramework\Table
                         foreach (array_reverse($outcome['buryCharacterChoices']) as $buryChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::BURY_CHARACTER_CHOICE,
+                                $buryChoice
+                            );
+                        }
+                        break;
+                    }
+
+                    if ($outcome['buryTopCardChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['buryCharacterChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'A bury top card choice cannot be combined with another deferred consequence'
+                            );
+                        }
+                        foreach (array_reverse($outcome['buryTopCardChoices']) as $buryChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::BURY_TOP_CARD_CHOICE,
                                 $buryChoice
                             );
                         }
@@ -831,6 +887,7 @@ class Game extends \Bga\GameFramework\Table
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -867,7 +924,18 @@ class Game extends \Bga\GameFramework\Table
                         }
                         break;
                     case 'topCard':
-                        // CONS implement bury top card
+                        $availableDecks = $this->getAvailableDrawDecks();
+                        if ($availableDecks === []) {
+                            $this->moveCard(intval($card['id']), Location::GRAVEYARD);
+                            $outcome['checkLoss'] = true;
+                        } elseif (count($availableDecks) === 1) {
+                            $this->buryTopCardOfDeck($availableDecks[0]);
+                            $outcome['checkLoss'] = true;
+                        } else {
+                            $outcome['buryTopCardChoices'][] = [
+                                'sourceCardId' => intval($card['id']),
+                            ];
+                        }
                         break;
                     default:
                         throw new UserException(new NotificationMessage(
@@ -1068,6 +1136,7 @@ class Game extends \Bga\GameFramework\Table
             'biteChoices' => [],
             'healChoices' => [],
             'buryCharacterChoices' => [],
+            'buryTopCardChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1136,6 +1205,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['buryCharacterChoices'] = array_merge(
                 $outcome['buryCharacterChoices'],
                 $currentOutcome['buryCharacterChoices']
+            );
+            $outcome['buryTopCardChoices'] = array_merge(
+                $outcome['buryTopCardChoices'],
+                $currentOutcome['buryTopCardChoices']
             );
             $outcome['wolfTrapChoices'] = array_merge(
                 $outcome['wolfTrapChoices'],
@@ -2339,6 +2412,70 @@ class Game extends \Bga\GameFramework\Table
                 return $this->deckManager->countCardInLocation($location) > 0;
             }
         ));
+    }
+
+    public function argBuryTopCardChoice(): array
+    {
+        $event = $this->getPendingBuryTopCardChoiceEvent();
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'availableDecks' => $this->getAvailableDrawDecks(),
+        ];
+    }
+
+    public function actBuryTopCard(string $location): void
+    {
+        $this->checkAction('actBuryTopCard');
+        $event = $this->getPendingBuryTopCardChoiceEvent();
+        if (!in_array($location, $this->getAvailableDrawDecks(), true)) {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('You cannot bury a card from this deck'),
+                ['location' => $location]
+            ));
+        }
+
+        $this->buryTopCardOfDeck($location);
+        $this->popEvent($event['id']);
+        if ($this->isLossReached()) {
+            $this->notify->all(
+                'gameLoss',
+                \clienttranslate('You lost the game')
+            );
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingBuryTopCardChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::BURY_TOP_CARD_CHOICE
+            || intval($event['parameters']['sourceCardId'] ?? 0) < 1
+        ) {
+            throw new SystemException('There is no pending bury top card choice');
+        }
+        return $event;
+    }
+
+    private function buryTopCardOfDeck(string $location): void
+    {
+        if (!in_array($location, [Location::RURAL, Location::URBAN], true)) {
+            throw new SystemException('Invalid deck for bury top card');
+        }
+        $topCard = $this->deckManager->getCardOnTop($location);
+        if ($topCard === null) {
+            throw new SystemException('Cannot bury a card from an empty deck');
+        }
+
+        $cardId = intval($topCard['id']);
+        $this->clearDeckRevealIfCardLeaves($cardId, $location);
+        $this->moveCard($cardId, Location::GRAVEYARD);
     }
 
     public function argBrainstormDeckChoice(): array

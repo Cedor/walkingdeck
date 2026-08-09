@@ -10,6 +10,7 @@ final class EventType
     public const BITE_CHOICE = 'biteChoice';
     public const HEAL_CHOICE = 'healChoice';
     public const BURY_CHARACTER_CHOICE = 'buryCharacterChoice';
+    public const BURY_TOP_CARD_CHOICE = 'buryTopCardChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const RECOVER_CHOICE = 'recoverChoice';
