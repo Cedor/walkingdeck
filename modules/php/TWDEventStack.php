@@ -16,6 +16,7 @@ final class TWDEventStack
         EventType::BURY_CHARACTER_CHOICE,
         EventType::BURY_TOP_CARD_CHOICE,
         EventType::DRAFT_DISASTER_CHOICE,
+        EventType::AVOID_DECK_CHOICE,
         EventType::DISASTER_CHOICE,
         EventType::WOLF_TRAP_CHOICE,
         EventType::RECOVER_CHOICE,

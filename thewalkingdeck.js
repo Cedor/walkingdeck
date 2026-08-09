@@ -573,6 +573,24 @@ define([
           }
           break;
         }
+        case "avoidDeckChoice": {
+          const avoidArgs = args.args || args;
+          this.avoidDeckAvailableDecks = avoidArgs.availableDecks || [];
+          this.avoidDeckSelectedDeck = null;
+          if (this.avoidDeckAvailableDecks.includes("deck_urban")) {
+            document.getElementById("deck_urban").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.urbanDeck, "onCardClick", this, "onAvoidUrbanDeckClick")
+            );
+          }
+          if (this.avoidDeckAvailableDecks.includes("deck_rural")) {
+            document.getElementById("deck_rural").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.ruralDeck, "onCardClick", this, "onAvoidRuralDeckClick")
+            );
+          }
+          break;
+        }
         case "draftDisasterChoice": {
           const draftArgs = args.args || args;
           this.draftDisasterPhase = draftArgs.phase;
@@ -711,6 +729,14 @@ define([
           document.getElementById("deck_rural").classList.remove("twd-highlight");
           this.buryTopCardSelectedDeck = null;
           this.buryTopCardAvailableDecks = [];
+          break;
+        case "avoidDeckChoice":
+          this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
+          this.stateConnectors = [];
+          document.getElementById("deck_urban").classList.remove("twd-highlight");
+          document.getElementById("deck_rural").classList.remove("twd-highlight");
+          this.avoidDeckSelectedDeck = null;
+          this.avoidDeckAvailableDecks = [];
           break;
         case "draftDisasterChoice":
           this.draftDisasterPhase = null;
@@ -935,6 +961,16 @@ define([
               () => this.confirmBuryTopCard(),
               {
                 id: "confirm_bury_top_card",
+                color: "primary",
+              }
+            ).style.visibility = "hidden";
+            break;
+          case "avoidDeckChoice":
+            this.statusBar.addActionButton(
+              _("Confirm deck"),
+              () => this.confirmAvoidDeck(),
+              {
+                id: "confirm_avoid_deck",
                 color: "primary",
               }
             ).style.visibility = "hidden";
@@ -1427,6 +1463,37 @@ define([
       ) {
         this.bgaPerformAction("actBuryTopCard", {
           location: this.buryTopCardSelectedDeck,
+        });
+      }
+    },
+
+    onAvoidRuralDeckClick: function () {
+      this.selectAvoidDeck("deck_rural");
+    },
+
+    onAvoidUrbanDeckClick: function () {
+      this.selectAvoidDeck("deck_urban");
+    },
+
+    selectAvoidDeck: function (location) {
+      if (!(this.avoidDeckAvailableDecks || []).includes(location)) return;
+
+      this.avoidDeckSelectedDeck = location;
+      ["deck_rural", "deck_urban"].forEach((deck) => {
+        document.getElementById(deck).classList.remove("twd-highlight");
+      });
+      document.getElementById(location).classList.add("twd-highlight");
+      const button = document.getElementById("confirm_avoid_deck");
+      if (button) button.style.visibility = "visible";
+    },
+
+    confirmAvoidDeck: function () {
+      if (
+        this.avoidDeckSelectedDeck
+        && (this.avoidDeckAvailableDecks || []).includes(this.avoidDeckSelectedDeck)
+      ) {
+        this.bgaPerformAction("actAvoidDeck", {
+          location: this.avoidDeckSelectedDeck,
         });
       }
     },

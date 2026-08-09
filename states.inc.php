@@ -93,6 +93,7 @@ $machinestates = [
             Transition::BURY_CHARACTER_CHOICE => GameStep::BURY_CHARACTER_CHOICE,
             Transition::BURY_TOP_CARD_CHOICE => GameStep::BURY_TOP_CARD_CHOICE,
             Transition::DRAFT_DISASTER_CHOICE => GameStep::DRAFT_DISASTER_CHOICE,
+            Transition::AVOID_DECK_CHOICE => GameStep::AVOID_DECK_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -357,6 +358,19 @@ $machinestates = [
         ])
         ->transitions([
             Transition::DRAFT_DISASTER_CHOICE => GameStep::DRAFT_DISASTER_CHOICE,
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::AVOID_DECK_CHOICE => GameStateBuilder::create()
+        ->name(Transition::AVOID_DECK_CHOICE)
+        ->description(clienttranslate('${actplayer} must choose a deck to avoid'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck whose top two cards will escape'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argAvoidDeckChoice')
+        ->possibleactions([
+            'actAvoidDeck',
+        ])
+        ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),

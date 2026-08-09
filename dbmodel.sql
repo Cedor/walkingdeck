@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `twd_event_stack` (
 -- Create all the cards info
 INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`) VALUES
 (1, '1', 1, 'Aenor', 0, 0, NULL, NULL, NULL, 0),
-(2, '1', 2, 'Boris\r\n', 0, 0, NULL, NULL, NULL, 0),
+(2, '1', 2, 'Boris', 0, 0, NULL, NULL, NULL, 0),
 (3, '1', 3, 'Adrien', 0, 0, NULL, NULL, NULL, 0),
 (4, '1', 4, 'Eleonore', 0, 0, NULL, NULL, NULL, 0),
 (5, '2', 1, 'Punk', 1, 0, '{"action" : "bury", "bury" : "this"}', NULL, NULL, 0),
@@ -97,8 +97,8 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (18, '2', 14, 'Teddy Bear', 0, 0, '{"action" : "restore", "ressource" : "ressource_stress"}', NULL, '{"action" : "heal", "number" : 2, "condition" : "stress"}', 0),
 (19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "avoid", "avoid" : "bothdeck"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (20, '2', 16, 'Voodoo', 1, 0, '{"action" : "removedisaster", "disaster" : "break"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
-(21, '2', 17, 'Mutt', 0, 0, '{"action" : "draftdisaster"}', NULL, '{"action" : "other"}', 0),
-(22, '2', 18, 'Grenade', 0, 0, '{"action" : "other"}', NULL, '{"action" : "other"}', 0),
+(21, '2', 17, 'Mutt', 0, 0, '{"action" : "draftdisaster"}', NULL, '{"action" : "multiple", "number" : 2, "0" : {"action" : "unearth"}, "1" : {"action" : "disaster", "number" : 1}}', 0),
+(22, '2', 18, 'Grenade', 0, 0, '{"action" : "avoid", "avoid" : "deck"}', NULL, '{"action" : "other"}', 0),
 (23, '3', 1, 'Musicians', 1, 0, NULL, NULL, '{"action" : "bite", "bite" : 3}', 0),
 (24, '3', 2, 'Site Manager', 1, 0, NULL, '{"action" : "draw", "number" : 1}', '{"action" : "disaster", "number" : 2}', 0),
 (25, '3', 3, 'Glenn', 0, 1, NULL, '{"action" : "brainstorm"}', '{"action" : "disasterignore", "number" : 1, "ignore" : "hunger"}', 0),

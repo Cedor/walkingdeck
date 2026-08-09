@@ -265,6 +265,19 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::DRAFT_DISASTER_CHOICE);
                     return;
 
+                case EventType::AVOID_DECK_CHOICE:
+                    $avoidEvent = $this->getPendingAvoidDeckChoiceEvent();
+                    $availableDecks = $this->getAvailableDrawDecks();
+                    if (count($availableDecks) < 2) {
+                        $this->popEvent($avoidEvent['id']);
+                        if ($availableDecks !== []) {
+                            $this->escapeTopCardsOfDeck($availableDecks[0], 2);
+                        }
+                        break;
+                    }
+                    $this->gamestate->nextState(Transition::AVOID_DECK_CHOICE);
+                    return;
+
                 case EventType::DISASTER_CHOICE:
                     $this->getPendingDisasterChoiceEvent();
                     if (!$this->hasCharactersInPlay()) {
@@ -308,6 +321,37 @@ class Game extends \Bga\GameFramework\Table
                         );
                         $this->gamestate->nextState(Transition::GAME_END);
                         return;
+                    }
+
+                    if ($outcome['avoidDeckChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['buryCharacterChoices'] !== []
+                            || $outcome['buryTopCardChoices'] !== []
+                            || $outcome['draftDisasterChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'An avoid deck choice cannot be combined with another deferred consequence'
+                            );
+                        }
+                        foreach (array_reverse($outcome['avoidDeckChoices']) as $avoidChoice) {
+                            $this->eventStack->pushEvent(
+                                EventType::AVOID_DECK_CHOICE,
+                                $avoidChoice
+                            );
+                        }
+                        break;
                     }
 
                     if ($outcome['draftDisasterChoices'] !== []) {
@@ -931,6 +975,7 @@ class Game extends \Bga\GameFramework\Table
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1130,6 +1175,16 @@ class Game extends \Bga\GameFramework\Table
                     case 'hand2':
                         $outcome['avoidHandChoice'] = true;
                         break;
+                    case 'deck':
+                        $availableDecks = $this->getAvailableDrawDecks();
+                        if (count($availableDecks) === 1) {
+                            $this->escapeTopCardsOfDeck($availableDecks[0], 2);
+                        } elseif (count($availableDecks) === 2) {
+                            $outcome['avoidDeckChoices'][] = [
+                                'sourceCardId' => intval($card['id']),
+                            ];
+                        }
+                        break;
                     case 'bothdeck':
                         foreach ([Location::URBAN, Location::RURAL] as $location) {
                             $deckTop = $this->deckManager->getCardOnTop($location);
@@ -1186,6 +1241,7 @@ class Game extends \Bga\GameFramework\Table
             'buryCharacterChoices' => [],
             'buryTopCardChoices' => [],
             'draftDisasterChoices' => [],
+            'avoidDeckChoices' => [],
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
@@ -1262,6 +1318,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['draftDisasterChoices'] = array_merge(
                 $outcome['draftDisasterChoices'],
                 $currentOutcome['draftDisasterChoices']
+            );
+            $outcome['avoidDeckChoices'] = array_merge(
+                $outcome['avoidDeckChoices'],
+                $currentOutcome['avoidDeckChoices']
             );
             $outcome['wolfTrapChoices'] = array_merge(
                 $outcome['wolfTrapChoices'],
@@ -2589,6 +2649,63 @@ class Game extends \Bga\GameFramework\Table
                 return $this->deckManager->countCardInLocation($location) > 0;
             }
         ));
+    }
+
+    public function argAvoidDeckChoice(): array
+    {
+        $event = $this->getPendingAvoidDeckChoiceEvent();
+
+        return [
+            'sourceCard' => $this->deckManager->getCard(
+                intval($event['parameters']['sourceCardId'])
+            ),
+            'availableDecks' => $this->getAvailableDrawDecks(),
+        ];
+    }
+
+    public function actAvoidDeck(string $location): void
+    {
+        $this->checkAction('actAvoidDeck');
+        $event = $this->getPendingAvoidDeckChoiceEvent();
+        if (!in_array($location, $this->getAvailableDrawDecks(), true)) {
+            throw new UserException(new NotificationMessage(
+                \clienttranslate('You cannot avoid cards from this deck'),
+                ['location' => $location]
+            ));
+        }
+
+        $this->escapeTopCardsOfDeck($location, 2);
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingAvoidDeckChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::AVOID_DECK_CHOICE
+            || intval($event['parameters']['sourceCardId'] ?? 0) < 1
+        ) {
+            throw new SystemException('There is no pending avoid deck choice');
+        }
+        return $event;
+    }
+
+    private function escapeTopCardsOfDeck(string $location, int $number): void
+    {
+        if (
+            !in_array($location, [Location::RURAL, Location::URBAN], true)
+            || $number < 1
+        ) {
+            throw new SystemException('Invalid deck avoidance');
+        }
+
+        foreach ($this->deckManager->getCardsOnTop($number, $location) as $card) {
+            $cardId = intval($card['id']);
+            $this->clearDeckRevealIfCardLeaves($cardId, $location);
+            $this->moveCard($cardId, Location::ESCAPED);
+        }
     }
 
     public function argBuryTopCardChoice(): array

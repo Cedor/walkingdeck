@@ -12,6 +12,7 @@ final class EventType
     public const BURY_CHARACTER_CHOICE = 'buryCharacterChoice';
     public const BURY_TOP_CARD_CHOICE = 'buryTopCardChoice';
     public const DRAFT_DISASTER_CHOICE = 'draftDisasterChoice';
+    public const AVOID_DECK_CHOICE = 'avoidDeckChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const RECOVER_CHOICE = 'recoverChoice';
