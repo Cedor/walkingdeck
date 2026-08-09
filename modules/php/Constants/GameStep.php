@@ -23,6 +23,7 @@ final class GameStep
     public const FAST_MEMORISE_DECK_CHOICE = 43;
     public const FAST_MEMORISE_HAND_CHOICE = 44;
     public const AVOID_HAND_CHOICE = 45;
+    public const BURY_CHARACTER_CHOICE = 46;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;

@@ -90,6 +90,7 @@ $machinestates = [
             Transition::FAST_MEMORISE_DECK_CHOICE => GameStep::FAST_MEMORISE_DECK_CHOICE,
             Transition::FAST_MEMORISE_HAND_CHOICE => GameStep::FAST_MEMORISE_HAND_CHOICE,
             Transition::AVOID_HAND_CHOICE => GameStep::AVOID_HAND_CHOICE,
+            Transition::BURY_CHARACTER_CHOICE => GameStep::BURY_CHARACTER_CHOICE,
             Transition::STORY_CHECK_STEP => GameStep::STORY_CHECK_STEP,
             Transition::GAME_END => GameStep::GAME_END,
         ])
@@ -312,6 +313,20 @@ $machinestates = [
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::BURY_CHARACTER_CHOICE => GameStateBuilder::create()
+        ->name(Transition::BURY_CHARACTER_CHOICE)
+        ->description(clienttranslate('${actplayer} must choose a character from their hand to bury'))
+        ->descriptionmyturn(clienttranslate('You must choose a character from your hand to bury'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argBuryCharacterChoice')
+        ->possibleactions([
+            'actBuryCharacter',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+            Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
     GameStep::STORY_CHECK => GameStateBuilder::create()

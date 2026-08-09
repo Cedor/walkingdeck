@@ -366,6 +366,48 @@ describe("player actions", () => {
     );
   });
 
+  it("only enables burial for an eligible character from hand", () => {
+    const button = { style: {} };
+    documentElementOverrides.confirm_bury_character = button;
+    const context = {
+      buryCharacterEligibleCardIds: [8],
+      hand: { unselectCard: spy() },
+    };
+
+    try {
+      game.onBuryCharacterSelectionChange.call(
+        context,
+        [{ id: 9, is_character: "0" }],
+        { id: 9, is_character: "0" }
+      );
+      assert.equal(context.hand.unselectCard.calls.length, 1);
+      assert.equal(button.style.visibility, "hidden");
+
+      game.onBuryCharacterSelectionChange.call(
+        context,
+        [{ id: 8, is_character: "1" }],
+        { id: 8, is_character: "1" }
+      );
+      assert.equal(button.style.visibility, "visible");
+    } finally {
+      delete documentElementOverrides.confirm_bury_character;
+    }
+  });
+
+  it("submits the selected hand character for burial", () => {
+    const context = {
+      buryCharacterEligibleCardIds: [8],
+      hand: { getSelection: spy(() => [{ id: 8, is_character: "1" }]) },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmBuryCharacter.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actBuryCharacter");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
+  });
+
   it("submits a selected protagonist", () => {
     const context = {
       hand: { getSelection: () => [{ id: 8, type: "1" }] },
