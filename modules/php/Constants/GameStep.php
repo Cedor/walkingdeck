@@ -20,6 +20,7 @@ final class GameStep
     public const HEAL_CHOICE = 40;
     public const WOLF_TRAP_CHOICE = 41;
     public const RECOVER_CHOICE = 42;
+    public const FAST_MEMORISE_DECK_CHOICE = 43;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;

@@ -163,6 +163,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -186,6 +187,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => true,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -261,6 +263,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -283,6 +286,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => true,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -1401,12 +1405,161 @@ final class GameRulesTest extends TestCase
 
         self::assertSame(
             [Location::URBAN],
-            $this->invoke('getBrainstormAvailableDecks')
+            $this->invoke('getAvailableDrawDecks')
         );
         self::assertSame(
             [Location::URBAN],
             $this->invoke('argBrainstormDeckChoice')['availableDecks']
         );
+    }
+
+    public function testFastMemoriseWaitsForADeckChoice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            35 => [
+                'id' => 35,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Controller',
+                'consequence_black' => ['action' => 'fastmemorise'],
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban card',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 35,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::FAST_MEMORISE_DECK_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            [Location::URBAN],
+            $this->game->argFastMemoriseDeckChoice()['availableDecks']
+        );
+    }
+
+    public function testFastMemoriseMovesTheTopTwoCardsToMemory(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::RURAL,
+                'location_arg' => 3,
+                'card_name' => 'Top card',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::RURAL,
+                'location_arg' => 2,
+                'card_name' => 'Second card',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Third card',
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actFastMemorise(Location::RURAL);
+
+        self::assertSame(Location::MEMORY, $deckManager->cards[10]['location']);
+        self::assertSame(Location::MEMORY, $deckManager->cards[11]['location']);
+        self::assertSame(Location::RURAL, $deckManager->cards[12]['location']);
+        self::assertSame(
+            [[11, Location::MEMORY, 0], [10, Location::MEMORY, 0]],
+            $deckManager->moves
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            ['cardMoved', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    /**
+     * @dataProvider emptyDeckChoiceConsequenceProvider
+     */
+    public function testDeckChoiceConsequenceIsSkippedWhenBothDecksAreEmpty(
+        string $action,
+        string $color
+    ): void {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[35] = [
+            'id' => 35,
+            'location' => $color === 'black'
+                ? Location::ESCAPED
+                : Location::MEMORY,
+            'location_arg' => 0,
+            'card_name' => 'Deck choice card',
+            'consequence_' . $color => ['action' => $action],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 35,
+            'color' => $color,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame([Transition::STORY_CHECK], $gamestate->transitions);
+    }
+
+    public function emptyDeckChoiceConsequenceProvider(): array
+    {
+        return [
+            'brainstorm' => ['brainstorm', 'white'],
+            'fast memorise' => ['fastmemorise', 'black'],
+        ];
     }
 
     public function testZombieOrDieRequestsAChoiceWhenAZombieIsInHand(): void
@@ -1434,6 +1587,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => true,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],
@@ -1487,6 +1641,7 @@ final class GameRulesTest extends TestCase
             'escapeTallaChoice' => false,
             'avoidZombieChoice' => false,
             'brainstorm' => false,
+            'fastMemorise' => false,
             'biteChoices' => [],
             'healChoices' => [],
             'disasterChoices' => [],

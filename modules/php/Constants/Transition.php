@@ -22,6 +22,7 @@ final class Transition
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const RECOVER_CHOICE = 'recoverChoice';
+    public const FAST_MEMORISE_DECK_CHOICE = 'fastMemoriseDeckChoice';
     public const STORY_CHECK_STEP = 'storyCheckStep';
     public const DEFAULT = '';
     public const GAME_END = 'gameEnd';

@@ -708,6 +708,18 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
   });
 
+  it("fast-memorises from the selected deck", () => {
+    const context = { bgaPerformAction: spy() };
+
+    game.onFastMemoriseRuralDeckClick.call(context);
+    game.onFastMemoriseUrbanDeckClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actFastMemorise");
+    assert.equal(context.bgaPerformAction.calls[0][1].location, "deck_rural");
+    assert.equal(context.bgaPerformAction.calls[1][0], "actFastMemorise");
+    assert.equal(context.bgaPerformAction.calls[1][1].location, "deck_urban");
+  });
+
   it("confirms disaster resolution through the shared player action", () => {
     const context = { bgaPerformAction: spy() };
 

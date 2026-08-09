@@ -518,6 +518,23 @@ define([
             );
           }
           break;
+        case "fastMemoriseDeckChoice": {
+          const fastMemoriseArgs = args.args || args;
+          this.fastMemoriseAvailableDecks = fastMemoriseArgs.availableDecks || [];
+          if (this.fastMemoriseAvailableDecks.includes("deck_urban")) {
+            document.getElementById("deck_urban").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.urbanDeck, "onCardClick", this, "onFastMemoriseUrbanDeckClick")
+            );
+          }
+          if (this.fastMemoriseAvailableDecks.includes("deck_rural")) {
+            document.getElementById("deck_rural").classList.add("twd-highlight");
+            this.stateConnectors.push(
+              dojo.connect(this.ruralDeck, "onCardClick", this, "onFastMemoriseRuralDeckClick")
+            );
+          }
+          break;
+        }
         case "brainstormReorder":
           this.setHandVisible(false);
           document.getElementById("brainstorm_wrap").style.display = "block";
@@ -610,6 +627,7 @@ define([
           this.stateConnectors = [];
           break;
         case "brainstormDeckChoice":
+        case "fastMemoriseDeckChoice":
           this.stateConnectors.forEach((conn) => dojo.disconnect(conn));
           this.stateConnectors = [];
           document.getElementById("deck_urban").classList.remove("twd-highlight");
@@ -1185,6 +1203,14 @@ define([
 
     onBrainstormUrbanDeckClick: function () {
       this.bgaPerformAction("actStartBrainstorm", { location: "deck_urban" });
+    },
+
+    onFastMemoriseRuralDeckClick: function () {
+      this.bgaPerformAction("actFastMemorise", { location: "deck_rural" });
+    },
+
+    onFastMemoriseUrbanDeckClick: function () {
+      this.bgaPerformAction("actFastMemorise", { location: "deck_urban" });
     },
 
     prepareBrainstormReorder: async function (cards) {
