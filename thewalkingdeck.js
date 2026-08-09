@@ -970,7 +970,10 @@ define([
       });
 
       const availableCapacity = characters.reduce(
-        (capacity, card) => capacity + Math.max(0, 4 - (Number(card.wounds) || 0)),
+        (capacity, card) => capacity + Math.max(
+          0,
+          (card.card_name === "Robert" ? 3 : 4) - (Number(card.wounds) || 0)
+        ),
         0
       );
       this.biteWoundsToAssign = Math.min(this.biteWoundsRequired, availableCapacity);
@@ -988,7 +991,8 @@ define([
 
       const woundsToApply = this.biteWoundsToApply[cardId] || 0;
       const initialWounds = this.biteInitialWounds[cardId] || 0;
-      if (initialWounds + woundsToApply >= 4) return;
+      const woundLimit = card.card_name === "Robert" ? 3 : 4;
+      if (initialWounds + woundsToApply >= woundLimit) return;
 
       this.biteWoundsToApply[cardId] = woundsToApply + 1;
       this.biteWoundsRemaining--;

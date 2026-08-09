@@ -33,6 +33,7 @@ use Bga\GameFramework\UserException;
 class Game extends \Bga\GameFramework\Table
 {
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
+    private const ROBERT_CARD_NAME = 'Robert';
 
     /**
      * Your global variables labels:
@@ -842,9 +843,58 @@ class Game extends \Bga\GameFramework\Table
         foreach ($this->deckManager->getCardsInLocation(
             Location::CHARACTERS_IN_PLAY
         ) as $character) {
-            $capacity += max(0, 4 - intval($character['wounds'] ?? 0));
+            $capacity += max(
+                0,
+                $this->getCharacterWoundLimit($character)
+                    - intval($character['wounds'] ?? 0)
+            );
         }
         return $capacity;
+    }
+
+    private function getCharacterWoundLimit(array $character): int
+    {
+        return ($character['card_name'] ?? '') === self::ROBERT_CARD_NAME
+            ? 3
+            : 4;
+    }
+
+    private function applyCharacterWounds(
+        array $character,
+        int $wounds,
+        bool $deferFatalMove = false
+    ): void {
+        $currentWounds = intval($character['wounds'] ?? 0);
+        $newWounds = min(4, $currentWounds + $wounds);
+        $cardId = intval($character['id']);
+
+        if (
+            ($character['card_name'] ?? '') === self::ROBERT_CARD_NAME
+            && $currentWounds < 3
+            && $newWounds >= 3
+        ) {
+            $this->moveCard($cardId, Location::DONE);
+            return;
+        }
+
+        if ($newWounds === 4 && !$deferFatalMove) {
+            $this->moveCard($cardId, Location::GRAVEYARD);
+            return;
+        }
+
+        $card = $this->deckManager->setCardWounds($cardId, $newWounds);
+        if ($deferFatalMove) {
+            $card['face_down'] = $newWounds === 4;
+        }
+        $this->notify->all(
+            'characterWoundsChanged',
+            \clienttranslate('${card_name} receives ${wounds} wound(s)'),
+            [
+                'card' => $card,
+                'card_name' => $card['card_name'],
+                'wounds' => $newWounds - $currentWounds,
+            ]
+        );
     }
 
     private function hasCharactersInPlay(): bool
@@ -884,7 +934,8 @@ class Game extends \Bga\GameFramework\Table
             $eligibleCharactersById[intval($character['id'])] = $character;
             $availableWoundCapacity += max(
                 0,
-                4 - intval($character['wounds'] ?? 0)
+                $this->getCharacterWoundLimit($character)
+                    - intval($character['wounds'] ?? 0)
             );
         }
 
@@ -910,9 +961,14 @@ class Game extends \Bga\GameFramework\Table
             $currentWounds = intval(
                 $eligibleCharactersById[$cardId]['wounds'] ?? 0
             );
-            if ($currentWounds + $wounds > 4) {
+            if (
+                $currentWounds + $wounds
+                    > $this->getCharacterWoundLimit(
+                        $eligibleCharactersById[$cardId]
+                    )
+            ) {
                 throw new UserException(
-                    \clienttranslate('A character cannot receive more than 4 wounds')
+                    \clienttranslate('A character cannot receive that many wounds')
                 );
             }
             $allocations[$cardId] = $wounds;
@@ -929,22 +985,10 @@ class Game extends \Bga\GameFramework\Table
         }
 
         foreach ($allocations as $cardId => $wounds) {
-            $newWounds = intval($eligibleCharactersById[$cardId]['wounds'] ?? 0)
-                + $wounds;
-            if ($newWounds === 4) {
-                $this->moveCard($cardId, Location::GRAVEYARD);
-            } else {
-                $card = $this->deckManager->setCardWounds($cardId, $newWounds);
-                $this->notify->all(
-                    'characterWoundsChanged',
-                    \clienttranslate('${card_name} receives ${wounds} wound(s)'),
-                    [
-                        'card' => $card,
-                        'card_name' => $card['card_name'],
-                        'wounds' => $wounds,
-                    ]
-                );
-            }
+            $this->applyCharacterWounds(
+                $eligibleCharactersById[$cardId],
+                $wounds
+            );
         }
 
         $this->popEvent($event['id']);
@@ -1300,21 +1344,7 @@ class Game extends \Bga\GameFramework\Table
             )
         ) {
             foreach ($this->getCharactersAffectedByDisaster($characteristic) as $character) {
-                $newWounds = min(4, intval($character['wounds'] ?? 0) + 1);
-                $card = $this->deckManager->setCardWounds(
-                    intval($character['id']),
-                    $newWounds
-                );
-                $card['face_down'] = $newWounds === 4;
-                $this->notify->all(
-                    'characterWoundsChanged',
-                    \clienttranslate('${card_name} receives 1 wound'),
-                    [
-                        'card' => $card,
-                        'card_name' => $card['card_name'],
-                        'wounds' => 1,
-                    ]
-                );
+                $this->applyCharacterWounds($character, 1, true);
             }
         }
 
