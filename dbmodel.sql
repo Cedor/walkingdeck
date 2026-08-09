@@ -87,7 +87,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (8, '2', 4, 'Ellie and Joel', 0, 1, NULL, NULL, '{"action" : "disaster", "number" : 1}', 0),
 (9, '2', 5, 'Kieren', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
 (10, '2', 6, 'Tallahassee', 0, 1, NULL, '{"action" : "escapeTalla"}', '{"action" : "disaster", "number" : 1}', 0),
-(11, '2', 7, 'Gretchen', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "other"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
+(11, '2', 7, 'Gretchen', 0, 1, '{"action" : "multiple", "number" : 2, "0" : {"action" : "addemptydisasters"}, "1" : {"action" : "bury", "bury" : "this"}}', NULL, '{"action" : "disaster", "number" : 1}', 0),
 (12, '2', 8, 'Robert', 0, 1, NULL, NULL, '{"action" : "nothing"}', 0),
 (13, '2', 9, 'Brigade', 1, 0, NULL, '{"action" : "other"}', '{"action" : "bite", "bite" : 2}', 1),
 (14, '2', 10, 'Bonfire', 0, 0, '{"action" : "draw", "number" : 3}', NULL, '{"action" : "heal", "number" : 2}', 0),

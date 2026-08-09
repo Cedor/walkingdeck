@@ -822,6 +822,24 @@ describe("player actions", () => {
 });
 
 describe("notifications", () => {
+  it("moves empty disaster tokens from the reserve to the bag", () => {
+    const removeAll = spy();
+    const disasterBag = { id: "disasters_bag" };
+    const context = {
+      disastersReserve: { removeAll },
+    };
+    documentElementOverrides.disasters_bag = disasterBag;
+
+    try {
+      game.notif_emptyDisastersAdded.call(context, { count: 2 });
+
+      assert.equal(removeAll.calls.length, 1);
+      assert.equal(removeAll.calls[0][0].slideTo, disasterBag);
+    } finally {
+      delete documentElementOverrides.disasters_bag;
+    }
+  });
+
   it("shows a revealed card on top of its deck", async () => {
     const deck = {
       setCardNumber: spy(),

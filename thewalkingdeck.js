@@ -1529,6 +1529,13 @@ define([
       console.log(args);
       this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
     },
+    notif_emptyDisastersAdded: function (args) {
+      console.log("notif_emptyDisastersAdded");
+      console.log(args);
+      this.disastersReserve.removeAll({
+        slideTo: document.getElementById("disasters_bag"),
+      });
+    },
     notif_characterPutInPlay: async function (args) {
       console.log("notif_characterPutInPlay");
       console.log(args);
