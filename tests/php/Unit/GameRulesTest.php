@@ -1098,6 +1098,49 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testRobertMovesToDoneWhenHeReceivesHisThirdWound(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[12] = [
+            'id' => 12,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+            'card_name' => 'Robert',
+            'wounds' => 2,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BITE_CHOICE, [
+            'sourceCardId' => 33,
+            'bite' => 2,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 1);
+
+        $this->game->actApplyBiteWounds('{"12":1}');
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::DONE, $deckManager->cards[12]['location']);
+        self::assertSame(2, $deckManager->cards[12]['wounds']);
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            ['cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
     public function testBrainstormOnlyOffersNonEmptyDecks(): void
     {
         $this->setProperty('deckManager', new class {

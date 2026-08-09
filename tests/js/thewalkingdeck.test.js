@@ -261,6 +261,19 @@ describe("player actions", () => {
     assert.equal(context.biteWoundsRemaining, 1);
   });
 
+  it("only lets Robert receive a third wound", () => {
+    const context = {};
+
+    game.prepareBiteChoice.call(context, {
+      bite: 2,
+      eligibleCardsIds: [12],
+      eligibleCharacters: [{ id: 12, card_name: "Robert", wounds: 2 }],
+    });
+
+    assert.equal(context.biteWoundsToAssign, 1);
+    assert.equal(context.biteWoundsRemaining, 1);
+  });
+
   it("turns a character face down on its fourth wound and stops further wounds", () => {
     const context = {
       biteWoundsRemaining: 1,
