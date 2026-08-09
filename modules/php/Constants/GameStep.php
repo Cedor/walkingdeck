@@ -19,6 +19,7 @@ final class GameStep
     public const DISASTER_CHOICE = 39;
     public const HEAL_CHOICE = 40;
     public const WOLF_TRAP_CHOICE = 41;
+    public const RECOVER_CHOICE = 42;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;

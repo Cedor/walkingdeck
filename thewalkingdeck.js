@@ -247,8 +247,7 @@ define([
       // this.graveyard.setSelectionMode("single");
       // create escaped pile
       this.escaped = new BgaCards.AllVisibleDeck(this.cardsManager, document.getElementById("escaped"), {
-        // TEST remove
-        // cardClickEventFilter: "all",
+        cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {
           hideWhenEmpty: true,
@@ -485,6 +484,19 @@ define([
         case "wolfTrapChoice":
           this.prepareWolfTrapChoice(args.args || args);
           break;
+        case "recoverChoice": {
+          const recoverArgs = args.args || args;
+          this.recoverChoiceActive = true;
+          this.recoverEligibleCardIds = (recoverArgs.eligibleCardsIds || []).map(Number);
+          document.getElementById("escaped")?.classList.add("twd-highlight");
+          this.recoverChoiceConnector = dojo.connect(
+            this.escaped,
+            "onCardClick",
+            this,
+            "onRecoverCardClick"
+          );
+          break;
+        }
         case "drawCards":
         case "specialDraw":
           this.stateConnectors.push(dojo.connect(this.urbanDeck, "onCardClick", this, "onUrbanDeckCardClick"));
@@ -582,6 +594,15 @@ define([
         case "wolfTrapChoice":
           this.wolfTrapPhase = null;
           document.getElementById("disasters_bag")?.classList.remove("twd-highlight");
+          break;
+        case "recoverChoice":
+          this.recoverChoiceActive = false;
+          this.recoverEligibleCardIds = [];
+          if (this.recoverChoiceConnector) {
+            dojo.disconnect(this.recoverChoiceConnector);
+            this.recoverChoiceConnector = null;
+          }
+          document.getElementById("escaped")?.classList.remove("twd-highlight");
           break;
         case "drawCards":
         case "specialDraw":
@@ -763,6 +784,9 @@ define([
             }
             break;
           }
+          case "recoverChoice":
+            this.statusBar.setTitle(_("Choose a card from the escaped area to recover"));
+            break;
           case "brainstormReorder":
             this.statusBar.addActionButton(_("Confirm order"), () => this.confirmBrainstorm(), {
               id: "confirm_brainstorm",
@@ -1224,12 +1248,24 @@ define([
 
     onEscapedClick: function () {
       console.log("onEscapedClick");
+      if (this.recoverChoiceActive) {
+        return;
+      }
       let card = this.hand.getSelection()[0];
       if (card && this.canCardBePlayedInLocation(card, "escaped")) {
         this.bgaPerformAction("actPlayCard", {
           card_id: card.id,
           location: "escaped",
         });
+      }
+    },
+
+    onRecoverCardClick: function (card) {
+      if (
+        this.recoverChoiceActive
+        && this.recoverEligibleCardIds.includes(Number(card.id))
+      ) {
+        this.bgaPerformAction("actRecoverCard", { card_id: card.id });
       }
     },
     onMemoryClick: function () {
