@@ -1084,6 +1084,40 @@ describe("notifications", () => {
     assert.equal(destination.addCard.calls[0][1].fromStock, source);
   });
 
+  it("installs the new graveyard top after its top card is removed", async () => {
+    const graveyard = {
+      setCardNumber: spy(),
+      addCard: spy(async () => undefined),
+    };
+    const context = {
+      graveyard,
+      moveCardToLocation: spy(async () => undefined),
+    };
+    const graveyardTop = {
+      id: 41,
+      type: "4",
+      location: "graveyard",
+    };
+
+    await game.notif_cardMoved.call(context, {
+      card: { id: 42, type: "3", location: "escaped" },
+      source: "graveyard",
+      destination: "escaped",
+      graveyardNb: 1,
+      graveyardTop,
+    });
+
+    assert.equal(graveyard.setCardNumber.calls[0][0], 0);
+    assert.equal(graveyard.addCard.calls[0][0], graveyardTop);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(graveyard.addCard.calls[0][1])),
+      {
+        autoupdateCardNumber: false,
+        autoRemovePreviousCards: true,
+      }
+    );
+  });
+
   it("reveals and installs the current Story Check card", async () => {
     const memory = {
       setCardNumber: spy(),

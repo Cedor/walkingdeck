@@ -8,6 +8,7 @@ final class FakeCardDeck
 {
     public array $cards = [];
     public array $createdBatches = [];
+    public array $extremeInsertions = [];
     public array $moves = [];
     public array $shuffledLocations = [];
 
@@ -58,6 +59,7 @@ final class FakeCardDeck
 
     public function insertCardOnExtremePosition(int $cardId, string $location, bool $onTop): void
     {
+        $this->extremeInsertions[] = [$cardId, $location, $onTop];
         $this->moveCard($cardId, $location);
     }
 
@@ -72,6 +74,18 @@ final class FakeCardDeck
     {
         $this->cards[$cardId]['wounds'] = $wounds;
         return $this->cards[$cardId];
+    }
+
+    public function generateFakeCard(array $card): array
+    {
+        $type = strval($card['type'] ?? '1');
+        return [
+            'id' => $card['id'],
+            'type' => $type === '2' ? '4' : ($type === '3' ? '5' : '6'),
+            'type_arg' => '20',
+            'location' => $card['location'],
+            'location_arg' => $card['location_arg'],
+        ];
     }
 
     public function moveAllCardsInLocation(
