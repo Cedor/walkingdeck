@@ -311,7 +311,60 @@ class Game extends \Bga\GameFramework\Table
                         );
                     }
 
-                    $outcome = $this->applyConsequences($card, $color);
+                    $hasConsequenceOverride = array_key_exists(
+                        'consequence',
+                        $event['parameters']
+                    );
+                    $consequence = $hasConsequenceOverride
+                        ? $event['parameters']['consequence']
+                        : ($card['consequence_' . $color] ?? null);
+                    if (
+                        $hasConsequenceOverride
+                        && !is_array($consequence)
+                    ) {
+                        throw new SystemException(
+                            "Invalid consequence event {$event['id']}"
+                        );
+                    }
+
+                    if (
+                        is_array($consequence)
+                        && ($consequence['action'] ?? null) === 'multiple'
+                    ) {
+                        $number = intval($consequence['number'] ?? 0);
+                        $subConsequences = [];
+                        for ($i = 0; $i < $number; $i++) {
+                            $key = strval($i);
+                            if (
+                                !isset($consequence[$key])
+                                || !is_array($consequence[$key])
+                            ) {
+                                throw new SystemException(
+                                    "Missing consequence $key for card {$card['id']}"
+                                );
+                            }
+                            $subConsequences[] = $consequence[$key];
+                        }
+
+                        $this->popEvent($event['id']);
+                        for ($i = count($subConsequences) - 1; $i >= 0; $i--) {
+                            $this->eventStack->pushEvent(
+                                EventType::CONSEQUENCE,
+                                [
+                                    'cardId' => $cardId,
+                                    'color' => $color,
+                                    'consequence' => $subConsequences[$i],
+                                ]
+                            );
+                        }
+                        break;
+                    }
+
+                    $outcome = $this->applyConsequences(
+                        $card,
+                        $color,
+                        is_array($consequence) ? $consequence : null
+                    );
                     $this->popEvent($event['id']);
 
                     if ($outcome['checkLoss'] && $this->isLossReached()) {
@@ -345,7 +398,7 @@ class Game extends \Bga\GameFramework\Table
                                 'An avoid deck choice cannot be combined with another deferred consequence'
                             );
                         }
-                        foreach (array_reverse($outcome['avoidDeckChoices']) as $avoidChoice) {
+                        foreach ($outcome['avoidDeckChoices'] as $avoidChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::AVOID_DECK_CHOICE,
                                 $avoidChoice
@@ -375,7 +428,7 @@ class Game extends \Bga\GameFramework\Table
                                 'A draft disaster choice cannot be combined with another deferred consequence'
                             );
                         }
-                        foreach (array_reverse($outcome['draftDisasterChoices']) as $draftChoice) {
+                        foreach ($outcome['draftDisasterChoices'] as $draftChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::DRAFT_DISASTER_CHOICE,
                                 $draftChoice
@@ -404,7 +457,7 @@ class Game extends \Bga\GameFramework\Table
                                 'A bury character choice cannot be combined with another deferred consequence'
                             );
                         }
-                        foreach (array_reverse($outcome['buryCharacterChoices']) as $buryChoice) {
+                        foreach ($outcome['buryCharacterChoices'] as $buryChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::BURY_CHARACTER_CHOICE,
                                 $buryChoice
@@ -433,7 +486,7 @@ class Game extends \Bga\GameFramework\Table
                                 'A bury top card choice cannot be combined with another deferred consequence'
                             );
                         }
-                        foreach (array_reverse($outcome['buryTopCardChoices']) as $buryChoice) {
+                        foreach ($outcome['buryTopCardChoices'] as $buryChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::BURY_TOP_CARD_CHOICE,
                                 $buryChoice
@@ -464,7 +517,7 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        foreach (array_reverse($outcome['biteChoices']) as $biteChoice) {
+                        foreach ($outcome['biteChoices'] as $biteChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::BITE_CHOICE,
                                 $biteChoice
@@ -494,7 +547,7 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        foreach (array_reverse($outcome['healChoices']) as $healChoice) {
+                        foreach ($outcome['healChoices'] as $healChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::HEAL_CHOICE,
                                 $healChoice
@@ -524,7 +577,7 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        foreach (array_reverse($outcome['disasterChoices']) as $disasterChoice) {
+                        foreach ($outcome['disasterChoices'] as $disasterChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::DISASTER_CHOICE,
                                 $disasterChoice
@@ -550,7 +603,7 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        foreach (array_reverse($outcome['wolfTrapChoices']) as $wolfTrapChoice) {
+                        foreach ($outcome['wolfTrapChoices'] as $wolfTrapChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::WOLF_TRAP_CHOICE,
                                 $wolfTrapChoice
@@ -599,7 +652,7 @@ class Game extends \Bga\GameFramework\Table
                             );
                         }
 
-                        foreach (array_reverse($outcome['recoverChoices']) as $recoverChoice) {
+                        foreach ($outcome['recoverChoices'] as $recoverChoice) {
                             $this->eventStack->pushEvent(
                                 EventType::RECOVER_CHOICE,
                                 $recoverChoice
@@ -1224,9 +1277,14 @@ class Game extends \Bga\GameFramework\Table
     /**
      * Parse and execute the array of consequences
      */
-    private function applyConsequences(array $card, string $color): array
+    private function applyConsequences(
+        array $card,
+        string $color,
+        ?array $consequenceOverride = null
+    ): array
     {
-        $consequence = $card['consequence_' . $color];
+        $consequence = $consequenceOverride
+            ?? ($card['consequence_' . $color] ?? null);
         $outcome = [
             'additionalDraws' => 0,
             'startNormalDraw' => false,
