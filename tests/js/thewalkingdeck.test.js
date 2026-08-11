@@ -48,6 +48,19 @@ before(() => {
 });
 
 describe("card helpers", () => {
+  it("enables clicks on the protagonist slot for protagonist abilities", () => {
+    const source = readFileSync(
+      new URL("../../thewalkingdeck.js", import.meta.url),
+      "utf8"
+    );
+    const protagonistSlotSetup = source.slice(
+      source.indexOf("this.protagonistSlot = new BgaCards.SlotStock"),
+      source.indexOf("// Create hand")
+    );
+
+    assert.match(protagonistSlotSetup, /cardClickEventFilter:\s*"all"/);
+  });
+
   it("renders the brainstorm area above the hand", () => {
     const source = readFileSync(
       new URL("../../thewalkingdeck.js", import.meta.url),
