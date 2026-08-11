@@ -29,6 +29,23 @@ final class TWDEventStackTest extends TestCase
         (new TWDEventStack($game))->pushEvent(EventType::DRAW_CARD, ['source' => 'deck_rural']);
     }
 
+    public function testUnrememberChoiceIsASupportedEvent(): void
+    {
+        $game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['escapeStringForDB', 'DbQuery'])
+            ->getMock();
+        $game->method('escapeStringForDB')->willReturnCallback('addslashes');
+        $game->expects(self::once())
+            ->method('DbQuery')
+            ->with(self::stringContains(EventType::UNREMEMBER_CHOICE));
+
+        (new TWDEventStack($game))->pushEvent(
+            EventType::UNREMEMBER_CHOICE,
+            ['sourceCardId' => 9]
+        );
+    }
+
     public function testCurrentEventDecodesParameters(): void
     {
         $game = $this->getMockBuilder(Game::class)

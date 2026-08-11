@@ -82,6 +82,7 @@ $machinestates = [
             Transition::PLAYER_CHOICE => GameStep::PLAYER_CHOICE_1,
             Transition::AVOID_ZOMBIE_CHOICE => GameStep::AVOID_ZOMBIE_CHOICE,
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
+            Transition::UNREMEMBER_CHOICE => GameStep::UNREMEMBER_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
             Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
@@ -248,6 +249,19 @@ $machinestates = [
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END,
+        ])
+        ->build(),
+    GameStep::UNREMEMBER_CHOICE => GameStateBuilder::create()
+        ->name(Transition::UNREMEMBER_CHOICE)
+        ->description(clienttranslate('${actplayer} may recover up to two Memory cards'))
+        ->descriptionmyturn(clienttranslate('You may recover up to two of these Memory cards'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argUnrememberChoice')
+        ->possibleactions([
+            'actConfirmUnremember',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),
     GameStep::WOLF_TRAP_CHOICE => GameStateBuilder::create()

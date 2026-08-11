@@ -121,8 +121,8 @@ define([
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
         `<div id="brainstorm_wrap" class="whiteblock">
-            <b>${_("Brainstorm")}</b>
-            <div class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
+            <b id="brainstorm_label">${_("Brainstorm")}</b>
+            <div id="brainstorm_help" class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
             <div id="brainstorm"></div>
           </div>`
       );
@@ -604,6 +604,15 @@ define([
           document.getElementById("brainstorm_wrap").style.display = "block";
           this.prepareBrainstormReorder((args.args || args).cards || []);
           break;
+        case "unrememberChoice": {
+          const unrememberArgs = args.args || args;
+          document.getElementById("brainstorm_wrap").style.display = "block";
+          this.prepareUnrememberChoice(
+            unrememberArgs.cards || [],
+            Number(unrememberArgs.maximumCards) || 0
+          );
+          break;
+        }
         case "playCards":
           if (this.hand.getCardCount() === 1) {
             document.getElementById("refill_hand_button").style.visibility = "visible";
@@ -741,6 +750,10 @@ define([
           this.disableBrainstormReorder();
           document.getElementById("brainstorm_wrap").style.display = "none";
           this.setHandVisible(true);
+          break;
+        case "unrememberChoice":
+          this.disableUnrememberChoice();
+          document.getElementById("brainstorm_wrap").style.display = "none";
           break;
         case "playCards":
           break;
@@ -981,6 +994,16 @@ define([
               id: "confirm_brainstorm",
               color: "primary",
             });
+            break;
+          case "unrememberChoice":
+            this.statusBar.addActionButton(
+              _("Recover selected cards"),
+              () => this.confirmUnremember(),
+              {
+                id: "confirm_unremember",
+                color: "primary",
+              }
+            );
             break;
           case "storyCheckPlayerChoice":
             const storyArgs = args.args || args;
@@ -1529,6 +1552,10 @@ define([
 
     prepareBrainstormReorder: async function (cards) {
       document.getElementById("brainstorm_wrap").style.display = "block";
+      document.getElementById("brainstorm_label").textContent = _("Brainstorm");
+      document.getElementById("brainstorm_help").textContent = _(
+        "Drag the cards to reorder them. The left card will be on top."
+      );
       for (const card of cards) {
         await this.brainstorm.addCard(card);
       }
@@ -1567,6 +1594,50 @@ define([
         cardElement.ondragover = null;
       });
       this.brainstormDraggedCardId = null;
+    },
+
+    prepareUnrememberChoice: async function (cards, maximumCards) {
+      document.getElementById("brainstorm_wrap").style.display = "block";
+      document.getElementById("brainstorm_label").textContent = _("Unremember");
+      document.getElementById("brainstorm_help").textContent = _(
+        "Choose up to two cards to recover into your hand."
+      );
+      for (const card of cards) {
+        await this.brainstorm.addCard(card);
+      }
+
+      this.unrememberMaximumCards = maximumCards;
+      this.brainstorm.setSelectionMode("multiple");
+      this.brainstorm.onSelectionChange = (selection, lastChange) =>
+        this.onUnrememberSelectionChange(selection, lastChange);
+    },
+
+    onUnrememberSelectionChange: function (selection, lastChange) {
+      if (
+        selection.length > (this.unrememberMaximumCards || 0)
+        && lastChange
+      ) {
+        this.brainstorm.unselectCard(lastChange);
+      }
+    },
+
+    disableUnrememberChoice: function () {
+      this.brainstorm.onSelectionChange = null;
+      this.brainstorm.unselectAll();
+      this.brainstorm.setSelectionMode("none");
+      this.unrememberMaximumCards = 0;
+    },
+
+    confirmUnremember: function () {
+      const selectedCardIds = this.brainstorm
+        .getSelection()
+        .map((card) => Number(card.id));
+      if (selectedCardIds.length > (this.unrememberMaximumCards || 0)) {
+        return;
+      }
+      this.bgaPerformAction("actConfirmUnremember", {
+        card_ids: JSON.stringify(selectedCardIds),
+      });
     },
 
     confirmBrainstorm: function () {

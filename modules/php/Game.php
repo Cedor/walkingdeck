@@ -301,6 +301,28 @@ class Game extends \Bga\GameFramework\Table
                     $this->gamestate->nextState(Transition::RECOVER_CHOICE);
                     return;
 
+                case EventType::UNREMEMBER_CHOICE:
+                    $this->getPendingUnrememberChoiceEvent();
+                    if (
+                        $this->deckManager->countCardInLocation(
+                            Location::UNREMEMBER
+                        ) === 0
+                    ) {
+                        if (
+                            $this->deckManager->countCardInLocation(
+                                Location::MEMORY
+                            ) === 0
+                        ) {
+                            $this->popEvent($event['id']);
+                            break;
+                        }
+                        $this->startUnrememberChoice();
+                    }
+                    $this->gamestate->nextState(
+                        Transition::UNREMEMBER_CHOICE
+                    );
+                    return;
+
                 case EventType::CONSEQUENCE:
                     $cardId = intval($event['parameters']['cardId'] ?? 0);
                     $color = strval($event['parameters']['color'] ?? '');
@@ -656,6 +678,37 @@ class Game extends \Bga\GameFramework\Table
                             $this->eventStack->pushEvent(
                                 EventType::RECOVER_CHOICE,
                                 $recoverChoice
+                            );
+                        }
+                        break;
+                    }
+
+                    if ($outcome['unrememberChoices'] !== []) {
+                        if (
+                            $outcome['additionalDraws'] > 0
+                            || $outcome['startNormalDraw']
+                            || $outcome['escapeTallaChoice']
+                            || $outcome['avoidZombieChoice']
+                            || $outcome['avoidHandChoice']
+                            || $outcome['brainstorm']
+                            || $outcome['fastMemorise']
+                            || $outcome['biteChoices'] !== []
+                            || $outcome['healChoices'] !== []
+                            || $outcome['disasterChoices'] !== []
+                            || $outcome['wolfTrapChoices'] !== []
+                            || $outcome['recoverChoices'] !== []
+                        ) {
+                            throw new SystemException(
+                                'An unremember choice cannot be combined with another deferred consequence'
+                            );
+                        }
+
+                        foreach (
+                            $outcome['unrememberChoices'] as $unrememberChoice
+                        ) {
+                            $this->eventStack->pushEvent(
+                                EventType::UNREMEMBER_CHOICE,
+                                $unrememberChoice
                             );
                         }
                         break;
@@ -1055,6 +1108,7 @@ class Game extends \Bga\GameFramework\Table
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ];
 
         switch ($consequence['action']) {
@@ -1160,6 +1214,11 @@ class Game extends \Bga\GameFramework\Table
                 break;
             case 'recover':
                 $outcome['recoverChoices'][] = [
+                    'sourceCardId' => intval($card['id']),
+                ];
+                break;
+            case 'unremember':
+                $outcome['unrememberChoices'][] = [
                     'sourceCardId' => intval($card['id']),
                 ];
                 break;
@@ -1337,6 +1396,7 @@ class Game extends \Bga\GameFramework\Table
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ];
 
         if (!$consequence || !isset($consequence['action'])) {
@@ -1422,6 +1482,10 @@ class Game extends \Bga\GameFramework\Table
             $outcome['recoverChoices'] = array_merge(
                 $outcome['recoverChoices'],
                 $currentOutcome['recoverChoices']
+            );
+            $outcome['unrememberChoices'] = array_merge(
+                $outcome['unrememberChoices'],
+                $currentOutcome['unrememberChoices']
             );
         }
 
@@ -2660,6 +2724,29 @@ class Game extends \Bga\GameFramework\Table
         return $event;
     }
 
+    private function getPendingUnrememberChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::UNREMEMBER_CHOICE
+        ) {
+            throw new SystemException(
+                'There is no pending unremember choice'
+            );
+        }
+        $sourceCardId = intval(
+            $event['parameters']['sourceCardId'] ?? 0
+        );
+        if (
+            $sourceCardId < 1
+            || $this->deckManager->getCard($sourceCardId) === null
+        ) {
+            throw new SystemException('Invalid pending unremember choice');
+        }
+        return $event;
+    }
+
     /**
      * Resolve an escape consequence by choosing one zombie from hand.
      */
@@ -3111,6 +3198,147 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $this->gamestate->nextState(Transition::BRAINSTORM_REORDER);
+    }
+
+    private function startUnrememberChoice(): void
+    {
+        $cards = $this->deckManager->getCardsOnTop(
+            3,
+            Location::MEMORY
+        );
+        foreach ($cards as $position => $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->moveCard(
+                $cardId,
+                Location::UNREMEMBER,
+                $position
+            );
+            $movedCard = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is recalled from Memory'),
+                [
+                    'card' => $movedCard,
+                    'card_name' => $movedCard['card_name'],
+                    'destination' => 'brainstorm',
+                    'source' => Location::MEMORY,
+                ]
+            );
+        }
+    }
+
+    public function argUnrememberChoice(): array
+    {
+        $this->getPendingUnrememberChoiceEvent();
+        $cards = array_values($this->deckManager->getCardsInLocation(
+            Location::UNREMEMBER,
+            null,
+            'location_arg'
+        ));
+
+        return [
+            'cards' => $cards,
+            'maximumCards' => min(2, count($cards)),
+        ];
+    }
+
+    public function actConfirmUnremember(string $card_ids): void
+    {
+        $this->checkAction('actConfirmUnremember');
+        $event = $this->getPendingUnrememberChoiceEvent();
+
+        try {
+            $submittedCardIds = json_decode(
+                $card_ids,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected from Memory')
+            );
+        }
+        if (!is_array($submittedCardIds)) {
+            throw new UserException(
+                \clienttranslate('Invalid cards selected from Memory')
+            );
+        }
+
+        $selectedCardIds = array_map('intval', $submittedCardIds);
+        if (
+            count($selectedCardIds) > 2
+            || count(array_unique($selectedCardIds))
+                !== count($selectedCardIds)
+        ) {
+            throw new UserException(
+                \clienttranslate('You may select up to two different cards')
+            );
+        }
+
+        $cards = array_values($this->deckManager->getCardsInLocation(
+            Location::UNREMEMBER,
+            null,
+            'location_arg'
+        ));
+        $cardsById = [];
+        foreach ($cards as $card) {
+            $cardsById[intval($card['id'])] = $card;
+        }
+        foreach ($selectedCardIds as $cardId) {
+            if (!isset($cardsById[$cardId])) {
+                throw new UserException(
+                    \clienttranslate(
+                        'You can only recover one of the displayed Memory cards'
+                    )
+                );
+            }
+        }
+
+        $selectedLookup = array_fill_keys($selectedCardIds, true);
+        foreach ($selectedCardIds as $cardId) {
+            $this->deckManager->moveCard($cardId, Location::HAND);
+            $movedCard = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is recovered from Memory'),
+                [
+                    'card' => $movedCard,
+                    'card_name' => $movedCard['card_name'],
+                    'destination' => Location::HAND,
+                    'source' => 'brainstorm',
+                ]
+            );
+        }
+
+        $remainingCards = array_values(array_filter(
+            $cards,
+            static function (array $card) use ($selectedLookup): bool {
+                return !isset($selectedLookup[intval($card['id'])]);
+            }
+        ));
+        foreach (array_reverse($remainingCards) as $card) {
+            $cardId = intval($card['id']);
+            $this->deckManager->insertCardOnExtremePosition(
+                $cardId,
+                Location::MEMORY,
+                true
+            );
+            $movedCard = $this->deckManager->getCard($cardId);
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('${card_name} is returned to Memory'),
+                [
+                    'card' => $movedCard,
+                    'card_name' => $movedCard['card_name'],
+                    'destination' => Location::MEMORY,
+                    'source' => 'brainstorm',
+                ]
+            );
+        }
+
+        $this->popEvent($event['id']);
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
     public function argBrainstormReorder(): array
@@ -3738,10 +3966,14 @@ class Game extends \Bga\GameFramework\Table
         $result['ruralDeckTop'] = $this->getRevealedDeckTop(Location::RURAL);
         $result['urbanDeckTop'] = $this->getRevealedDeckTop(Location::URBAN);
         $brainstormLocation = $this->getCurrentBrainstormLocation();
-        $result['brainstorm'] = $brainstormLocation === null
+        $displayedChoiceLocation = $this->deckManager
+            ->countCardInLocation(Location::UNREMEMBER) > 0
+                ? Location::UNREMEMBER
+                : $brainstormLocation;
+        $result['brainstorm'] = $displayedChoiceLocation === null
             ? []
             : $this->deckManager->getCardsInLocation(
-                $brainstormLocation,
+                $displayedChoiceLocation,
                 null,
                 'location_arg'
             );

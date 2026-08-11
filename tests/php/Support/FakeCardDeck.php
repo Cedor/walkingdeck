@@ -31,10 +31,16 @@ final class FakeCardDeck
 
     public function getCardsInLocation(string $location, ?int $locationArg = null, ?string $orderBy = null): array
     {
-        return array_values(array_filter($this->cards, static function (array $card) use ($location, $locationArg): bool {
+        $cards = array_values(array_filter($this->cards, static function (array $card) use ($location, $locationArg): bool {
             return $card['location'] === $location
                 && ($locationArg === null || $card['location_arg'] === $locationArg);
         }));
+        if ($orderBy === 'location_arg') {
+            usort($cards, static function (array $left, array $right): int {
+                return $left['location_arg'] <=> $right['location_arg'];
+            });
+        }
+        return $cards;
     }
 
     public function getCardOnTop(string $location): ?array

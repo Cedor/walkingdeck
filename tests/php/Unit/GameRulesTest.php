@@ -174,6 +174,7 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $outcome);
         self::assertCount(2, $this->game->notify->events);
     }
@@ -203,6 +204,7 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
     }
 
@@ -560,6 +562,7 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -871,7 +874,257 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'white']));
+    }
+
+    public function testUnrememberRequestsAMemoryChoice(): void
+    {
+        $card = [
+            'id' => 9,
+            'consequence_black' => ['action' => 'unremember'],
+        ];
+
+        $outcome = $this->invoke('applyConsequences', [$card, 'black']);
+
+        self::assertSame(
+            [['sourceCardId' => 9]],
+            $outcome['unrememberChoices']
+        );
+    }
+
+    public function testUnrememberRecoversSelectedCardsAndKeepsMemoryOrder(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            9 => [
+                'id' => 9,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Kieren',
+                'consequence_black' => [
+                    'action' => 'multiple',
+                    'number' => 2,
+                    '0' => ['action' => 'unremember'],
+                    '1' => ['action' => 'bury', 'bury' => 'this'],
+                ],
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::MEMORY,
+                'location_arg' => 1,
+                'card_name' => 'Memory bottom',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::MEMORY,
+                'location_arg' => 2,
+                'card_name' => 'Memory third',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::MEMORY,
+                'location_arg' => 3,
+                'card_name' => 'Memory second',
+            ],
+            13 => [
+                'id' => 13,
+                'location' => Location::MEMORY,
+                'location_arg' => 4,
+                'card_name' => 'Memory top',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 9,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            [Transition::UNREMEMBER_CHOICE],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            [13, 12, 11],
+            array_column($this->game->argUnrememberChoice()['cards'], 'id')
+        );
+        self::assertSame(2, $this->game->argUnrememberChoice()['maximumCards']);
+
+        $this->game->actConfirmUnremember('[13,11]');
+
+        self::assertFalse($eventStack->isEmpty());
+        self::assertSame(Location::HAND, $deckManager->cards[13]['location']);
+        self::assertSame(Location::HAND, $deckManager->cards[11]['location']);
+        self::assertSame(Location::MEMORY, $deckManager->cards[12]['location']);
+        self::assertSame(Location::MEMORY, $deckManager->cards[10]['location']);
+        self::assertSame(
+            [[12, Location::MEMORY, true]],
+            $deckManager->extremeInsertions
+        );
+
+        $this->game->setGameStateValue('lossCondition', 5);
+        $this->game->setGameStateValue('gamePhase', 1);
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            Location::GRAVEYARD,
+            $deckManager->cards[9]['location']
+        );
+        self::assertSame(
+            [
+                Transition::UNREMEMBER_CHOICE,
+                Transition::DISPATCH_EVENTS,
+                Transition::PLAY_CARDS,
+            ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testUnrememberCanReturnEveryCardInItsOriginalOrder(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            9 => [
+                'id' => 9,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Kieren',
+            ],
+            13 => [
+                'id' => 13,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 0,
+                'card_name' => 'Memory top',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 1,
+                'card_name' => 'Memory second',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 2,
+                'card_name' => 'Memory third',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::UNREMEMBER_CHOICE, [
+            'sourceCardId' => 9,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actConfirmUnremember('[]');
+
+        self::assertSame(
+            [
+                [11, Location::MEMORY, true],
+                [12, Location::MEMORY, true],
+                [13, Location::MEMORY, true],
+            ],
+            $deckManager->extremeInsertions
+        );
+    }
+
+    public function testUnrememberIsIgnoredWhenMemoryIsEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[9] = [
+            'id' => 9,
+            'location' => Location::ESCAPED,
+            'location_arg' => 0,
+            'card_name' => 'Kieren',
+            'consequence_black' => ['action' => 'unremember'],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 9,
+            'color' => 'black',
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->stEventDispatcher();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame([Transition::STORY_CHECK], $gamestate->transitions);
+        self::assertSame([], $deckManager->moves);
+    }
+
+    public function testUnrememberRejectsMoreThanTwoCards(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            9 => [
+                'id' => 9,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Kieren',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 0,
+                'card_name' => 'First card',
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 1,
+                'card_name' => 'Second card',
+            ],
+            13 => [
+                'id' => 13,
+                'location' => Location::UNREMEMBER,
+                'location_arg' => 2,
+                'card_name' => 'Third card',
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::UNREMEMBER_CHOICE, [
+            'sourceCardId' => 9,
+        ]);
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->expectException(UserException::class);
+
+        $this->game->actConfirmUnremember('[11,12,13]');
     }
 
     public function testRecoverMovesAChosenEscapedCardToHand(): void
@@ -2942,6 +3195,7 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
     }
 
@@ -3009,6 +3263,7 @@ final class GameRulesTest extends TestCase
             'disasterChoices' => [],
             'wolfTrapChoices' => [],
             'recoverChoices' => [],
+            'unrememberChoices' => [],
         ], $this->invoke('applyConsequences', [$card, 'black']));
         self::assertSame(
             Location::GRAVEYARD,

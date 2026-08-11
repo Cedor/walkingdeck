@@ -90,6 +90,31 @@ describe("card helpers", () => {
     }
   });
 
+  it("reuses the brainstorm area for unremember choices", () => {
+    const brainstormWrap = { style: {} };
+    documentElementOverrides.brainstorm_wrap = brainstormWrap;
+
+    try {
+      const context = {
+        getActivePlayerId: spy(),
+        prepareUnrememberChoice: spy(),
+        disableUnrememberChoice: spy(),
+      };
+
+      game.onEnteringState.call(context, "unrememberChoice", {
+        args: { cards: [{ id: 3 }], maximumCards: 1 },
+      });
+      game.onLeavingState.call(context, "unrememberChoice");
+
+      assert.equal(context.prepareUnrememberChoice.calls.length, 1);
+      assert.equal(context.prepareUnrememberChoice.calls[0][1], 1);
+      assert.equal(context.disableUnrememberChoice.calls.length, 1);
+      assert.equal(brainstormWrap.style.display, "none");
+    } finally {
+      delete documentElementOverrides.brainstorm_wrap;
+    }
+  });
+
   it("uses native deck selection during brainstorm deck choice", () => {
     const urbanDeck = {
       setSelectionMode: spy(),
@@ -1074,6 +1099,36 @@ describe("player actions", () => {
 
     assert.equal(context.bgaPerformAction.calls[0][0], "actFastMemoriseFromHand");
     assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[]");
+  });
+
+  it("limits unremember to two selected cards", () => {
+    const thirdCard = { id: 3 };
+    const context = {
+      unrememberMaximumCards: 2,
+      brainstorm: { unselectCard: spy() },
+    };
+
+    game.onUnrememberSelectionChange.call(
+      context,
+      [{ id: 1 }, { id: 2 }, thirdCard],
+      thirdCard
+    );
+
+    assert.equal(context.brainstorm.unselectCard.calls.length, 1);
+    assert.equal(context.brainstorm.unselectCard.calls[0][0], thirdCard);
+  });
+
+  it("confirms the cards selected during unremember", () => {
+    const context = {
+      unrememberMaximumCards: 2,
+      brainstorm: { getSelection: () => [{ id: "8" }, { id: 11 }] },
+      bgaPerformAction: spy(),
+    };
+
+    game.confirmUnremember.call(context);
+
+    assert.equal(context.bgaPerformAction.calls[0][0], "actConfirmUnremember");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_ids, "[8,11]");
   });
 
   it("limits avoid hand2 to two selected cards", () => {
