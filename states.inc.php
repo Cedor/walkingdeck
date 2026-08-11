@@ -214,6 +214,7 @@ $machinestates = [
         ->args('argBiteChoice')
         ->possibleactions([
             'actApplyBiteWounds',
+            'actUseAenorAbility',
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
@@ -244,6 +245,7 @@ $machinestates = [
             'actUseDisasterResource',
             'actConfirmDisasterCharacteristic',
             'actResolveDisaster',
+            'actUseAenorAbility',
         ])
         ->transitions([
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,

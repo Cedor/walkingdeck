@@ -33,6 +33,7 @@ use Bga\GameFramework\UserException;
 class Game extends \Bga\GameFramework\Table
 {
     private const WIN_SCORE = 20;
+    private const AENOR_TYPE_ARG = 1;
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
     private const REMOVED_DISASTER_LOCATION = 'removed';
@@ -72,6 +73,8 @@ class Game extends \Bga\GameFramework\Table
             'ressource_stress' => 15,
             'revealedRuralCardId' => 16,
             'revealedUrbanCardId' => 17,
+            'aenorAbilityUsed' => 18,
+            'aenorProtectedCharacterId' => 19,
         ]);
 
         $this->cards = $this->bga->deckFactory->createDeck('twd_card');
@@ -125,7 +128,176 @@ class Game extends \Bga\GameFramework\Table
      */
     private function getProtagonistInPlay(): ?array
     {
-        return $this->deckManager->getCardOnTop(Location::PROTAGONIST);
+        $protagonists = array_values($this->deckManager->getCardsInLocation(
+            Location::PROTAGONIST
+        ));
+        return $protagonists[0] ?? null;
+    }
+
+    private function getAenorAbilityEligibleCharacters(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if ($event === null) {
+            return [];
+        }
+
+        if ($event['type'] === EventType::BITE_CHOICE) {
+            return array_values(array_filter(
+                $this->deckManager->getCardsInLocation(
+                    Location::CHARACTERS_IN_PLAY
+                ),
+                function (array $character): bool {
+                    return intval($character['wounds'] ?? 0)
+                        < $this->getCharacterWoundLimit($character);
+                }
+            ));
+        }
+
+        if ($event['type'] !== EventType::DISASTER_CHOICE) {
+            return [];
+        }
+
+        $resolution = $this->getDisasterResolution($event);
+        $requiredDraws = intval($event['parameters']['consequence']['number']);
+        if (
+            $resolution['pendingDrawCardId'] > 0
+            || $resolution['confirmedDraws'] !== $requiredDraws
+            || $resolution['characteristicIndex'] >= count(
+                self::DISASTER_CHARACTERISTICS
+            )
+        ) {
+            return [];
+        }
+
+        $characteristic = self::DISASTER_CHARACTERISTICS[
+            $resolution['characteristicIndex']
+        ];
+        if (in_array(
+            $characteristic,
+            $resolution['ignoredCharacteristics'],
+            true
+        )) {
+            return [];
+        }
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        if (!$this->disasterCharacteristicIsPresent(
+            $characteristic,
+            $drawnDisasters,
+            $event['parameters']['consequence']
+        )) {
+            return [];
+        }
+
+        return $this->getCharactersAffectedByDisaster($characteristic);
+    }
+
+    private function aenorAbilityIsAvailable(array $eligibleCharacters): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::AENOR_TYPE_ARG
+            && intval($this->getGameStateValue('aenorAbilityUsed')) === 0
+            && $eligibleCharacters !== [];
+    }
+
+    private function getAenorAbilityArgs(array $eligibleCharacters): array
+    {
+        return [
+            'aenorAbilityAvailable' => $this->aenorAbilityIsAvailable(
+                $eligibleCharacters
+            ),
+            'aenorEligibleCharacterIds' => array_map(
+                'intval',
+                array_column($eligibleCharacters, 'id')
+            ),
+            'aenorProtectedCharacterId' => intval(
+                $this->getGameStateValue('aenorProtectedCharacterId')
+            ),
+        ];
+    }
+
+    public function actUseAenorAbility(int $card_id): void
+    {
+        $this->checkAction('actUseAenorAbility');
+        $eligibleCharacters = $this->getAenorAbilityEligibleCharacters();
+        if (!$this->aenorAbilityIsAvailable($eligibleCharacters)) {
+            throw new UserException(
+                \clienttranslate('Aenor ability is not available')
+            );
+        }
+
+        $eligibleCharactersById = [];
+        foreach ($eligibleCharacters as $character) {
+            $eligibleCharactersById[intval($character['id'])] = $character;
+        }
+        if (!isset($eligibleCharactersById[$card_id])) {
+            throw new UserException(
+                \clienttranslate('You must choose a character who can receive a wound')
+            );
+        }
+
+        $this->setGameStateValue('aenorAbilityUsed', 1);
+        $this->setGameStateValue('aenorProtectedCharacterId', $card_id);
+        $this->notify->all(
+            'aenorAbilityUsed',
+            \clienttranslate('Aenor will prevent the next wound suffered by ${card_name}'),
+            [
+                'protagonist' => $this->getProtagonistInPlay(),
+                'character' => $eligibleCharactersById[$card_id],
+                'card_name' => $eligibleCharactersById[$card_id]['card_name'],
+            ]
+        );
+    }
+
+    private function applyAenorProtection(array $character, int $wounds): int
+    {
+        if (
+            $wounds < 1
+            || intval($this->getGameStateValue(
+                'aenorProtectedCharacterId'
+            )) !== intval($character['id'])
+        ) {
+            return $wounds;
+        }
+
+        $this->setGameStateValue('aenorProtectedCharacterId', 0);
+        $this->notify->all(
+            'aenorWoundPrevented',
+            \clienttranslate('Aenor prevents one wound suffered by ${card_name}'),
+            [
+                'character' => $character,
+                'card_name' => $character['card_name'],
+            ]
+        );
+        return $wounds - 1;
+    }
+
+    private function expireUnusedAenorProtection(): void
+    {
+        $characterId = intval($this->getGameStateValue(
+            'aenorProtectedCharacterId'
+        ));
+        if ($characterId < 1) {
+            return;
+        }
+
+        $this->setGameStateValue('aenorProtectedCharacterId', 0);
+        $character = $this->deckManager->getCard($characterId);
+        $this->notify->all(
+            'aenorProtectionExpired',
+            $character === null
+                ? \clienttranslate('Aenor protection expires')
+                : \clienttranslate('${card_name} suffers no wound and Aenor protection expires'),
+            $character === null
+                ? []
+                : [
+                    'character' => $character,
+                    'card_name' => $character['card_name'],
+                ]
+        );
     }
 
     private function setLossCondition(array $card): int
@@ -1584,7 +1756,7 @@ class Game extends \Bga\GameFramework\Table
             )
         );
 
-        return [
+        return array_merge([
             'bite' => intval($event['parameters']['bite']),
             'sourceCard' => $this->deckManager->getCard(
                 intval($event['parameters']['sourceCardId'])
@@ -1594,7 +1766,9 @@ class Game extends \Bga\GameFramework\Table
                 'intval',
                 array_column($characters, 'id')
             ),
-        ];
+        ], $this->getAenorAbilityArgs(
+            $this->getAenorAbilityEligibleCharacters()
+        ));
     }
 
     private function getAvailableCharacterWoundCapacity(): int
@@ -1745,11 +1919,18 @@ class Game extends \Bga\GameFramework\Table
         }
 
         foreach ($allocations as $cardId => $wounds) {
-            $this->applyCharacterWounds(
+            $wounds = $this->applyAenorProtection(
                 $eligibleCharactersById[$cardId],
                 $wounds
             );
+            if ($wounds > 0) {
+                $this->applyCharacterWounds(
+                    $eligibleCharactersById[$cardId],
+                    $wounds
+                );
+            }
         }
+        $this->expireUnusedAenorProtection();
 
         $this->popEvent($event['id']);
         if ($this->isLossReached()) {
@@ -2168,7 +2349,7 @@ class Game extends \Bga\GameFramework\Table
         $affectedCharacters = $present
             ? $this->getCharactersAffectedByDisaster($characteristic)
             : [];
-        return [
+        return array_merge([
             'consequence' => $consequence,
             'sourceCard' => $this->deckManager->getCard(
                 intval($event['parameters']['sourceCardId'])
@@ -2183,7 +2364,7 @@ class Game extends \Bga\GameFramework\Table
             'resourceId' => $resourceId,
             'resourceAvailable' => $resourceAvailable,
             'affectedCharacters' => $affectedCharacters,
-        ];
+        ], $this->getAenorAbilityArgs($affectedCharacters));
     }
 
     private function removeSingleCharacteristicDisasters(
@@ -2337,9 +2518,13 @@ class Game extends \Bga\GameFramework\Table
             )
         ) {
             foreach ($this->getCharactersAffectedByDisaster($characteristic) as $character) {
-                $this->applyCharacterWounds($character, 1, true);
+                $wounds = $this->applyAenorProtection($character, 1);
+                if ($wounds > 0) {
+                    $this->applyCharacterWounds($character, $wounds, true);
+                }
             }
         }
+        $this->expireUnusedAenorProtection();
 
         $resolution['characteristicIndex']++;
         $resolution = $this->skipInactiveDisasterCharacteristics(
@@ -4001,6 +4186,12 @@ class Game extends \Bga\GameFramework\Table
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue('difficultyLevel');
         $result['gamePhase'] = $this->getGameStateValue('gamePhase');
+        $result['aenorAbilityUsed'] = $this->getGameStateValue(
+            'aenorAbilityUsed'
+        );
+        $result['aenorProtectedCharacterId'] = $this->getGameStateValue(
+            'aenorProtectedCharacterId'
+        );
 
         // Characters in play
         $result['charactersInPlay'] = $this->deckManager->getCardsInLocation('characters');
@@ -4054,6 +4245,8 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('lossCondition', 5);
         $this->setGameStateInitialValue('revealedRuralCardId', 0);
         $this->setGameStateInitialValue('revealedUrbanCardId', 0);
+        $this->setGameStateInitialValue('aenorAbilityUsed', 0);
+        $this->setGameStateInitialValue('aenorProtectedCharacterId', 0);
         // Init game statistics.
         //
         // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.
