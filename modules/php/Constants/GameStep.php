@@ -27,6 +27,7 @@ final class GameStep
     public const BURY_TOP_CARD_CHOICE = 47;
     public const DRAFT_DISASTER_CHOICE = 48;
     public const AVOID_DECK_CHOICE = 49;
+    public const UNREMEMBER_CHOICE = 50;
     public const STORY_CHECK = 5;
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;

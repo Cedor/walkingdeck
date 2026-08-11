@@ -17,6 +17,7 @@ final class Transition
     public const AVOID_ZOMBIE_CHOICE = 'avoidZombieChoice';
     public const BRAINSTORM_DECK_CHOICE = 'brainstormDeckChoice';
     public const BRAINSTORM_REORDER = 'brainstormReorder';
+    public const UNREMEMBER_CHOICE = 'unrememberChoice';
     public const BITE_CHOICE = 'biteChoice';
     public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';

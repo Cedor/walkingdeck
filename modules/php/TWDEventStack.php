@@ -20,6 +20,7 @@ final class TWDEventStack
         EventType::DISASTER_CHOICE,
         EventType::WOLF_TRAP_CHOICE,
         EventType::RECOVER_CHOICE,
+        EventType::UNREMEMBER_CHOICE,
         EventType::DRAW_CARD,
         EventType::SPECIAL_DRAW,
         EventType::ADDITIONAL_DRAW,

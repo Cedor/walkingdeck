@@ -16,6 +16,7 @@ final class EventType
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';
     public const RECOVER_CHOICE = 'recoverChoice';
+    public const UNREMEMBER_CHOICE = 'unrememberChoice';
     public const DRAW_CARD = 'drawCard';
     public const SPECIAL_DRAW = 'specialDraw';
     public const ADDITIONAL_DRAW = 'additionalDraw';
