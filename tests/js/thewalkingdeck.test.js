@@ -919,8 +919,12 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
-  it("only draws a disaster during phase two", () => {
-    const context = { gamePhase: 1, bgaPerformAction: spy() };
+  it("only performs the test disaster draw in test mode during phase two", () => {
+    const context = {
+      gamePhase: 1,
+      isTestMode: true,
+      bgaPerformAction: spy(),
+    };
 
     game.onDisasterBagClick.call(context);
     context.gamePhase = 2;
@@ -928,6 +932,18 @@ describe("player actions", () => {
 
     assert.equal(context.bgaPerformAction.calls.length, 1);
     assert.equal(context.bgaPerformAction.calls[0][0], "actDrawFromDisasterBag");
+  });
+
+  it("does not perform the test disaster draw in normal mode", () => {
+    const context = {
+      gamePhase: 2,
+      isTestMode: false,
+      bgaPerformAction: spy(),
+    };
+
+    game.onDisasterBagClick.call(context);
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
   it("uses the disaster bag for the active disaster resolution draw", () => {
@@ -1141,6 +1157,17 @@ describe("player actions", () => {
       context.bgaPerformAction.calls[0][0],
       "actConfirmDisasterCharacteristic"
     );
+  });
+
+  it("does not flip a resource outside test mode", () => {
+    const context = {
+      isTestMode: false,
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, { id: "ressource_hunger" });
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
   it("submits Aenor only when a disaster wound is confirmed", async () => {

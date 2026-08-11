@@ -4135,6 +4135,25 @@ final class GameRulesTest extends TestCase
         ]]);
     }
 
+    public function testDevelopmentActionIsRejectedInNormalMode(): void
+    {
+        $this->game->setGameStateValue('gameMode', 1);
+        $this->expectException(UserException::class);
+        $this->game->actGoToStoryCheck();
+    }
+
+    public function testGameModeUsesThePersistedGlobalValue(): void
+    {
+        $this->game->setGameStateValue('gameMode', 2);
+
+        self::assertTrue($this->invoke('isTestMode'));
+    }
+
+    public function testNewGamesCurrentlyDefaultToTestMode(): void
+    {
+        self::assertSame(2, \Bga\Games\TheWalkingDeck\Constants\GameMode::DEFAULT);
+    }
+
     private function invoke(string $method, array $arguments = [])
     {
         $reflection = new ReflectionMethod(Game::class, $method);
