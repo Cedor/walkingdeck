@@ -3367,6 +3367,46 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('checkWin'));
     }
 
+    public function testStoryCheckVictorySetsPlayerScoreToTwenty(): void
+    {
+        $this->setProperty('deckManager', new class {
+            public function countCardInLocation(string $location): int
+            {
+                return 0;
+            }
+
+            public function getCardOnTop(string $location): ?array
+            {
+                return null;
+            }
+        });
+        $scoreCounter = new class {
+            public array $values = [];
+
+            public function setAll(int $value): void
+            {
+                $this->values[] = $value;
+            }
+        };
+        $this->game->bga = (object) ['playerScore' => $scoreCounter];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $this->game->stStoryCheckGameWinLoss();
+
+        self::assertSame([20], $scoreCounter->values);
+        self::assertSame([Transition::GAME_END], $gamestate->transitions);
+        self::assertSame('gameWin', end($this->game->notify->events)['type']);
+    }
+
     public function testStartingStoryCheckReversesTheMemoryTable(): void
     {
         $game = $this->getMockBuilder(Game::class)
