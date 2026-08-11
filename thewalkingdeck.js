@@ -211,6 +211,7 @@ define([
         slotsIds: ["A"],
         slotClasses: ["twd-card-slot"],
         mapCardToSlot: (card) => "A",
+        cardClickEventFilter: "all",
       });
       // TEST remove
       this.protagonistSlot.onCardAdded = (card) => {
