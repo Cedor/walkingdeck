@@ -628,6 +628,67 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testAvoidMemoryEscapesTheTopMemoryCard(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::MEMORY,
+                'location_arg' => 1,
+                'card_name' => 'Lower memory card',
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::MEMORY,
+                'location_arg' => 2,
+                'card_name' => 'Top memory card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $sourceCard = [
+            'id' => 22,
+            'consequence_grey' => [
+                'action' => 'avoid',
+                'avoid' => 'memory',
+            ],
+        ];
+
+        $this->invoke('applyConsequences', [$sourceCard, 'grey']);
+
+        self::assertSame(Location::MEMORY, $deckManager->cards[10]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[11]['location']);
+        self::assertSame(
+            [[11, Location::ESCAPED, 0]],
+            $deckManager->moves
+        );
+        self::assertSame(
+            ['applyingConsequence', 'cardMoved'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    public function testAvoidMemoryIsIgnoredWhenMemoryIsEmpty(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $this->setProperty('deckManager', $deckManager);
+        $sourceCard = [
+            'id' => 22,
+            'consequence_grey' => [
+                'action' => 'avoid',
+                'avoid' => 'memory',
+            ],
+        ];
+
+        $this->invoke('applyConsequences', [$sourceCard, 'grey']);
+
+        self::assertSame([], $deckManager->moves);
+        self::assertSame(
+            ['applyingConsequence'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
     public function testAvoidBothDeckIsIgnoredWhenBothDecksAreEmpty(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();

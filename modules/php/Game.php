@@ -1251,6 +1251,17 @@ class Game extends \Bga\GameFramework\Table
                     case 'hand2':
                         $outcome['avoidHandChoice'] = true;
                         break;
+                    case 'memory':
+                        $memoryTop = $this->deckManager->getCardOnTop(
+                            Location::MEMORY
+                        );
+                        if ($memoryTop !== null) {
+                            $this->moveCard(
+                                intval($memoryTop['id']),
+                                Location::ESCAPED
+                            );
+                        }
+                        break;
                     case 'deck':
                         $availableDecks = $this->getAvailableDrawDecks();
                         if (count($availableDecks) === 1) {
