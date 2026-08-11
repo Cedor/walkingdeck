@@ -22,6 +22,7 @@ namespace Bga\Games\TheWalkingDeck;
 
 use Bga\Games\TheWalkingDeck\Constants\CardType;
 use Bga\Games\TheWalkingDeck\Constants\EventType;
+use Bga\Games\TheWalkingDeck\Constants\GameMode;
 use Bga\Games\TheWalkingDeck\Constants\GameStep;
 use Bga\Games\TheWalkingDeck\Constants\Location;
 use Bga\Games\TheWalkingDeck\Constants\Rules;
@@ -75,6 +76,7 @@ class Game extends \Bga\GameFramework\Table
             'revealedUrbanCardId' => 17,
             'aenorAbilityUsed' => 18,
             'aenorProtectedCharacterId' => 19,
+            'gameMode' => GameMode::GLOBAL_ID,
         ]);
 
         $this->cards = $this->bga->deckFactory->createDeck('twd_card');
@@ -118,6 +120,20 @@ class Game extends \Bga\GameFramework\Table
     private function setGamePhase(int $phase): void
     {
         $this->setGameStateValue('gamePhase', $phase);
+    }
+
+    private function isTestMode(): bool
+    {
+        return intval($this->getGameStateValue('gameMode')) === GameMode::TEST;
+    }
+
+    private function assertTestMode(): void
+    {
+        if (!$this->isTestMode()) {
+            throw new UserException(
+                \clienttranslate('This action is only available in test mode')
+            );
+        }
     }
 
     /**
@@ -302,7 +318,6 @@ class Game extends \Bga\GameFramework\Table
 
     private function setLossCondition(array $card): int
     {
-        // WINLOSS implement loss condition check
         $card_type = intval($card['type']);
         $card_type_arg = intval($card['type_arg']);
         if ($card_type !== 1 || $card_type_arg < 1 || $card_type_arg > 4)
@@ -3778,6 +3793,7 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actGoToStoryCheck(): void
     {
+        $this->assertTestMode();
         $this->checkAction('actGoToStoryCheck');
         if (intval($this->getGameStateValue('gamePhase')) !== 1) {
             throw new UserException(
@@ -3858,6 +3874,8 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actDrawFromDisasterBag(): void
     {
+        $this->assertTestMode();
+        $this->checkAction('actDrawFromDisasterBag');
         // CONS replace with exception
         $shuffle = false;
         if ($this->disasterManager->countCardInLocation('hand') != 0) {
@@ -4061,8 +4079,7 @@ class Game extends \Bga\GameFramework\Table
     public function stStoryCheckGameWinLoss(): void
     {
         $win = $this->checkWin();
-        $loss = $this->isLossReached(); // WINLOSS check loss condition
-
+        $loss = $this->isLossReached();
         // Go to following game state
         if ($loss) {
             $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
@@ -4086,6 +4103,8 @@ class Game extends \Bga\GameFramework\Table
      */
     public function actFlipRessource(string $token_id): void
     {
+        $this->assertTestMode();
+        $this->checkAction('actFlipRessource');
         $state = $this->ressources->getRessourceState($token_id);
         if ($state == 1)
             $this->ressources->refillRessources($token_id);
@@ -4186,6 +4205,7 @@ class Game extends \Bga\GameFramework\Table
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue('difficultyLevel');
         $result['gamePhase'] = $gamePhase;
+        $result['isTestMode'] = $this->isTestMode();
         $result['aenorAbilityUsed'] = $this->getGameStateValue(
             'aenorAbilityUsed'
         );
@@ -4247,6 +4267,7 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('revealedUrbanCardId', 0);
         $this->setGameStateInitialValue('aenorAbilityUsed', 0);
         $this->setGameStateInitialValue('aenorProtectedCharacterId', 0);
+        $this->setGameStateInitialValue('gameMode', GameMode::DEFAULT);
         // Init game statistics.
         //
         // NOTE: statistics used in this file must be defined in your `stats.inc.php` file.

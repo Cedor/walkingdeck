@@ -29,6 +29,7 @@ define([
       this.cardheight = 179;
       this.difficulty = 1;
       this.gamePhase = 1;
+      this.isTestMode = false;
       this.lossCondition = 5; //default value
     },
 
@@ -366,6 +367,7 @@ define([
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
+      this.isTestMode = Boolean(this.gamedatas.isTestMode);
       this.setGamePhaseDisplay(this.gamedatas.gamePhase);
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
@@ -784,12 +786,13 @@ define([
               id: "refill_hand_button",
               color: "secondary",
             });
-            // TEST remove after tests
-            this.statusBar.addActionButton(
-              _("Story Check"),
-              () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
-              { color: "secondary" }
-            );
+            if (this.isTestMode) {
+              this.statusBar.addActionButton(
+                _("Story Check"),
+                () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
+                { color: "secondary" }
+              );
+            }
             break;
           case "escapeTallaChoice": {
             const escapeArgs = args.args || args;
@@ -1944,7 +1947,9 @@ define([
         }
         return;
       }
-      this.bgaPerformAction("actFlipRessource", { token_id: token.id });
+      if (this.isTestMode) {
+        this.bgaPerformAction("actFlipRessource", { token_id: token.id });
+      }
     },
 
     // PHASE2 allowing only in phase 2
@@ -1956,7 +1961,11 @@ define([
         this.bgaPerformAction("actDrawWolfTrapDisaster");
       } else if (this.disasterResolutionPhase === "draw") {
         this.bgaPerformAction("actDrawDisaster");
-      } else if (!this.disasterResolutionPhase && this.gamePhase === 2) {
+      } else if (
+        this.isTestMode
+        && !this.disasterResolutionPhase
+        && this.gamePhase === 2
+      ) {
         this.bgaPerformAction("actDrawFromDisasterBag");
       }
     },

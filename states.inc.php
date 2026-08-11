@@ -119,7 +119,7 @@ $machinestates = [
     GameStep::ADDITIONAL_DRAW => GameStateBuilder::create()
         ->name('specialDraw')
         ->description(clienttranslate("You must draw a card"))
-        ->descriptionmyturn(clienttranslate("You must draw a card (special draw)")) // CONS revise after tests
+        ->descriptionmyturn(clienttranslate("You must draw a card"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
