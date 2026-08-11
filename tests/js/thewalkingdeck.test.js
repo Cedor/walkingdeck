@@ -113,6 +113,22 @@ describe("card helpers", () => {
     }
   });
 
+  it("restores the phase two areas from numeric gamedata", () => {
+    const storyOrganiser = { style: {} };
+    documentElementOverrides.story_organiser = storyOrganiser;
+    const context = { setHandVisible: spy() };
+
+    try {
+      game.setGamePhaseDisplay.call(context, 2);
+
+      assert.equal(context.gamePhase, 2);
+      assert.equal(context.setHandVisible.calls[0][0], false);
+      assert.equal(storyOrganiser.style.display, "block");
+    } finally {
+      delete documentElementOverrides.story_organiser;
+    }
+  });
+
   it("reuses the brainstorm area for unremember choices", () => {
     const brainstormWrap = { style: {} };
     documentElementOverrides.brainstorm_wrap = brainstormWrap;
@@ -534,16 +550,40 @@ describe("player actions", () => {
   });
 
   it("only lets Robert receive a third wound", () => {
-    const context = {};
+    const updateCardInformations = spy();
+    const context = {
+      getActivePlayerId: spy(),
+      characters: {},
+      prepareBiteChoice: game.prepareBiteChoice,
+      prepareAenorAbility: spy(),
+      onBiteCharacterClick: game.onBiteCharacterClick,
+      cardsManager: { updateCardInformations },
+      isCurrentPlayerActive: () => true,
+    };
 
-    game.prepareBiteChoice.call(context, {
-      bite: 2,
-      eligibleCardsIds: [12],
-      eligibleCharacters: [{ id: 12, card_name: "Robert", wounds: 2 }],
+    game.onEnteringState.call(context, "biteChoice", {
+      args: {
+        bite: 3,
+        eligibleCardsIds: [12],
+        eligibleCharacters: [{ id: 12, card_name: "Robert", wounds: 2 }],
+      },
     });
 
     assert.equal(context.biteWoundsToAssign, 1);
     assert.equal(context.biteWoundsRemaining, 1);
+
+    context.characters.onCardClick({
+      id: 12,
+      card_name: "Robert",
+      wounds: 2,
+    });
+
+    assert.equal(context.biteWoundsRemaining, 0);
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(context.biteWoundsToApply)),
+      { 12: 1 }
+    );
+    assert.equal(updateCardInformations.calls[0][0].wounds, 3);
   });
 
   it("turns a character face down on its fourth wound and stops further wounds", () => {
@@ -1333,7 +1373,11 @@ describe("notifications", () => {
     });
     const memory = { addCard: spy(() => addPromise) };
     const card = { id: 18, type: "2", face_down: true };
-    const context = { memory, setHandVisible: spy() };
+    const context = {
+      memory,
+      setGamePhaseDisplay: game.setGamePhaseDisplay,
+      setHandVisible: spy(),
+    };
     let notificationFinished = false;
 
     const notification = game.notif_storyCheckStarted.call(context, { memoryTopCard: card });

@@ -92,7 +92,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (13, '2', 9, 'Brigade', 1, 0, NULL, '{"action" : "other"}', '{"action" : "bite", "bite" : 2}', 1),
 (14, '2', 10, 'Bonfire', 0, 0, '{"action" : "draw", "number" : 3}', NULL, '{"action" : "heal", "number" : 2}', 0),
 (15, '2', 11, 'Horse', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "heal", "number" : 2}', 0),
-(16, '2', 12, 'RV', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "restore", "ressource" : "ressource_break"}', 0),
+(16, '2', 12, 'RV', 0, 0, '{"action" : "draw", "number" : 2}', NULL, '{"action" : "restore", "ressource" : "ressource_stress"}', 0),
 (17, '2', 13, 'Cellar', 0, 0, '{"action" : "avoid", "avoid" : "zombie"}', NULL, '{"action" : "heal", "number" : 3, "condition" : "hunger", "condition2" : "stress"}', 0),
 (18, '2', 14, 'Teddy Bear', 0, 0, '{"action" : "restore", "ressource" : "ressource_stress"}', NULL, '{"action" : "heal", "number" : 2, "condition" : "stress"}', 0),
 (19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "avoid", "avoid" : "bothdeck"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
