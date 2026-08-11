@@ -4148,9 +4148,9 @@ class Game extends \Bga\GameFramework\Table
 
         // Cards played on the table
         $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
-        $gamePhase = $this->getGameStateValue('gamePhase');
+        $gamePhase = intval($this->getGameStateValue('gamePhase'));
         $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
-        $result['memoryTop'] = $gamePhase == 1 || $memoryTop === null
+        $result['memoryTop'] = $gamePhase === 1 || $memoryTop === null
             ? $memoryTop
             : $this->withFaceDown($memoryTop, true);
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
@@ -4185,7 +4185,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue('difficultyLevel');
-        $result['gamePhase'] = $this->getGameStateValue('gamePhase');
+        $result['gamePhase'] = $gamePhase;
         $result['aenorAbilityUsed'] = $this->getGameStateValue(
             'aenorAbilityUsed'
         );

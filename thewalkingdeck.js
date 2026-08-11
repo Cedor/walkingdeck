@@ -366,14 +366,7 @@ define([
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
-      this.gamePhase = this.gamedatas.gamePhase;
-      this.setHandVisible(Number(this.gamePhase) !== 2);
-      let charactersVisibility = "none";
-      if (this.gamePhase === "2") {
-        // Display characters area (phase 2)
-        charactersVisibility = "block";
-      }
-      document.getElementById("story_organiser").style.display = charactersVisibility;
+      this.setGamePhaseDisplay(this.gamedatas.gamePhase);
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
       // Protagonist slot gamedatas
@@ -478,12 +471,8 @@ define([
         case "biteChoice":
           this.prepareBiteChoice(args.args || args);
           this.prepareAenorAbility(args.args || args, stateName);
-          this.biteChoiceConnector = dojo.connect(
-            this.characters,
-            "onCardClick",
-            this,
-            "onBiteCharacterClick"
-          );
+          this.characters.onCardClick = (card) =>
+            this.onBiteCharacterClick(card);
           break;
         case "healChoice":
           this.prepareHealChoice(args.args || args);
@@ -641,6 +630,15 @@ define([
       }
     },
 
+    setGamePhaseDisplay: function (gamePhase) {
+      this.gamePhase = Number(gamePhase);
+      const phaseTwo = this.gamePhase === 2;
+      this.setHandVisible(!phaseTwo);
+      document.getElementById("story_organiser").style.display = phaseTwo
+        ? "block"
+        : "none";
+    },
+
     // onLeavingState: this method is called each time we are leaving a game state.
     //                 You can use this method to perform some user interface changes at this moment.
     //
@@ -669,10 +667,7 @@ define([
           break;
         case "biteChoice":
           this.clearAenorAbilityUi();
-          if (this.biteChoiceConnector) {
-            dojo.disconnect(this.biteChoiceConnector);
-            this.biteChoiceConnector = null;
-          }
+          this.characters.onCardClick = null;
           break;
         case "healChoice":
           if (this.healChoiceConnector) {
@@ -1303,19 +1298,11 @@ define([
       document
         .getElementById(`twd-card-${protagonist.id}`)
         ?.classList.add("twd-highlight");
-      this.aenorProtagonistConnector = dojo.connect(
-        this.protagonistSlot,
-        "onCardClick",
-        this,
-        "onAenorProtagonistClick"
-      );
+      this.protagonistSlot.onCardClick = (card) =>
+        this.onAenorProtagonistClick(card);
       if (stateName === "disasterChoice") {
-        this.aenorCharacterConnector = dojo.connect(
-          this.characters,
-          "onCardClick",
-          this,
-          "onAenorCharacterClick"
-        );
+        this.characters.onCardClick = (card) =>
+          this.onAenorCharacterClick(card);
       }
     },
 
@@ -1397,13 +1384,9 @@ define([
     },
 
     clearAenorAbilityUi: function () {
-      if (this.aenorProtagonistConnector) {
-        dojo.disconnect(this.aenorProtagonistConnector);
-        this.aenorProtagonistConnector = null;
-      }
-      if (this.aenorCharacterConnector) {
-        dojo.disconnect(this.aenorCharacterConnector);
-        this.aenorCharacterConnector = null;
+      this.protagonistSlot.onCardClick = null;
+      if (this.aenorDamageState === "disasterChoice") {
+        this.characters.onCardClick = null;
       }
       const protagonist = this.protagonistSlot.getCards?.()[0];
       if (protagonist) {
@@ -1896,7 +1879,7 @@ define([
         this.bgaPerformAction("actDrawWolfTrapDisaster");
       } else if (this.disasterResolutionPhase === "draw") {
         this.bgaPerformAction("actDrawDisaster");
-      } else if (!this.disasterResolutionPhase && this.gamePhase == 2) {
+      } else if (!this.disasterResolutionPhase && this.gamePhase === 2) {
         this.bgaPerformAction("actDrawFromDisasterBag");
       }
     },
@@ -1978,9 +1961,7 @@ define([
     notif_storyCheckStarted: async function (args) {
       console.log("notif_storyCheckStarted");
       console.log(args);
-      this.gamePhase = 2;
-      this.setHandVisible(false);
-      document.getElementById("story_organiser").style.display = "block";
+      this.setGamePhaseDisplay(2);
       if (args.memoryTopCard) {
         await this.memory.addCard(args.memoryTopCard, {
           fadeIn: true,
