@@ -48,14 +48,25 @@ before(() => {
 });
 
 describe("card helpers", () => {
-  it("hides the hand only while brainstorm cards are being reordered", () => {
+  it("renders the brainstorm area above the hand", () => {
+    const source = readFileSync(
+      new URL("../../thewalkingdeck.js", import.meta.url),
+      "utf8"
+    );
+
+    assert.ok(
+      source.indexOf('<div id="brainstorm_wrap"')
+        < source.indexOf('<div id="hand_wrap"')
+    );
+  });
+
+  it("keeps the hand visible while brainstorm cards are being reordered", () => {
     const brainstormWrap = { style: {} };
     documentElementOverrides.brainstorm_wrap = brainstormWrap;
 
     try {
       const context = {
         getActivePlayerId: spy(),
-        setHandVisible: spy(),
         prepareBrainstormReorder: spy(),
         disableBrainstormReorder: spy(),
         brainstormAvailableDecks: [],
@@ -70,9 +81,8 @@ describe("card helpers", () => {
       });
       game.onLeavingState.call(context, "brainstormReorder");
 
-      assert.equal(context.setHandVisible.calls.length, 2);
-      assert.equal(context.setHandVisible.calls[0][0], false);
-      assert.equal(context.setHandVisible.calls[1][0], true);
+      assert.equal(context.prepareBrainstormReorder.calls.length, 1);
+      assert.equal(brainstormWrap.style.display, "none");
     } finally {
       delete documentElementOverrides.brainstorm_wrap;
     }

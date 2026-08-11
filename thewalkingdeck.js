@@ -113,17 +113,17 @@ define([
       );
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
-        `<div id="hand_wrap" class="whiteblock">
-            <b id="hand_label">${_("My hand")}</b>
-            <div id="hand"></div>
-          </div>`
-      );
-      document.getElementById("game_play_area").insertAdjacentHTML(
-        "beforeend",
         `<div id="brainstorm_wrap" class="whiteblock">
             <b id="brainstorm_label">${_("Brainstorm")}</b>
             <div id="brainstorm_help" class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
             <div id="brainstorm"></div>
+          </div>`
+      );
+      document.getElementById("game_play_area").insertAdjacentHTML(
+        "beforeend",
+        `<div id="hand_wrap" class="whiteblock">
+            <b id="hand_label">${_("My hand")}</b>
+            <div id="hand"></div>
           </div>`
       );
 
@@ -606,7 +606,6 @@ define([
           break;
         }
         case "brainstormReorder":
-          this.setHandVisible(false);
           document.getElementById("brainstorm_wrap").style.display = "block";
           this.prepareBrainstormReorder((args.args || args).cards || []);
           break;
@@ -757,7 +756,6 @@ define([
         case "brainstormReorder":
           this.disableBrainstormReorder();
           document.getElementById("brainstorm_wrap").style.display = "none";
-          this.setHandVisible(true);
           break;
         case "unrememberChoice":
           this.disableUnrememberChoice();
