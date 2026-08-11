@@ -1284,6 +1284,8 @@ define([
       ) || 0;
       this.aenorSelectingCharacter = false;
       this.aenorDamageState = stateName;
+      this.aenorDamageArgs = args;
+      this.aenorPendingCharacterId = 0;
 
       if (this.aenorProtectedCharacterId > 0) {
         this.setAenorCharacterHighlighted(
@@ -1313,6 +1315,7 @@ define([
     onAenorProtagonistClick: function (card) {
       if (
         !this.aenorAbilityAvailable
+        || this.aenorSelectingCharacter
         || Number(card?.type_arg) !== 1
         || (this.isCurrentPlayerActive && !this.isCurrentPlayerActive())
       ) return;
@@ -1338,6 +1341,78 @@ define([
       this.statusBar?.setTitle(
         _("Choose the character Aenor will protect")
       );
+      this.removeAenorCancelButton();
+      this.statusBar?.addActionButton(
+        _("Cancel Aenor ability"),
+        () => this.cancelAenorAbility(),
+        {
+          id: "cancel_aenor_ability",
+          color: "secondary",
+        }
+      );
+    },
+
+    cancelAenorAbility: function () {
+      if (
+        !this.aenorSelectingCharacter
+        && !(this.aenorPendingCharacterId > 0)
+      ) return;
+
+      this.aenorSelectingCharacter = false;
+      this.aenorAbilityAvailable = true;
+      this.aenorPendingCharacterId = 0;
+      this.aenorProtectedCharacterId = 0;
+      const protagonist = this.protagonistSlot.getCards?.()[0];
+      if (protagonist) {
+        this.cardsManager.updateCardInformations({
+          ...protagonist,
+          aenor_ability_used: false,
+        });
+        document
+          .getElementById(`twd-card-${protagonist.id}`)
+          ?.classList.add("twd-highlight");
+      }
+      (this.aenorEligibleCharacterIds || []).forEach((cardId) => {
+        this.setAenorCharacterHighlighted(cardId, false);
+      });
+      this.restoreAenorDamageUi();
+      this.removeAenorCancelButton();
+    },
+
+    restoreAenorDamageUi: function () {
+      if (this.aenorDamageState === "biteChoice") {
+        this.statusBar?.setTitle(
+          _("You must assign ${bite} wound(s) to your characters"),
+          { bite: this.biteWoundsRequired }
+        );
+        const confirmButton = document.getElementById("confirm_bite_wounds");
+        if (confirmButton) {
+          confirmButton.style.visibility = this.biteWoundsRemaining === 0
+            ? "visible"
+            : "hidden";
+        }
+        return;
+      }
+
+      const args = this.aenorDamageArgs || {};
+      const affectedNames = (args.affectedCharacters || [])
+        .map((card) => card.card_name)
+        .join(", ");
+      this.statusBar?.setTitle(
+        _("${characteristic} is present: ${characters} will receive 1 wound"),
+        {
+          characteristic: args.characteristic,
+          characters: affectedNames,
+        }
+      );
+      const confirmButton = document.getElementById(
+        `confirm_disaster_${this.disasterCharacteristic}`
+      );
+      if (confirmButton) confirmButton.style.visibility = "visible";
+    },
+
+    removeAenorCancelButton: function () {
+      document.getElementById("cancel_aenor_ability")?.remove?.();
     },
 
     onAenorCharacterClick: function (card) {
@@ -1348,9 +1423,9 @@ define([
         return true;
       }
 
-      this.bgaPerformAction("actUseAenorAbility", { card_id: cardId });
       this.aenorSelectingCharacter = false;
       this.aenorAbilityAvailable = false;
+      this.aenorPendingCharacterId = cardId;
       this.aenorProtectedCharacterId = cardId;
       (this.aenorEligibleCharacterIds || []).forEach((eligibleCardId) => {
         this.setAenorCharacterHighlighted(
@@ -1358,20 +1433,17 @@ define([
           eligibleCardId === cardId
         );
       });
-      if (this.aenorDamageState === "biteChoice") {
-        const confirmButton = document.getElementById("confirm_bite_wounds");
-        if (confirmButton) {
-          confirmButton.style.visibility = this.biteWoundsRemaining === 0
-            ? "visible"
-            : "hidden";
-        }
-      } else {
-        const confirmButton = document.getElementById(
-          `confirm_disaster_${this.disasterCharacteristic}`
-        );
-        if (confirmButton) confirmButton.style.visibility = "visible";
-      }
+      this.restoreAenorDamageUi();
       return true;
+    },
+
+    submitPendingAenorAbility: async function () {
+      const cardId = Number(this.aenorPendingCharacterId) || 0;
+      if (cardId < 1) return;
+
+      this.removeAenorCancelButton();
+      await this.bgaPerformAction("actUseAenorAbility", { card_id: cardId });
+      this.aenorPendingCharacterId = 0;
     },
 
     setAenorCharacterHighlighted: function (cardId, highlighted) {
@@ -1404,8 +1476,11 @@ define([
         );
       }
       this.aenorSelectingCharacter = false;
+      this.aenorPendingCharacterId = 0;
       this.aenorEligibleCharacterIds = [];
       this.aenorDamageState = null;
+      this.aenorDamageArgs = null;
+      this.removeAenorCancelButton();
     },
 
     onBiteCharacterClick: function (card) {
@@ -1454,9 +1529,10 @@ define([
       }
     },
 
-    confirmBiteWounds: function () {
+    confirmBiteWounds: async function () {
       if (this.biteWoundsRemaining !== 0 || this.aenorSelectingCharacter) return;
 
+      await this.submitPendingAenorAbility();
       this.bgaPerformAction("actApplyBiteWounds", {
         wound_allocations: JSON.stringify(this.biteWoundsToApply),
       });
@@ -1547,8 +1623,9 @@ define([
       this.bgaPerformAction("actResolveDisaster");
     },
 
-    confirmDisasterCharacteristic: function () {
+    confirmDisasterCharacteristic: async function () {
       if (this.aenorSelectingCharacter) return;
+      await this.submitPendingAenorAbility();
       this.bgaPerformAction("actConfirmDisasterCharacteristic");
     },
 

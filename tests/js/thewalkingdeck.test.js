@@ -419,40 +419,101 @@ describe("player actions", () => {
       biteWoundsRemaining: 0,
       bgaPerformAction: spy(),
       setAenorCharacterHighlighted: spy(),
+      removeAenorCancelButton: spy(),
+      restoreAenorDamageUi: spy(),
     };
 
     const handled = game.onAenorCharacterClick.call(context, { id: 8 });
 
     assert.equal(handled, true);
-    assert.equal(context.bgaPerformAction.calls[0][0], "actUseAenorAbility");
-    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
+    assert.equal(context.bgaPerformAction.calls.length, 0);
     assert.equal(context.aenorAbilityAvailable, false);
+    assert.equal(context.aenorPendingCharacterId, 8);
     assert.equal(context.aenorProtectedCharacterId, 8);
+    assert.equal(context.removeAenorCancelButton.calls.length, 0);
+    assert.equal(context.restoreAenorDamageUi.calls.length, 1);
+  });
+
+  it("cancels Aenor after a protected character was selected", () => {
+    const updateCardInformations = spy();
+    const setAenorCharacterHighlighted = spy();
+    const context = {
+      aenorSelectingCharacter: false,
+      aenorAbilityAvailable: false,
+      aenorPendingCharacterId: 8,
+      aenorProtectedCharacterId: 8,
+      aenorEligibleCharacterIds: [8, 9],
+      protagonistSlot: {
+        getCards: () => [{ id: 1, type: "1", type_arg: "1" }],
+      },
+      cardsManager: { updateCardInformations },
+      setAenorCharacterHighlighted,
+      restoreAenorDamageUi: spy(),
+      removeAenorCancelButton: spy(),
+    };
+
+    game.cancelAenorAbility.call(context);
+
+    assert.equal(context.aenorAbilityAvailable, true);
+    assert.equal(context.aenorPendingCharacterId, 0);
+    assert.equal(context.aenorProtectedCharacterId, 0);
+    assert.equal(updateCardInformations.calls[0][0].aenor_ability_used, false);
+    assert.deepEqual(setAenorCharacterHighlighted.calls, [
+      [8, false],
+      [9, false],
+    ]);
+    assert.equal(context.restoreAenorDamageUi.calls.length, 1);
   });
 
   it("starts Aenor character selection from the protagonist card", () => {
     const updateCardInformations = spy();
     const setAenorCharacterHighlighted = spy();
+    let cancelCallback;
+    const protagonist = {
+      id: 1,
+      type: "1",
+      type_arg: "1",
+    };
     const context = {
       aenorAbilityAvailable: true,
       aenorEligibleCharacterIds: [8],
       isCurrentPlayerActive: () => true,
       cardsManager: { updateCardInformations },
+      protagonistSlot: { getCards: () => [protagonist] },
       setAenorCharacterHighlighted,
-      statusBar: { setTitle: spy() },
+      statusBar: {
+        setTitle: spy(),
+        addActionButton: spy((_label, callback) => {
+          cancelCallback = callback;
+          return { style: {} };
+        }),
+      },
       aenorDamageState: "biteChoice",
+      aenorDamageArgs: { bite: 1 },
+      biteWoundsRequired: 1,
+      biteWoundsToAssign: 1,
+      biteWoundsRemaining: 1,
+      cancelAenorAbility: game.cancelAenorAbility,
+      restoreAenorDamageUi: game.restoreAenorDamageUi,
+      removeAenorCancelButton: game.removeAenorCancelButton,
     };
 
-    game.onAenorProtagonistClick.call(context, {
-      id: 1,
-      type: "1",
-      type_arg: "1",
-    });
+    game.onAenorProtagonistClick.call(context, protagonist);
 
     assert.equal(context.aenorSelectingCharacter, true);
     assert.equal(updateCardInformations.calls[0][0].aenor_ability_used, true);
     assert.equal(setAenorCharacterHighlighted.calls[0][0], 8);
     assert.equal(setAenorCharacterHighlighted.calls[0][1], true);
+    assert.equal(
+      context.statusBar.addActionButton.calls[0][0],
+      "Cancel Aenor ability"
+    );
+
+    cancelCallback();
+
+    assert.equal(context.aenorSelectingCharacter, false);
+    assert.equal(updateCardInformations.calls[1][0].aenor_ability_used, false);
+    assert.deepEqual(setAenorCharacterHighlighted.calls[1], [8, false]);
   });
 
   for (const [pendingAction, expectedTitle] of [
@@ -605,20 +666,42 @@ describe("player actions", () => {
     assert.equal(context.cardsManager.updateCardInformations.calls[0][0].face_down, true);
   });
 
-  it("submits all bite wound allocations once every wound is assigned", () => {
+  it("submits all bite wound allocations once every wound is assigned", async () => {
     const context = {
       biteWoundsRemaining: 0,
       biteWoundsToApply: { 8: 2, 9: 1 },
       bgaPerformAction: spy(),
+      submitPendingAenorAbility: game.submitPendingAenorAbility,
+      removeAenorCancelButton: spy(),
     };
 
-    game.confirmBiteWounds.call(context);
+    await game.confirmBiteWounds.call(context);
 
     assert.equal(context.bgaPerformAction.calls[0][0], "actApplyBiteWounds");
     assert.equal(
       context.bgaPerformAction.calls[0][1].wound_allocations,
       JSON.stringify({ 8: 2, 9: 1 })
     );
+  });
+
+  it("submits Aenor only when bite wounds are confirmed", async () => {
+    const context = {
+      biteWoundsRemaining: 0,
+      biteWoundsToApply: { 8: 1 },
+      aenorPendingCharacterId: 8,
+      bgaPerformAction: spy(async () => undefined),
+      submitPendingAenorAbility: game.submitPendingAenorAbility,
+      removeAenorCancelButton: spy(),
+    };
+
+    await game.confirmBiteWounds.call(context);
+
+    assert.deepEqual(
+      context.bgaPerformAction.calls.map((call) => call[0]),
+      ["actUseAenorAbility", "actApplyBiteWounds"]
+    );
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
+    assert.equal(context.aenorPendingCharacterId, 0);
   });
 
   it("resets bite allocations and restores the original character display", () => {
@@ -1058,6 +1141,24 @@ describe("player actions", () => {
       context.bgaPerformAction.calls[0][0],
       "actConfirmDisasterCharacteristic"
     );
+  });
+
+  it("submits Aenor only when a disaster wound is confirmed", async () => {
+    const context = {
+      aenorSelectingCharacter: false,
+      aenorPendingCharacterId: 8,
+      bgaPerformAction: spy(async () => undefined),
+      submitPendingAenorAbility: game.submitPendingAenorAbility,
+      removeAenorCancelButton: spy(),
+    };
+
+    await game.confirmDisasterCharacteristic.call(context);
+
+    assert.deepEqual(
+      context.bgaPerformAction.calls.map((call) => call[0]),
+      ["actUseAenorAbility", "actConfirmDisasterCharacteristic"]
+    );
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
   });
 
   it("plays an eligible selected card to memory", () => {
