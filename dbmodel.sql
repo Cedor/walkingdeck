@@ -98,7 +98,7 @@ INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name
 (19, '2', 15, 'Wild Zero', 1, 0, '{"action" : "avoid", "avoid" : "bothdeck"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (20, '2', 16, 'Voodoo', 1, 0, '{"action" : "removedisaster", "disaster" : "break"}', NULL, '{"action" : "bite", "bite" : 2}', 0),
 (21, '2', 17, 'Mutt', 0, 0, '{"action" : "draftdisaster"}', NULL, '{"action" : "multiple", "number" : 2, "0" : {"action" : "unearth"}, "1" : {"action" : "disaster", "number" : 1}}', 0),
-(22, '2', 18, 'Grenade', 0, 0, '{"action" : "avoid", "avoid" : "deck"}', NULL, '{"action" : "other"}', 0),
+(22, '2', 18, 'Grenade', 0, 0, '{"action" : "avoid", "avoid" : "deck"}', NULL, '{"action" : "avoid", "avoid" : "memory"}', 0),
 (23, '3', 1, 'Musicians', 1, 0, NULL, NULL, '{"action" : "bite", "bite" : 3}', 0),
 (24, '3', 2, 'Site Manager', 1, 0, NULL, '{"action" : "draw", "number" : 1}', '{"action" : "disaster", "number" : 2}', 0),
 (25, '3', 3, 'Glenn', 0, 1, NULL, '{"action" : "brainstorm"}', '{"action" : "disasterignore", "number" : 1, "ignore" : "hunger"}', 0),
