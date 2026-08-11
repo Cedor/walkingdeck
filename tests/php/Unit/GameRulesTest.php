@@ -105,8 +105,14 @@ final class GameRulesTest extends TestCase
         $this->setProperty('deckManager', $deckManager);
         $this->game->gamestate = $gamestate;
 
+        self::assertNull($this->invoke('getProtagonistInPlay'));
+
         $this->game->actPlayProtagonistCard(2);
 
+        self::assertSame(
+            $deckManager->cards[2],
+            $this->invoke('getProtagonistInPlay')
+        );
         self::assertSame(Location::PROTAGONIST, $deckManager->cards[2]['location']);
         self::assertSame(Location::DISCARD, $deckManager->cards[3]['location']);
         self::assertSame(2, $this->game->getGameStateValue('difficultyLevel'));
