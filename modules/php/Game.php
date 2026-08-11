@@ -32,6 +32,7 @@ use Bga\GameFramework\UserException;
 
 class Game extends \Bga\GameFramework\Table
 {
+    private const WIN_SCORE = 20;
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
     private const REMOVED_DISASTER_LOCATION = 'removed';
@@ -3871,6 +3872,7 @@ class Game extends \Bga\GameFramework\Table
             $this->notify->all('gameLoss', \clienttranslate("You lost the game"));
             $this->gamestate->nextState(Transition::GAME_END);
         } else if ($win) {
+            $this->bga->playerScore->setAll(self::WIN_SCORE);
             $this->notify->all(
                 'gameWin',
                 \clienttranslate("You won the game")
