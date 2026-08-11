@@ -117,6 +117,17 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateValue('gamePhase', $phase);
     }
 
+    /**
+     * Return the selected protagonist card, or null before selection.
+     *
+     * Protagonist-specific rules should use this method instead of reading the
+     * deck location directly.
+     */
+    private function getProtagonistInPlay(): ?array
+    {
+        return $this->deckManager->getCardOnTop(Location::PROTAGONIST);
+    }
+
     private function setLossCondition(array $card): int
     {
         // WINLOSS implement loss condition check
@@ -3494,7 +3505,7 @@ class Game extends \Bga\GameFramework\Table
     public function actPlayProtagonistCard(int $card_id): void
     {
         $card = $this->deckManager->getCard($card_id);
-        if (intval($card['type']) == CardType::PROTAGONIST && $card['location'] == Location::HAND && $this->deckManager->countCardInLocation(Location::PROTAGONIST) == 0) {
+        if (intval($card['type']) == CardType::PROTAGONIST && $card['location'] == Location::HAND && $this->getProtagonistInPlay() === null) {
             $this->deckManager->moveCard($card_id, Location::PROTAGONIST);
             $card = $this->deckManager->getCard($card_id);
             $difficulty = intval($card['type_arg']);
