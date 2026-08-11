@@ -67,6 +67,10 @@
     box-shadow: 0 0 8px 8px orange;
 }
 
+.twd-card.twd-aenor-protected {
+    box-shadow: 0 0 8px 8px #4da6ff;
+}
+
 .twd-card.twd-heal-selected {
   box-shadow: 0 0 8px 8px #41c96b;
   cursor: pointer;

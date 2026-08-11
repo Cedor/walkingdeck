@@ -300,6 +300,19 @@ describe("card helpers", () => {
     assert.equal(game.getCharacterWoundsRotation({ is_character: "1", wounds: null }), 0);
   });
 
+  it("rotates Aenor by one quarter-turn after her ability is used", () => {
+    assert.equal(game.getCardRotation({
+      type: "1",
+      type_arg: "1",
+      aenor_ability_used: true,
+    }), 1);
+    assert.equal(game.getCardRotation({
+      type: "1",
+      type_arg: "1",
+      aenor_ability_used: false,
+    }), 0);
+  });
+
   for (const [type, expectedType] of [
     ["2", "4"],
     ["3", "5"],
@@ -358,6 +371,51 @@ describe("card helpers", () => {
 });
 
 describe("player actions", () => {
+  it("selects the character protected by Aenor", () => {
+    const context = {
+      aenorSelectingCharacter: true,
+      aenorAbilityAvailable: true,
+      aenorEligibleCharacterIds: [8, 9],
+      aenorDamageState: "biteChoice",
+      biteWoundsRemaining: 0,
+      bgaPerformAction: spy(),
+      setAenorCharacterHighlighted: spy(),
+    };
+
+    const handled = game.onAenorCharacterClick.call(context, { id: 8 });
+
+    assert.equal(handled, true);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actUseAenorAbility");
+    assert.equal(context.bgaPerformAction.calls[0][1].card_id, 8);
+    assert.equal(context.aenorAbilityAvailable, false);
+    assert.equal(context.aenorProtectedCharacterId, 8);
+  });
+
+  it("starts Aenor character selection from the protagonist card", () => {
+    const updateCardInformations = spy();
+    const setAenorCharacterHighlighted = spy();
+    const context = {
+      aenorAbilityAvailable: true,
+      aenorEligibleCharacterIds: [8],
+      isCurrentPlayerActive: () => true,
+      cardsManager: { updateCardInformations },
+      setAenorCharacterHighlighted,
+      statusBar: { setTitle: spy() },
+      aenorDamageState: "biteChoice",
+    };
+
+    game.onAenorProtagonistClick.call(context, {
+      id: 1,
+      type: "1",
+      type_arg: "1",
+    });
+
+    assert.equal(context.aenorSelectingCharacter, true);
+    assert.equal(updateCardInformations.calls[0][0].aenor_ability_used, true);
+    assert.equal(setAenorCharacterHighlighted.calls[0][0], 8);
+    assert.equal(setAenorCharacterHighlighted.calls[0][1], true);
+  });
+
   for (const [pendingAction, expectedTitle] of [
     ["applyGreyConsequence", "The grey consequence of ${card_name} will be applied"],
     ["placeCharacter", "${card_name} will be placed in the Characters area"],
@@ -1192,6 +1250,20 @@ describe("player actions", () => {
 });
 
 describe("notifications", () => {
+  it("clears Aenor protection when it expires unused", () => {
+    const setAenorCharacterHighlighted = spy();
+    const context = {
+      aenorProtectedCharacterId: 8,
+      setAenorCharacterHighlighted,
+    };
+
+    game.notif_aenorProtectionExpired.call(context, {});
+
+    assert.equal(setAenorCharacterHighlighted.calls[0][0], 8);
+    assert.equal(setAenorCharacterHighlighted.calls[0][1], false);
+    assert.equal(context.aenorProtectedCharacterId, 0);
+  });
+
   it("moves empty disaster tokens from the reserve to the bag", () => {
     const removeAll = spy();
     const disasterBag = { id: "disasters_bag" };

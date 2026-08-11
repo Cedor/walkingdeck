@@ -2579,6 +2579,235 @@ final class GameRulesTest extends TestCase
         ];
     }
 
+    public function testAenorPreventsOneAllocatedBiteWoundOncePerGame(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            1 => [
+                'id' => 1,
+                'type' => '1',
+                'type_arg' => '1',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Aenor',
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Ellie and Joel',
+                'wounds' => 0,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BITE_CHOICE, [
+            'sourceCardId' => 19,
+            'bite' => 1,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $args = $this->game->argBiteChoice();
+        self::assertTrue($args['aenorAbilityAvailable']);
+        self::assertSame([8], $args['aenorEligibleCharacterIds']);
+
+        $this->game->actUseAenorAbility(8);
+
+        self::assertSame(1, $this->game->getGameStateValue('aenorAbilityUsed'));
+        self::assertSame(
+            8,
+            $this->game->getGameStateValue('aenorProtectedCharacterId')
+        );
+        self::assertFalse(
+            $this->game->argBiteChoice()['aenorAbilityAvailable']
+        );
+
+        $this->game->actApplyBiteWounds('{"8":1}');
+
+        self::assertSame(0, $deckManager->cards[8]['wounds']);
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('aenorProtectedCharacterId')
+        );
+        self::assertSame(
+            ['aenorAbilityUsed', 'aenorWoundPrevented'],
+            array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+    }
+
+    public function testAenorAbilityIsUnavailableForAnotherProtagonist(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[2] = [
+            'id' => 2,
+            'type' => '1',
+            'type_arg' => '2',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+            'card_name' => 'Boris',
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        self::assertFalse($this->invoke('aenorAbilityIsAvailable', [[
+            'id' => 8,
+            'card_name' => 'Glenn',
+        ]]));
+    }
+
+    public function testAenorProtectionExpiresWhenAnotherCharacterIsWounded(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            1 => [
+                'id' => 1,
+                'type' => '1',
+                'type_arg' => '1',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Aenor',
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Glenn',
+                'wounds' => 0,
+            ],
+            9 => [
+                'id' => 9,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Murphy',
+                'wounds' => 0,
+            ],
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::BITE_CHOICE, [
+            'sourceCardId' => 19,
+            'bite' => 1,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $this->game->actUseAenorAbility(8);
+        $this->game->actApplyBiteWounds('{"9":1}');
+
+        self::assertSame(0, $deckManager->cards[8]['wounds']);
+        self::assertSame(1, $deckManager->cards[9]['wounds']);
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('aenorProtectedCharacterId')
+        );
+        self::assertSame(
+            [
+                'aenorAbilityUsed',
+                'characterWoundsChanged',
+                'aenorProtectionExpired',
+            ],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    public function testAenorPreventsOneDisasterWound(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            1 => [
+                'id' => 1,
+                'type' => '1',
+                'type_arg' => '1',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Aenor',
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CHARACTERS_IN_PLAY,
+                'location_arg' => 0,
+                'card_name' => 'Glenn',
+                'weakness_hunger' => 1,
+                'wounds' => 0,
+            ],
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $disasterManager->cards[2] = [
+            'id' => 2,
+            'location' => 'hand',
+            'location_arg' => 1,
+            'disaster_hunger' => 1,
+            'disaster_break' => 0,
+            'disaster_stress' => 0,
+        ];
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
+            'sourceCardId' => 20,
+            'consequence' => ['action' => 'disaster', 'number' => 1],
+            'resolution' => [
+                'confirmedDraws' => 1,
+                'pendingDrawCardId' => 0,
+                'characteristicIndex' => 0,
+                'ignoredCharacteristics' => [],
+            ],
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+
+        $args = $this->game->argDisasterChoice();
+        self::assertTrue($args['aenorAbilityAvailable']);
+        self::assertSame([8], $args['aenorEligibleCharacterIds']);
+
+        $this->game->actUseAenorAbility(8);
+        $this->game->actConfirmDisasterCharacteristic();
+
+        self::assertSame(0, $deckManager->cards[8]['wounds']);
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('aenorProtectedCharacterId')
+        );
+        self::assertSame(
+            ['aenorAbilityUsed', 'aenorWoundPrevented'],
+            array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            [Transition::DISASTER_CHOICE],
+            $gamestate->transitions
+        );
+    }
+
     public function testFourthWoundBuriesCharacterAndCausesImmediateLoss(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
