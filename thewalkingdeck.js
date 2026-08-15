@@ -2150,15 +2150,9 @@ define([
         await this.disastersDrawnSlot.addCard(disaster, { fromElement: document.getElementById("disasters_bag") });
       }
     },
-    // PHASE2 Remove
-    notif_disasterShuffledBack: function (args) {
-      console.log("notif_disasterShuffledBack");
-      console.log(args);
-      this.disastersDrawnSlot.removeAll({ slideTo: document.getElementById("disasters_bag") });
-    },
-    notif_draftDisasterResolved: async function (args) {
-      if (args.removedDisaster) {
-        await this.disastersDrawnSlot.removeCard(args.removedDisaster);
+    notif_disastersResolved: async function (args) {
+      for (const disaster of args.removedDisasters || []) {
+        await this.disastersDrawnSlot.removeCard(disaster);
       }
       for (const disaster of args.returnedDisasters || []) {
         await this.disastersDrawnSlot.removeCard(disaster, {

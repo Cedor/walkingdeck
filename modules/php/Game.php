@@ -2344,28 +2344,7 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        $removedDisaster = $drawnDisastersById[$disaster_id];
-        $returnedDisasters = [];
-        foreach ($drawnDisastersById as $drawnId => $disaster) {
-            if ($drawnId === $disaster_id) {
-                $this->disasterManager->moveCard(
-                    $drawnId,
-                    self::REMOVED_DISASTER_LOCATION
-                );
-                continue;
-            }
-            $this->disasterManager->moveCard($drawnId, 'deck');
-            $returnedDisasters[] = $disaster;
-        }
-        $this->disasterManager->shuffle('deck');
-        $this->notify->all(
-            'draftDisasterResolved',
-            \clienttranslate('The selected drafted disaster is destroyed'),
-            [
-                'removedDisaster' => $removedDisaster,
-                'returnedDisasters' => $returnedDisasters,
-            ]
-        );
+        $this->finalizeDrawnDisasters($event['id'], [$disaster_id]);
 
         $this->popEvent($event['id']);
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
@@ -2693,16 +2672,7 @@ class Game extends \Bga\GameFramework\Table
                 $this->moveCard(intval($character['id']), Location::GRAVEYARD);
             }
         }
-        $this->disasterManager->moveAllCardsInLocation(
-            'hand',
-            'deck',
-            $event['id']
-        );
-        $this->disasterManager->shuffle('deck');
-        $this->notify->all(
-            'disasterShuffledBack',
-            \clienttranslate('Disasters shuffled back into the bag')
-        );
+        $this->finalizeDrawnDisasters($event['id']);
         $this->popEvent($event['id']);
         if ($this->isLossReached()) {
             $this->notify->all('gameLoss', \clienttranslate('You lost the game'));
@@ -2910,16 +2880,7 @@ class Game extends \Bga\GameFramework\Table
             }
         }
 
-        $this->disasterManager->moveAllCardsInLocation(
-            'hand',
-            'deck',
-            $event['id']
-        );
-        $this->disasterManager->shuffle('deck');
-        $this->notify->all(
-            'disasterShuffledBack',
-            \clienttranslate('Wolf Trap disaster shuffled back into the bag')
-        );
+        $this->finalizeDrawnDisasters($event['id']);
 
         $this->popEvent($event['id']);
         if ($this->isLossReached()) {
@@ -2928,6 +2889,47 @@ class Game extends \Bga\GameFramework\Table
             return;
         }
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function finalizeDrawnDisasters(
+        int $eventId,
+        array $removedDisasterIds = []
+    ): void
+    {
+        $removedIds = array_fill_keys(
+            array_map('intval', $removedDisasterIds),
+            true
+        );
+        $removedDisasters = [];
+        $returnedDisasters = [];
+
+        foreach ($this->disasterManager->getCardsInLocation(
+            'hand',
+            $eventId
+        ) as $disaster) {
+            $disasterId = intval($disaster['id']);
+            if (isset($removedIds[$disasterId])) {
+                $this->disasterManager->moveCard(
+                    $disasterId,
+                    self::REMOVED_DISASTER_LOCATION
+                );
+                $removedDisasters[] = $disaster;
+                continue;
+            }
+
+            $this->disasterManager->moveCard($disasterId, 'deck');
+            $returnedDisasters[] = $disaster;
+        }
+
+        $this->disasterManager->shuffle('deck');
+        $this->notify->all(
+            'disastersResolved',
+            \clienttranslate('Disasters resolved'),
+            [
+                'removedDisasters' => $removedDisasters,
+                'returnedDisasters' => $returnedDisasters,
+            ]
+        );
     }
 
     private function getPendingWolfTrapChoiceEvent(): array
@@ -4144,8 +4146,6 @@ class Game extends \Bga\GameFramework\Table
             );
             $this->gamestate->nextState(Transition::GAME_END);
         } else {
-            // TEST remove after tests
-            $this->notify->all('keepPlaying', \clienttranslate("You have picked an action"));
             $this->gamestate->nextState('nextStep');
         }
     }
