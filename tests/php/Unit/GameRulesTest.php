@@ -3784,6 +3784,7 @@ final class GameRulesTest extends TestCase
             'location_arg' => 2,
             'card_name' => 'Glenn',
             'is_character' => '1',
+            'consequence_grey' => ['action' => 'nothing'],
         ];
         $gamestate = new class {
             public array $transitions = [];
@@ -3808,7 +3809,7 @@ final class GameRulesTest extends TestCase
         self::assertTrue($notification['arguments']['memoryTopCard']['face_down']);
     }
 
-    public function testResolvedNonCharacterStoryCardMovesToDoneWithoutConfirmation(): void
+    public function testStoryCardWithoutGreyConsequenceIsBuriedWithoutConfirmation(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[15] = [
@@ -3831,9 +3832,18 @@ final class GameRulesTest extends TestCase
 
         $this->game->stStoryCheckStep();
 
-        self::assertSame(Location::DONE, $deckManager->cards[15]['location']);
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[15]['location']);
         self::assertSame(['gameCheck'], $gamestate->transitions);
-        self::assertSame('storyCardResolved', end($this->game->notify->events)['type']);
+        $notification = end($this->game->notify->events);
+        self::assertSame('cardMoved', $notification['type']);
+        self::assertSame(
+            Location::STORY_CURRENT,
+            $notification['arguments']['source']
+        );
+        self::assertSame(
+            Location::GRAVEYARD,
+            $notification['arguments']['destination']
+        );
     }
 
     public function testResolvedStoryCharacterJoinsCharactersInPlay(): void
@@ -3845,6 +3855,7 @@ final class GameRulesTest extends TestCase
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
             'is_character' => '1',
+            'consequence_grey' => ['action' => 'nothing'],
         ];
         $gamestate = new class {
             public array $transitions = [];
@@ -3855,8 +3866,16 @@ final class GameRulesTest extends TestCase
             }
         };
         $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
         $this->game->gamestate = $gamestate;
 
+        $this->game->stStoryCheckStep();
+        self::assertSame(
+            'applyGreyConsequence',
+            $this->game->argStoryCheckPlayerChoice()['pendingAction']
+        );
+        $this->game->actStoryCheckPlayerChoice(8);
+        $this->game->stEventDispatcher();
         $this->game->stStoryCheckStep();
         self::assertSame(
             'placeCharacter',
@@ -3869,7 +3888,13 @@ final class GameRulesTest extends TestCase
             $deckManager->cards[8]['location']
         );
         self::assertSame(
-            ['playerChoice', Transition::PHASE_2],
+            [
+                'playerChoice',
+                Transition::DISPATCH_EVENTS,
+                Transition::STORY_CHECK_STEP,
+                'playerChoice',
+                Transition::PHASE_2,
+            ],
             $gamestate->transitions
         );
         $notification = end($this->game->notify->events);
