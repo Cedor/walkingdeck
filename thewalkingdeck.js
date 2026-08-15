@@ -2018,7 +2018,7 @@ define([
       }
     },
 
-    // PHASE2 allowing only in phase 2
+    // Route bag clicks to the action owned by the active disaster state.
     onDisasterBagClick: function () {
       console.log("onDisasterBagClick");
       if (this.draftDisasterPhase === "draw") {
@@ -2027,12 +2027,6 @@ define([
         this.bgaPerformAction("actDrawWolfTrapDisaster");
       } else if (this.disasterResolutionPhase === "draw") {
         this.bgaPerformAction("actDrawDisaster");
-      } else if (
-        this.isTestMode
-        && !this.disasterResolutionPhase
-        && this.gamePhase === 2
-      ) {
-        this.bgaPerformAction("actDrawFromDisasterBag");
       }
     },
 

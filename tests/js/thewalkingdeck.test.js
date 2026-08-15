@@ -956,25 +956,10 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
-  it("only performs the test disaster draw in test mode during phase two", () => {
+  it("does nothing when no managed disaster draw is active", () => {
     const context = {
-      gamePhase: 1,
       isTestMode: true,
-      bgaPerformAction: spy(),
-    };
-
-    game.onDisasterBagClick.call(context);
-    context.gamePhase = 2;
-    game.onDisasterBagClick.call(context);
-
-    assert.equal(context.bgaPerformAction.calls.length, 1);
-    assert.equal(context.bgaPerformAction.calls[0][0], "actDrawFromDisasterBag");
-  });
-
-  it("does not perform the test disaster draw in normal mode", () => {
-    const context = {
       gamePhase: 2,
-      isTestMode: false,
       bgaPerformAction: spy(),
     };
 
