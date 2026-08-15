@@ -107,7 +107,6 @@ $machinestates = [
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
-            'actDrawFromDisasterBag',// TEST remove after tests
         ])
         ->transitions([
             Transition::DRAW_CARDS => GameStep::DRAW_CARDS,
@@ -142,7 +141,6 @@ $machinestates = [
             'actPlayCard',
             'actRefillHand',
             'actGoToStoryCheck',// TEST remove after tests
-            'actDrawFromDisasterBag',// TEST remove after tests
             'actFlipRessource',// TEST remove after tests
         ])
         ->transitions([

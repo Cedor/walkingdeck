@@ -3943,29 +3943,6 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Player action : drawing a card from Disaster bag
-     *
-     * @throws BgaUserException
-     */
-    public function actDrawFromDisasterBag(): void
-    {
-        $this->assertTestMode();
-        $this->checkAction('actDrawFromDisasterBag');
-        // CONS replace with exception
-        $shuffle = false;
-        if ($this->disasterManager->countCardInLocation('hand') != 0) {
-            $this->disasterManager->moveAllCardsInLocation('hand', 'deck');
-            $this->disasterManager->shuffle('deck');
-            $shuffle = true;
-        }
-        $disasterPicked = $this->disasterManager->pickCard('deck', 0);
-        $this->notify->all('disasterDrawnFromBag', \clienttranslate("Disaster drawn from bag"), array(
-            'disaster' => $disasterPicked,
-            'shuffle' => $shuffle
-        ));
-    }
-
-    /**
      * Game state arguments, example content.
      *
      * This method returns some additional information that is very specific to the `playerTurn` game state.
