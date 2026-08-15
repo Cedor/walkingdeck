@@ -12,6 +12,7 @@ final class TWDEventStack
     private const SUPPORTED_TYPES = [
         EventType::CONSEQUENCE,
         EventType::BITE_CHOICE,
+        EventType::CARD_BURIAL_CONFIRMATION,
         EventType::HEAL_CHOICE,
         EventType::BURY_CHARACTER_CHOICE,
         EventType::BURY_TOP_CARD_CHOICE,

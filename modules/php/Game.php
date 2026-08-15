@@ -392,8 +392,27 @@ class Game extends \Bga\GameFramework\Table
                     return;
 
                 case EventType::BITE_CHOICE:
-                    $this->getPendingBiteChoiceEvent();
+                    $biteEvent = $this->getPendingBiteChoiceEvent();
+                    if ($this->getAvailableCharacterWoundCapacity() === 0) {
+                        $this->popEvent($biteEvent['id']);
+                        $this->eventStack->pushEvent(
+                            EventType::CARD_BURIAL_CONFIRMATION,
+                            [
+                                'sourceCardId' => intval(
+                                    $biteEvent['parameters']['sourceCardId']
+                                ),
+                            ]
+                        );
+                        break;
+                    }
                     $this->gamestate->nextState(Transition::BITE_CHOICE);
+                    return;
+
+                case EventType::CARD_BURIAL_CONFIRMATION:
+                    $this->getPendingCardBurialConfirmationEvent();
+                    $this->gamestate->nextState(
+                        Transition::CARD_BURIAL_CONFIRMATION
+                    );
                     return;
 
                 case EventType::HEAL_CHOICE:
@@ -716,10 +735,7 @@ class Game extends \Bga\GameFramework\Table
                         break;
                     }
 
-                    if (
-                        $outcome['biteChoices'] !== []
-                        && $this->getAvailableCharacterWoundCapacity() > 0
-                    ) {
+                    if ($outcome['biteChoices'] !== []) {
                         if (
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
@@ -1786,6 +1802,20 @@ class Game extends \Bga\GameFramework\Table
         ));
     }
 
+    public function argCardBurialConfirmation(): array
+    {
+        $event = $this->getPendingCardBurialConfirmationEvent();
+        $sourceCard = $this->deckManager->getCard(
+            intval($event['parameters']['sourceCardId'])
+        );
+
+        return [
+            'sourceCard' => $sourceCard,
+            'card_name' => $sourceCard['card_name'],
+            'i18n' => ['card_name'],
+        ];
+    }
+
     private function getAvailableCharacterWoundCapacity(): int
     {
         $capacity = 0;
@@ -1957,6 +1987,46 @@ class Game extends \Bga\GameFramework\Table
             return;
         }
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    public function actConfirmCardBurial(): void
+    {
+        $this->checkAction('actConfirmCardBurial');
+
+        $event = $this->getPendingCardBurialConfirmationEvent();
+
+        $this->moveCard(
+            intval($event['parameters']['sourceCardId']),
+            Location::GRAVEYARD
+        );
+        $this->popEvent($event['id']);
+
+        if ($this->isLossReached()) {
+            $this->notify->all(
+                'gameLoss',
+                \clienttranslate('You lost the game')
+            );
+            $this->gamestate->nextState(Transition::GAME_END);
+            return;
+        }
+
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingCardBurialConfirmationEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::CARD_BURIAL_CONFIRMATION
+            || intval($event['parameters']['sourceCardId'] ?? 0) < 1
+        ) {
+            throw new SystemException(
+                'There is no pending card burial confirmation'
+            );
+        }
+
+        return $event;
     }
 
     private function getPendingBiteChoiceEvent(): array

@@ -84,6 +84,7 @@ $machinestates = [
             Transition::BRAINSTORM_DECK_CHOICE => GameStep::BRAINSTORM_DECK_CHOICE,
             Transition::UNREMEMBER_CHOICE => GameStep::UNREMEMBER_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
+            Transition::CARD_BURIAL_CONFIRMATION => GameStep::CARD_BURIAL_CONFIRMATION,
             Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
@@ -218,6 +219,20 @@ $machinestates = [
         ])
         ->transitions([
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
+    GameStep::CARD_BURIAL_CONFIRMATION => GameStateBuilder::create()
+        ->name(Transition::CARD_BURIAL_CONFIRMATION)
+        ->description(clienttranslate('Card ${card_name} will be buried'))
+        ->descriptionmyturn(clienttranslate('Card ${card_name} will be buried'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argCardBurialConfirmation')
+        ->possibleactions([
+            'actConfirmCardBurial',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+            Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
     GameStep::HEAL_CHOICE => GameStateBuilder::create()

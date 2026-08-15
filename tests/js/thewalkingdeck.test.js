@@ -531,6 +531,7 @@ describe("player actions", () => {
       };
       const context = {
         statusBar,
+        getCardName: game.getCardName,
         getActivePlayerId: () => 1,
         isCurrentPlayerActive: () => true,
         bgaPerformAction: spy(),
@@ -550,6 +551,41 @@ describe("player actions", () => {
     });
   }
 
+  it("shows and submits the card burial confirmation", () => {
+    let confirmCallback;
+    const statusBar = {
+      setTitle: spy(),
+      addActionButton: spy((_label, callback) => {
+        confirmCallback = callback;
+        return { style: {} };
+      }),
+    };
+    const context = {
+      statusBar,
+      getCardName: game.getCardName,
+      getActivePlayerId: () => 1,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onUpdateActionButtons.call(context, "cardBurialConfirmation", {
+      sourceCard: { id: 13, card_name: "Brigade" },
+    });
+
+    assert.equal(statusBar.setTitle.calls[0][0], "Card ${card_name} will be buried");
+    assert.equal(statusBar.setTitle.calls[0][1].card_name, "Brigade");
+    assert.equal(statusBar.addActionButton.calls[0][0], "Confirm");
+
+    confirmCallback();
+    assert.equal(context.bgaPerformAction.calls[0][0], "actConfirmCardBurial");
+  });
+
+  it("returns translated card names and safely falls back for unknown cards", () => {
+    assert.equal(game.getCardName({ card_name: "Wolf Trap" }), "Wolf Trap");
+    assert.equal(game.getCardName({ card_name: "Custom card" }), "Custom card");
+    assert.equal(game.getCardName(null), "Unknown card");
+  });
+
   it("does not offer a confirmation to resolve a non-character card", () => {
     const statusBar = {
       setTitle: spy(),
@@ -559,6 +595,7 @@ describe("player actions", () => {
     game.onUpdateActionButtons.call(
       {
         statusBar,
+        getCardName: game.getCardName,
         getActivePlayerId: () => 1,
         isCurrentPlayerActive: () => true,
       },
@@ -1135,6 +1172,7 @@ describe("player actions", () => {
           return { style: {} };
         }),
       },
+      getCardName: game.getCardName,
       getActivePlayerId: () => 1,
       isCurrentPlayerActive: () => true,
       bgaPerformAction: spy(),

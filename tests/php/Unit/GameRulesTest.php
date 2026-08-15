@@ -2312,7 +2312,7 @@ final class GameRulesTest extends TestCase
         self::assertSame(2, $deckManager->cards[8]['wounds']);
     }
 
-    public function testBiteConsequenceIsIgnoredWithoutCharacters(): void
+    public function testBiteConsequenceBuriesItsCardAfterConfirmationWithoutCapacity(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[13] = [
@@ -2342,12 +2342,33 @@ final class GameRulesTest extends TestCase
         $this->setProperty('eventStack', $eventStack);
         $this->game->gamestate = $gamestate;
         $this->game->setGameStateValue('gamePhase', 2);
+        $this->game->setGameStateValue('lossCondition', 5);
 
         $this->game->stEventDispatcher();
 
-        self::assertTrue($eventStack->isEmpty());
+        self::assertFalse($eventStack->isEmpty());
         self::assertSame(
-            [Transition::STORY_CHECK_STEP],
+            [Transition::CARD_BURIAL_CONFIRMATION],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            EventType::CARD_BURIAL_CONFIRMATION,
+            $eventStack->getCurrentEvent()['type']
+        );
+        self::assertSame(
+            'Brigade',
+            $this->game->argCardBurialConfirmation()['card_name']
+        );
+
+        $this->game->actConfirmCardBurial();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[13]['location']);
+        self::assertSame(
+            [
+                Transition::CARD_BURIAL_CONFIRMATION,
+                Transition::DISPATCH_EVENTS,
+            ],
             $gamestate->transitions
         );
     }

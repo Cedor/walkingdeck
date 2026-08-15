@@ -32,5 +32,6 @@ final class GameStep
     public const STORY_CHECK_STEP = 51;
     public const STORY_PLAYER_CHOICE = 52;
     public const STORY_CHECK_WIN_LOSS = 53;
+    public const CARD_BURIAL_CONFIRMATION = 54;
     public const GAME_END = 99;
 }
