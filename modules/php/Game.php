@@ -4057,6 +4057,15 @@ class Game extends \Bga\GameFramework\Table
             return;
         }
 
+        if (empty($currentCard['consequence_grey'])) {
+            $this->moveCard(
+                intval($currentCard['id']),
+                Location::GRAVEYARD
+            );
+            $this->gamestate->nextState('gameCheck');
+            return;
+        }
+
         if ($this->getPendingStoryAction($currentCard) !== 'resolveCard') {
             $this->gamestate->nextState('playerChoice');
             return;
