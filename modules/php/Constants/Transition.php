@@ -19,6 +19,7 @@ final class Transition
     public const BRAINSTORM_REORDER = 'brainstormReorder';
     public const UNREMEMBER_CHOICE = 'unrememberChoice';
     public const BITE_CHOICE = 'biteChoice';
+    public const CARD_BURIAL_CONFIRMATION = 'cardBurialConfirmation';
     public const HEAL_CHOICE = 'healChoice';
     public const DISASTER_CHOICE = 'disasterChoice';
     public const WOLF_TRAP_CHOICE = 'wolfTrapChoice';

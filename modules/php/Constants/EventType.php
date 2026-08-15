@@ -8,6 +8,7 @@ final class EventType
 {
     public const CONSEQUENCE = 'consequence';
     public const BITE_CHOICE = 'biteChoice';
+    public const CARD_BURIAL_CONFIRMATION = 'cardBurialConfirmation';
     public const HEAL_CHOICE = 'healChoice';
     public const BURY_CHARACTER_CHOICE = 'buryCharacterChoice';
     public const BURY_TOP_CARD_CHOICE = 'buryTopCardChoice';

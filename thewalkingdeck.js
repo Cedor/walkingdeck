@@ -825,6 +825,22 @@ define([
               color: "secondary",
             });
             break;
+          case "cardBurialConfirmation": {
+            const burialArgs = args.args || args;
+            this.statusBar.setTitle(
+              _("Card ${card_name} will be buried"),
+              { card_name: this.getCardName(burialArgs.sourceCard) }
+            );
+            this.statusBar.addActionButton(
+              _("Confirm"),
+              () => this.bgaPerformAction("actConfirmCardBurial"),
+              {
+                id: "confirm_card_burial",
+                color: "primary",
+              }
+            );
+            break;
+          }
           case "healChoice":
             this.statusBar.addActionButton(
               _("Confirm healing"),
@@ -859,7 +875,7 @@ define([
             } else if (disasterArgs.phase === "characteristic") {
               const characteristic = disasterArgs.characteristic;
               const affectedNames = (disasterArgs.affectedCharacters || [])
-                .map((card) => card.card_name)
+                .map((card) => this.getCardName(card))
                 .join(", ");
               if (disasterArgs.characteristicIgnored) {
                 this.statusBar.setTitle(
@@ -1014,7 +1030,9 @@ define([
             break;
           case "storyCheckPlayerChoice":
             const storyArgs = args.args || args;
-            const storyCardName = storyArgs.currentCard?.card_name || _("the current card");
+            const storyCardName = storyArgs.currentCard
+              ? this.getCardName(storyArgs.currentCard)
+              : _("the current card");
             let storyTitle;
             switch (storyArgs.pendingAction) {
               case "applyGreyConsequence":
@@ -1045,6 +1063,54 @@ define([
             script.
         
         */
+    getCardName: function (card) {
+      const originalName = typeof card === "string" ? card : card?.card_name;
+      const translatedNames = {
+        Aenor: _("Aenor"),
+        Boris: _("Boris"),
+        Adrien: _("Adrien"),
+        Eleonore: _("Eleonore"),
+        Punk: _("Punk"),
+        "Wolf Trap": _("Wolf Trap"),
+        Clown: _("Clown"),
+        "Ellie and Joel": _("Ellie and Joel"),
+        Kieren: _("Kieren"),
+        Tallahassee: _("Tallahassee"),
+        Gretchen: _("Gretchen"),
+        Robert: _("Robert"),
+        Brigade: _("Brigade"),
+        Bonfire: _("Bonfire"),
+        Horse: _("Horse"),
+        RV: _("RV"),
+        Cellar: _("Cellar"),
+        "Teddy Bear": _("Teddy Bear"),
+        "Wild Zero": _("Wild Zero"),
+        Voodoo: _("Voodoo"),
+        Mutt: _("Mutt"),
+        Grenade: _("Grenade"),
+        Musicians: _("Musicians"),
+        "Site Manager": _("Site Manager"),
+        Glenn: _("Glenn"),
+        Murphy: _("Murphy"),
+        Horde: _("Horde"),
+        Butler: _("Butler"),
+        "Canned food": _("Canned food"),
+        Warehouse: _("Warehouse"),
+        "Medical alcohol": _("Medical alcohol"),
+        Map: _("Map"),
+        Domitille: _("Domitille"),
+        "The reaper": _("The reaper"),
+        Controller: _("Controller"),
+        Zoey: _("Zoey"),
+        Jill: _("Jill"),
+        Shaun: _("Shaun"),
+        LGS: _("LGS"),
+        Teacher: _("Teacher"),
+      };
+
+      return translatedNames[originalName] || originalName || _("Unknown card");
+    },
+
     getLocation: function (location) {
       switch (location) {
         case "hand":
@@ -1399,7 +1465,7 @@ define([
 
       const args = this.aenorDamageArgs || {};
       const affectedNames = (args.affectedCharacters || [])
-        .map((card) => card.card_name)
+        .map((card) => this.getCardName(card))
         .join(", ");
       this.statusBar?.setTitle(
         _("${characteristic} is present: ${characters} will receive 1 wound"),
