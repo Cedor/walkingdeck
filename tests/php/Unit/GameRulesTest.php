@@ -1876,7 +1876,7 @@ final class GameRulesTest extends TestCase
         self::assertSame('complete', $this->game->argDisasterChoice()['phase']);
     }
 
-    public function testDisasterConsequenceIsIgnoredWithoutCharacters(): void
+    public function testDisasterConsequenceBuriesItsCardAfterConfirmationWithoutCharacters(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
@@ -1906,17 +1906,34 @@ final class GameRulesTest extends TestCase
         $this->setProperty('eventStack', $eventStack);
         $this->game->gamestate = $gamestate;
         $this->game->setGameStateValue('gamePhase', 2);
+        $this->game->setGameStateValue('lossCondition', 5);
 
         $this->game->stEventDispatcher();
 
-        self::assertTrue($eventStack->isEmpty());
+        self::assertFalse($eventStack->isEmpty());
         self::assertSame(
-            [Transition::STORY_CHECK_STEP],
+            [Transition::CARD_BURIAL_CONFIRMATION],
+            $gamestate->transitions
+        );
+        self::assertSame(
+            EventType::CARD_BURIAL_CONFIRMATION,
+            $eventStack->getCurrentEvent()['type']
+        );
+
+        $this->game->actConfirmCardBurial();
+
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[8]['location']);
+        self::assertSame(
+            [
+                Transition::CARD_BURIAL_CONFIRMATION,
+                Transition::DISPATCH_EVENTS,
+            ],
             $gamestate->transitions
         );
     }
 
-    public function testPendingDisasterChoiceIsSkippedWhenCharactersAreGone(): void
+    public function testPendingDisasterChoiceDefensivelyBecomesACardBurialForAZeroCapacityCharacter(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
@@ -1924,6 +1941,15 @@ final class GameRulesTest extends TestCase
             'location' => Location::STORY_CURRENT,
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
+        ];
+        // This state should be impossible during normal play: a character
+        // reaching its wound limit must already have left the Characters area.
+        $deckManager->cards[9] = [
+            'id' => 9,
+            'location' => Location::CHARACTERS_IN_PLAY,
+            'location_arg' => 0,
+            'card_name' => 'Glenn',
+            'wounds' => 4,
         ];
         $eventStack = $this->createEventStack();
         $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
@@ -1948,10 +1974,14 @@ final class GameRulesTest extends TestCase
 
         $this->game->stEventDispatcher();
 
-        self::assertTrue($eventStack->isEmpty());
+        self::assertFalse($eventStack->isEmpty());
         self::assertSame(
-            [Transition::STORY_CHECK_STEP],
+            [Transition::CARD_BURIAL_CONFIRMATION],
             $gamestate->transitions
+        );
+        self::assertSame(
+            EventType::CARD_BURIAL_CONFIRMATION,
+            $eventStack->getCurrentEvent()['type']
         );
     }
 

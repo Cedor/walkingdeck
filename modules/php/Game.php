@@ -497,9 +497,17 @@ class Game extends \Bga\GameFramework\Table
                     return;
 
                 case EventType::DISASTER_CHOICE:
-                    $this->getPendingDisasterChoiceEvent();
-                    if (!$this->hasCharactersInPlay()) {
-                        $this->popEvent($event['id']);
+                    $disasterEvent = $this->getPendingDisasterChoiceEvent();
+                    if ($this->getAvailableCharacterWoundCapacity() === 0) {
+                        $this->popEvent($disasterEvent['id']);
+                        $this->eventStack->pushEvent(
+                            EventType::CARD_BURIAL_CONFIRMATION,
+                            [
+                                'sourceCardId' => intval(
+                                    $disasterEvent['parameters']['sourceCardId']
+                                ),
+                            ]
+                        );
                         break;
                     }
                     $this->gamestate->nextState(Transition::DISASTER_CHOICE);
@@ -793,10 +801,7 @@ class Game extends \Bga\GameFramework\Table
                         break;
                     }
 
-                    if (
-                        $outcome['disasterChoices'] !== []
-                        && $this->hasCharactersInPlay()
-                    ) {
+                    if ($outcome['disasterChoices'] !== []) {
                         if (
                             $outcome['additionalDraws'] > 0
                             || $outcome['startNormalDraw']
