@@ -1289,9 +1289,15 @@ final class GameRulesTest extends TestCase
             ],
             $gamestate->transitions
         );
+        $notification = end($this->game->notify->events);
+        self::assertSame('disastersResolved', $notification['type']);
         self::assertSame(
-            'draftDisasterResolved',
-            end($this->game->notify->events)['type']
+            [1],
+            array_column($notification['arguments']['removedDisasters'], 'id')
+        );
+        self::assertSame(
+            [2],
+            array_column($notification['arguments']['returnedDisasters'], 'id')
         );
     }
 
@@ -1534,6 +1540,13 @@ final class GameRulesTest extends TestCase
         self::assertSame(Location::GRAVEYARD, $deckManager->cards[25]['location']);
         self::assertSame('deck', $disasterManager->cards[1]['location']);
         self::assertSame('deck', $disasterManager->cards[2]['location']);
+        $notification = end($this->game->notify->events);
+        self::assertSame('disastersResolved', $notification['type']);
+        self::assertSame([], $notification['arguments']['removedDisasters']);
+        self::assertSame(
+            [1, 2],
+            array_column($notification['arguments']['returnedDisasters'], 'id')
+        );
         self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
     }
 
@@ -1625,6 +1638,13 @@ final class GameRulesTest extends TestCase
         $this->game->actResolveWolfTrap();
 
         self::assertSame(Location::GRAVEYARD, $deckManager->cards[6]['location']);
+        $notification = end($this->game->notify->events);
+        self::assertSame('disastersResolved', $notification['type']);
+        self::assertSame([], $notification['arguments']['removedDisasters']);
+        self::assertSame(
+            [1],
+            array_column($notification['arguments']['returnedDisasters'], 'id')
+        );
         self::assertSame('deck', $disasterManager->cards[1]['location']);
         self::assertSame(
             ['deck', 'deck'],

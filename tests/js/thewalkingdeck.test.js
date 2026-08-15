@@ -1496,6 +1496,31 @@ describe("notifications", () => {
     }
   });
 
+  it("removes destroyed disasters and returns the others to the bag", async () => {
+    const removeCard = spy(async () => undefined);
+    const disasterBag = { id: "disasters_bag" };
+    const context = {
+      disastersDrawnSlot: { removeCard },
+    };
+    const removed = { id: 1 };
+    const returned = { id: 2 };
+    documentElementOverrides.disasters_bag = disasterBag;
+
+    try {
+      await game.notif_disastersResolved.call(context, {
+        removedDisasters: [removed],
+        returnedDisasters: [returned],
+      });
+
+      assert.equal(removeCard.calls[0][0], removed);
+      assert.equal(removeCard.calls[0].length, 1);
+      assert.equal(removeCard.calls[1][0], returned);
+      assert.equal(removeCard.calls[1][1].slideTo, disasterBag);
+    } finally {
+      delete documentElementOverrides.disasters_bag;
+    }
+  });
+
   it("shows a revealed card on top of its deck", async () => {
     const deck = {
       setCardNumber: spy(),
