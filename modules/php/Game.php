@@ -345,13 +345,21 @@ class Game extends \Bga\GameFramework\Table
                     Location::RURAL
                 ),
                 'urbanDeckNb' => 0,
+                'ruralDeckTop' => $this->getDeckTopForDisplay(Location::RURAL),
+                'urbanDeckTop' => null,
             ]
         );
 
         $this->deckManager->shuffle(Location::RURAL);
         $this->notify->all(
             'borisDeckShuffled',
-            \clienttranslate('Boris shuffles the combined deck')
+            \clienttranslate('Boris shuffles the combined deck'),
+            [
+                'ruralDeckNb' => $this->deckManager->countCardInLocation(
+                    Location::RURAL
+                ),
+                'ruralDeckTop' => $this->getDeckTopForDisplay(Location::RURAL),
+            ]
         );
 
         $cardCount = $this->deckManager->countCardInLocation(Location::RURAL);
@@ -374,6 +382,8 @@ class Game extends \Bga\GameFramework\Table
                 'urbanDeckNb' => $this->deckManager->countCardInLocation(
                     Location::URBAN
                 ),
+                'ruralDeckTop' => $this->getDeckTopForDisplay(Location::RURAL),
+                'urbanDeckTop' => $this->getDeckTopForDisplay(Location::URBAN),
             ]
         );
     }
@@ -1247,6 +1257,53 @@ class Game extends \Bga\GameFramework\Table
         return $this->withFaceDown($topCard, false);
     }
 
+    private function getDeckTopForDisplay(string $location): ?array
+    {
+        $topCard = $this->deckManager->getCardOnTop($location);
+        if ($topCard === null) {
+            return null;
+        }
+
+        $revealedTopCard = $this->getRevealedDeckTop($location);
+        return $revealedTopCard ?? $this->deckManager->generateFakeCard(
+            $topCard
+        );
+    }
+
+    private function getSourceDeckNotificationArguments(
+        string $source
+    ): array {
+        if ($source === Location::MEMORY) {
+            return [
+                'memoryNb' => $this->deckManager->countCardInLocation(
+                    Location::MEMORY
+                ),
+                'memoryTopCard' => $this->getMemoryTopForDisplay(),
+            ];
+        }
+        if (!in_array($source, [Location::RURAL, Location::URBAN], true)) {
+            return [];
+        }
+
+        return [
+            'sourceDeckNb' => $this->deckManager->countCardInLocation($source),
+            'sourceDeckTop' => $this->getDeckTopForDisplay($source),
+        ];
+    }
+
+    private function getMemoryTopForDisplay(): ?array
+    {
+        $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
+        if (
+            $memoryTop === null
+            || intval($this->getGameStateValue('gamePhase')) === 1
+        ) {
+            return $memoryTop;
+        }
+
+        return $this->withFaceDown($memoryTop, true);
+    }
+
     private function clearDeckRevealIfCardLeaves(
         int $cardId,
         string $location
@@ -1334,6 +1391,10 @@ class Game extends \Bga\GameFramework\Table
             'card' => $card,
             'destination' => $location,
             'source' => $source
+        );
+        $notificationArguments = array_merge(
+            $notificationArguments,
+            $this->getSourceDeckNotificationArguments($source)
         );
         if ($source === Location::GRAVEYARD && $location !== Location::GRAVEYARD) {
             $graveyardTop = $this->deckManager->getCardOnTop(
@@ -3336,12 +3397,12 @@ class Game extends \Bga\GameFramework\Table
             $this->notify->all(
                 'cardMoved',
                 \clienttranslate('${card_name} is quickly memorised'),
-                [
+                array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
                     'destination' => Location::MEMORY,
                     'source' => $location,
-                ]
+                ], $this->getSourceDeckNotificationArguments($location))
             );
         }
 
@@ -3525,12 +3586,12 @@ class Game extends \Bga\GameFramework\Table
             $this->notify->all(
                 'cardMoved',
                 \clienttranslate('${card_name} is revealed for brainstorm'),
-                [
+                array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
                     'destination' => 'brainstorm',
                     'source' => $location,
-                ]
+                ], $this->getSourceDeckNotificationArguments($location))
             );
         }
 
@@ -3892,18 +3953,18 @@ class Game extends \Bga\GameFramework\Table
             $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
             $card = $this->deckManager->getCard($cardId);
-            $this->notify->all('cardMoved', \clienttranslate("Special draw triggered by card " . $card['card_name']), array(
+            $this->notify->all('cardMoved', \clienttranslate("Special draw triggered by card " . $card['card_name']), array_merge(array(
                 'card' => $card,
                 'source' => $location,
                 'destination' => $destination,
                 'special' => true
-            ));
+            ), $this->getSourceDeckNotificationArguments($location)));
         } else {
-            $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == Location::RURAL ? "Rural" : "Urban") . " deck"), array(
+            $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == Location::RURAL ? "Rural" : "Urban") . " deck"), array_merge(array(
                 'card' => $cardPicked,
                 'source' => $location,
                 'destination' => Location::HAND
-            ));
+            ), $this->getSourceDeckNotificationArguments($location)));
         }
 
         if ($isSpecialDraw) {
@@ -4279,11 +4340,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Cards played on the table
         $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
-        $gamePhase = intval($this->getGameStateValue('gamePhase'));
-        $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
-        $result['memoryTop'] = $gamePhase === 1 || $memoryTop === null
-            ? $memoryTop
-            : $this->withFaceDown($memoryTop, true);
+        $result['memoryTop'] = $this->getMemoryTopForDisplay();
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
         $result['storyCurrent'] = $this->getCurrentStoryCard();
         $result['escaped'] = $this->deckManager->getCardsInLocation(Location::ESCAPED, null, 'location_arg');
@@ -4292,8 +4349,8 @@ class Game extends \Bga\GameFramework\Table
         $result['graveyardTop'] = $graveyardTop ?  $this->deckManager->generateFakeCard($graveyardTop) : null;
         $result['ruralDeckNb'] = $this->deckManager->countCardInLocation(Location::RURAL);
         $result['urbanDeckNb'] = $this->deckManager->countCardInLocation(Location::URBAN);
-        $result['ruralDeckTop'] = $this->getRevealedDeckTop(Location::RURAL);
-        $result['urbanDeckTop'] = $this->getRevealedDeckTop(Location::URBAN);
+        $result['ruralDeckTop'] = $this->getDeckTopForDisplay(Location::RURAL);
+        $result['urbanDeckTop'] = $this->getDeckTopForDisplay(Location::URBAN);
         $brainstormLocation = $this->getCurrentBrainstormLocation();
         $displayedChoiceLocation = $this->deckManager
             ->countCardInLocation(Location::UNREMEMBER) > 0
@@ -4316,7 +4373,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Game difficulty and phase
         $result['difficultyLevel'] = $this->getGameStateValue('difficultyLevel');
-        $result['gamePhase'] = $gamePhase;
+        $result['gamePhase'] = intval($this->getGameStateValue('gamePhase'));
         $result['isTestMode'] = $this->isTestMode();
         $result['aenorAbilityUsed'] = $this->getGameStateValue(
             'aenorAbilityUsed'

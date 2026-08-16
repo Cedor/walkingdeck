@@ -116,7 +116,10 @@ final class TWDDeckTest extends TestCase
         $fake = (new TWDDeck(new FakeGame()))->generateFakeCard($card);
 
         self::assertSame($fakeType, $fake['type']);
-        self::assertSame('fake-top-card', $fake['id']);
+        self::assertSame(
+            Location::RURAL . '-' . $fakeType . '-top-card',
+            $fake['id']
+        );
         self::assertSame($card['location'], $fake['location']);
     }
 

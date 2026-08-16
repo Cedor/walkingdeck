@@ -386,9 +386,18 @@ describe("card helpers", () => {
       "deck_rural"
     );
 
-    assert.equal(first.id, "deck_rural-shuffle-0-top-card");
-    assert.equal(second.id, "deck_rural-shuffle-1-top-card");
+    assert.equal(first.id, "deck_rural-shuffle-0-4-top-card");
+    assert.equal(second.id, "deck_rural-shuffle-1-4-top-card");
     assert.notEqual(first.id, second.id);
+    assert.equal(
+      game.generateDeckFakeCard("deck_rural", "3", "deck_rural").type,
+      "5"
+    );
+    assert.equal(game.generateDeckFakeCard("memory", "3", "memory").type, "5");
+    assert.equal(
+      game.generateDeckFakeCard("graveyard", "2", "graveyard").type,
+      "4"
+    );
   });
 
   it("enforces the client-side destination rules", () => {
@@ -1540,11 +1549,12 @@ describe("notifications", () => {
 
   it("shows a revealed card on top of its deck", async () => {
     const deck = {
-      setCardNumber: spy(),
-      addCard: spy(async () => undefined),
+      setCardNumber: spy(async () => undefined),
     };
     const context = {
       getLocation: spy(() => deck),
+      setDeckState: game.setDeckState,
+      deckTopTypes: {},
     };
     const card = { id: 20, type: "3", face_down: false };
 
@@ -1555,8 +1565,9 @@ describe("notifications", () => {
     });
 
     assert.equal(context.getLocation.calls[0][0], "deck_urban");
-    assert.equal(deck.setCardNumber.calls[0][0], 3);
-    assert.equal(deck.addCard.calls[0][0], card);
+    assert.equal(deck.setCardNumber.calls[0][0], 4);
+    assert.equal(deck.setCardNumber.calls[0][1], card);
+    assert.equal(context.deckTopTypes.deck_urban, "3");
   });
 
   it("waits until the face-down Memory card is installed when Story Check starts", async () => {
@@ -1568,6 +1579,7 @@ describe("notifications", () => {
     const card = { id: 18, type: "2", face_down: true };
     const context = {
       memory,
+      deckTopTypes: { memory: "2" },
       setGamePhaseDisplay: game.setGamePhaseDisplay,
       setHandVisible: spy(),
     };
@@ -1622,16 +1634,33 @@ describe("notifications", () => {
       getTopCard: spy(() => urbanTopCard),
       setCardNumber: spy(async () => undefined),
     };
-    const context = { ruralDeck, urbanDeck };
+    const context = {
+      ruralDeck,
+      urbanDeck,
+      deckTopTypes: {},
+      getLocation: (location) => location === "deck_rural" ? ruralDeck : urbanDeck,
+      setDeckState: game.setDeckState,
+    };
+    const mergedTop = { id: "deck_rural-5-top-card", type: "5" };
+    const shuffledTop = { id: "deck_rural-4-top-card", type: "4" };
+    const redistributedRuralTop = { id: "deck_rural-5-top-card", type: "5" };
+    const redistributedUrbanTop = { id: "deck_urban-4-top-card", type: "4" };
 
     await game.notif_borisDecksMerged.call(context, {
       ruralDeckNb: 36,
       urbanDeckNb: 0,
+      ruralDeckTop: mergedTop,
+      urbanDeckTop: null,
     });
-    await game.notif_borisDeckShuffled.call(context, {});
+    await game.notif_borisDeckShuffled.call(context, {
+      ruralDeckNb: 36,
+      ruralDeckTop: shuffledTop,
+    });
     await game.notif_borisDecksRedistributed.call(context, {
       ruralDeckNb: 17,
       urbanDeckNb: 19,
+      ruralDeckTop: redistributedRuralTop,
+      urbanDeckTop: redistributedUrbanTop,
     });
 
     assert.equal(ruralDeck.addCard.calls[0][0], urbanTopCard);
@@ -1639,8 +1668,10 @@ describe("notifications", () => {
     assert.equal(ruralDeck.shuffle.calls.length, 1);
     assert.equal(urbanDeck.addCard.calls[0][0], ruralTopCard);
     assert.equal(urbanDeck.addCard.calls[0][1].fromStock, ruralDeck);
-    assert.equal(ruralDeck.setCardNumber.calls[1][0], 17);
+    assert.equal(ruralDeck.setCardNumber.calls[2][0], 17);
+    assert.equal(ruralDeck.setCardNumber.calls[2][1], redistributedRuralTop);
     assert.equal(urbanDeck.setCardNumber.calls[1][0], 19);
+    assert.equal(urbanDeck.setCardNumber.calls[1][1], redistributedUrbanTop);
   });
 
   it("moves a drawn card between stocks", async () => {
@@ -1661,6 +1692,32 @@ describe("notifications", () => {
     assert.equal(destination.addCard.calls[0][1].fromStock, source);
   });
 
+  it("updates a mixed deck back after its top card moves", async () => {
+    const nextTopCard = {
+      id: "deck_rural-5-top-card",
+      type: "5",
+      location: "deck_rural",
+    };
+    const context = {
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+    };
+
+    await game.notif_cardMoved.call(context, {
+      card: { id: 10, type: "2" },
+      source: "deck_rural",
+      destination: "hand",
+      sourceDeckNb: 17,
+      sourceDeckTop: nextTopCard,
+    });
+
+    assert.deepEqual(context.setDeckState.calls[0], [
+      "deck_rural",
+      17,
+      nextTopCard,
+    ]);
+  });
+
   it("installs the new graveyard top after its top card is removed", async () => {
     const graveyard = {
       setCardNumber: spy(),
@@ -1669,6 +1726,9 @@ describe("notifications", () => {
     const context = {
       graveyard,
       moveCardToLocation: spy(async () => undefined),
+      deckTopTypes: { graveyard: "2" },
+      getLocation: () => graveyard,
+      setDeckState: game.setDeckState,
     };
     const graveyardTop = {
       id: 41,
@@ -1684,15 +1744,9 @@ describe("notifications", () => {
       graveyardTop,
     });
 
-    assert.equal(graveyard.setCardNumber.calls[0][0], 0);
-    assert.equal(graveyard.addCard.calls[0][0], graveyardTop);
-    assert.deepEqual(
-      JSON.parse(JSON.stringify(graveyard.addCard.calls[0][1])),
-      {
-        autoupdateCardNumber: false,
-        autoRemovePreviousCards: true,
-      }
-    );
+    assert.equal(graveyard.setCardNumber.calls[0][0], 1);
+    assert.equal(graveyard.setCardNumber.calls[0][1], graveyardTop);
+    assert.equal(context.deckTopTypes.graveyard, "4");
   });
 
   it("reveals and installs the current Story Check card", async () => {
@@ -1704,7 +1758,13 @@ describe("notifications", () => {
     const storyCurrent = {
       addCard: spy(async () => undefined),
     };
-    const context = { memory, storyCurrent };
+    const context = {
+      memory,
+      storyCurrent,
+      deckTopTypes: { memory: "2" },
+      getLocation: () => memory,
+      setDeckState: game.setDeckState,
+    };
     const card = { id: 21 };
     const memoryTopCard = { id: 15, type: "2", face_down: true };
 
@@ -1717,7 +1777,7 @@ describe("notifications", () => {
     assert.equal(storyCurrent.addCard.calls[0][0], card);
     assert.equal(storyCurrent.addCard.calls[0][1].fromStock, memory);
     assert.equal(memory.setCardNumber.calls[0][0], 2);
-    assert.equal(memory.addCard.calls[0][0], memoryTopCard);
+    assert.equal(memory.setCardNumber.calls[0][1], memoryTopCard);
   });
 
   it("moves a resolved character from the current Story card to the characters area", async () => {

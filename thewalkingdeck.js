@@ -132,6 +132,12 @@ define([
       this.animationManager = new BgaAnimations.Manager({
         animationsActive: () => this.bgaAnimationsActive(),
       });
+      this.deckTopTypes = {
+        deck_rural: this.gamedatas.ruralDeckTop?.type || "2",
+        deck_urban: this.gamedatas.urbanDeckTop?.type || "3",
+        memory: this.gamedatas.memoryTop?.type || "2",
+        graveyard: this.gamedatas.graveyardTop?.type || "2",
+      };
 
       // create the card manager
       this.cardsManager = new BgaCards.Manager({
@@ -187,7 +193,7 @@ define([
         counter: {},
         fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
           deckId,
-          "4",
+          this.deckTopTypes.deck_rural,
           "deck_rural"
         ),
       });
@@ -197,7 +203,7 @@ define([
         counter: {},
         fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
           deckId,
-          "5",
+          this.deckTopTypes.deck_urban,
           "deck_urban"
         ),
       });
@@ -226,6 +232,11 @@ define([
         counter: {
           hideWhenEmpty: true,
         },
+        fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
+          deckId,
+          this.deckTopTypes.memory,
+          "memory"
+        ),
       });
       //TEST remove
       // this.memory.setSelectionMode("single");
@@ -237,6 +248,11 @@ define([
         counter: {
           hideWhenEmpty: true,
         },
+        fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
+          deckId,
+          this.deckTopTypes.graveyard,
+          "graveyard"
+        ),
       });
       // TEST remove
       // this.graveyard.setSelectionMode("single");
@@ -378,32 +394,31 @@ define([
         console.log("Protagonist slot is empty");
       }
       // Urban Deck gamedatas
-      this.urbanDeck.setCardNumber(
-        this.gamedatas.urbanDeckNb - (this.gamedatas.urbanDeckTop ? 1 : 0)
+      this.setDeckState(
+        "deck_urban",
+        this.gamedatas.urbanDeckNb,
+        this.gamedatas.urbanDeckTop
       );
-      if (this.gamedatas.urbanDeckTop) {
-        this.urbanDeck.addCard(this.gamedatas.urbanDeckTop);
-      }
       // Rural Deck gamedatas
-      this.ruralDeck.setCardNumber(
-        this.gamedatas.ruralDeckNb - (this.gamedatas.ruralDeckTop ? 1 : 0)
+      this.setDeckState(
+        "deck_rural",
+        this.gamedatas.ruralDeckNb,
+        this.gamedatas.ruralDeckTop
       );
-      if (this.gamedatas.ruralDeckTop) {
-        this.ruralDeck.addCard(this.gamedatas.ruralDeckTop);
-      }
       // Memory gamedatas
       console.log("Memory gamedatas", this.gamedatas.memoryNb, this.gamedatas.memoryTop);
-      if (this.gamedatas.memoryNb > 0) {
-        this.memory.setCardNumber(this.gamedatas.memoryNb - 1);
-        this.memory.addCard(this.gamedatas.memoryTop);
-      }
+      this.setDeckState(
+        "memory",
+        this.gamedatas.memoryNb,
+        this.gamedatas.memoryTop
+      );
       // Graveyard gamedatas
-      this.graveyard.setCardNumber(this.gamedatas.graveyardNb);
       console.log("Graveyard gamedatas", this.gamedatas.graveyardNb, this.gamedatas.graveyardTop);
-      if (this.gamedatas.graveyardTop) {
-        this.graveyard.setCardNumber(this.gamedatas.graveyardNb - 1);
-        this.graveyard.addCard(this.gamedatas.graveyardTop);
-      }
+      this.setDeckState(
+        "graveyard",
+        this.gamedatas.graveyardNb,
+        this.gamedatas.graveyardTop
+      );
       // Escaped gamedatas
       for (var i in this.gamedatas.escaped) this.escaped.addCard(this.gamedatas.escaped[i]);
       for (var i in this.gamedatas.brainstorm) this.brainstorm.addCard(this.gamedatas.brainstorm[i]);
@@ -1175,12 +1190,23 @@ define([
       };
     },
 
-    generateDeckFakeCard: function (deckId, type, location) {
+    generateDeckFakeCard: function (deckId, cardType, location) {
+      const type = ["2", "4"].includes(String(cardType)) ? "4" : "5";
       return {
-        id: `${deckId}-top-card`,
+        id: `${deckId}-${type}-top-card`,
         type,
         location,
       };
+    },
+
+    setDeckState: function (location, cardNumber, topCard) {
+      const deck = this.getLocation(location);
+      if (!deck) return Promise.resolve(false);
+      if (topCard) this.deckTopTypes[location] = String(topCard.type);
+      return deck.setCardNumber(
+        Number(cardNumber),
+        topCard || (Number(cardNumber) === 0 ? null : undefined)
+      );
     },
 
     canCardBePlayedInLocation: function (card, location) {
@@ -1227,6 +1253,12 @@ define([
         default:
           console.log("Unknown/Illegal destination for card movement", destination);
           return;
+      }
+      if (
+        this.deckTopTypes
+        && Object.prototype.hasOwnProperty.call(this.deckTopTypes, destination)
+      ) {
+        this.deckTopTypes[destination] = String(card.type);
       }
       // Move the card to the new location
       await this.getLocation(destination).addCard(card, settings);
@@ -2081,12 +2113,17 @@ define([
         });
       }
       await Promise.all([
-        this.ruralDeck.setCardNumber(Number(args.ruralDeckNb)),
-        this.urbanDeck.setCardNumber(Number(args.urbanDeckNb)),
+        this.setDeckState("deck_rural", args.ruralDeckNb, args.ruralDeckTop),
+        this.setDeckState("deck_urban", args.urbanDeckNb, args.urbanDeckTop),
       ]);
     },
-    notif_borisDeckShuffled: async function () {
+    notif_borisDeckShuffled: async function (args) {
       await this.ruralDeck.shuffle();
+      await this.setDeckState(
+        "deck_rural",
+        args.ruralDeckNb,
+        args.ruralDeckTop
+      );
     },
     notif_borisDecksRedistributed: async function (args) {
       const ruralTopCard = this.ruralDeck.getTopCard();
@@ -2098,8 +2135,8 @@ define([
         });
       }
       await Promise.all([
-        this.ruralDeck.setCardNumber(Number(args.ruralDeckNb)),
-        this.urbanDeck.setCardNumber(Number(args.urbanDeckNb)),
+        this.setDeckState("deck_rural", args.ruralDeckNb, args.ruralDeckTop),
+        this.setDeckState("deck_urban", args.urbanDeckNb, args.urbanDeckTop),
       ]);
     },
     notif_aenorAbilityUsed: function (args) {
@@ -2142,6 +2179,7 @@ define([
       console.log(args);
       this.setGamePhaseDisplay(2);
       if (args.memoryTopCard) {
+        this.deckTopTypes.memory = String(args.memoryTopCard.type);
         await this.memory.addCard(args.memoryTopCard, {
           fadeIn: true,
           autoupdateCardNumber: false,
@@ -2154,16 +2192,7 @@ define([
     },
     notif_storyCardRevealed: async function (args) {
       await this.storyCurrent.addCard(args.card, { fromStock: this.memory });
-      this.memory.setCardNumber(args.memoryNb);
-      if (args.memoryTopCard) {
-        await this.memory.addCard(args.memoryTopCard, {
-          autoupdateCardNumber: false,
-          autoRemovePreviousCards: true,
-        });
-      } else {
-        this.memory.removeAll();
-        this.memory.setCardNumber(0);
-      }
+      await this.setDeckState("memory", args.memoryNb, args.memoryTopCard);
     },
     notif_ressourceFlipped: function (args) {
       console.log("notif_ressourceFlipped");
@@ -2233,25 +2262,30 @@ define([
         document.getElementById("brainstorm_wrap").style.display = "block";
       }
       await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
+      if (args.sourceDeckNb !== undefined) {
+        await this.setDeckState(
+          args.source,
+          args.sourceDeckNb,
+          args.sourceDeckTop || null
+        );
+      }
       if (args.source === "graveyard" && args.graveyardNb !== undefined) {
         const graveyardTop = args.graveyardTop || null;
-        this.graveyard.setCardNumber(
-          Math.max(0, Number(args.graveyardNb) - (graveyardTop ? 1 : 0))
+        await this.setDeckState("graveyard", args.graveyardNb, graveyardTop);
+      }
+      if (args.source === "memory" && args.memoryNb !== undefined) {
+        await this.setDeckState(
+          "memory",
+          args.memoryNb,
+          args.memoryTopCard || null
         );
-        if (graveyardTop) {
-          await this.graveyard.addCard(graveyardTop, {
-            autoupdateCardNumber: false,
-            autoRemovePreviousCards: true,
-          });
-        }
       }
     },
 
     notif_deckTopRevealed: async function (args) {
       const deck = this.getLocation(args.location);
       if (!deck) return;
-      deck.setCardNumber(Math.max(0, Number(args.cardNumber) - 1));
-      await deck.addCard(args.card);
+      await this.setDeckState(args.location, args.cardNumber, args.card);
     },
   });
 });

@@ -157,7 +157,11 @@ class TWDDeck
         $faketype = '6';
     }
     return [
-      'id' => 'fake-top-card',
+      'id' => sprintf(
+        '%s-%s-top-card',
+        $card['location'],
+        $faketype
+      ),
       'type' => $faketype,
       'type_arg' => '20',
       'location' => $card['location'],

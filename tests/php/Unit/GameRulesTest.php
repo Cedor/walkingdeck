@@ -390,6 +390,23 @@ final class GameRulesTest extends TestCase
         self::assertSame(1, $revealEvents[1]['arguments']['cardNumber']);
     }
 
+    public function testHiddenDeckTopUsesTheActualTopCardBack(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[20] = [
+            'id' => 20,
+            'type' => '3',
+            'location' => Location::RURAL,
+            'location_arg' => 1,
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $topCard = $this->invoke('getDeckTopForDisplay', [Location::RURAL]);
+
+        self::assertSame('5', $topCard['type']);
+        self::assertSame(Location::RURAL, $topCard['location']);
+    }
+
     public function testRevealIgnoresAnEmptyDeckAndExpiresWhenTheCardLeaves(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
