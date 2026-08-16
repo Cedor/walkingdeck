@@ -111,6 +111,18 @@ class TWDDeck
   {
     $this->game->getCardManager()->moveAllCardsInLocation($from_location, $to_location, $from_location_arg, $to_location_arg);
   }
+  public function shuffle(string $location): void
+  {
+    $this->game->getCardManager()->shuffle($location);
+  }
+  public function pickCardsForLocation(int $number, string $from_location, string $to_location): array
+  {
+    return $this->game->getCardManager()->pickCardsForLocation(
+      $number,
+      $from_location,
+      $to_location
+    ) ?? [];
+  }
   public function setCardWounds(int $card_id, int $wounds): array
   {
     $card = $this->getCard($card_id);

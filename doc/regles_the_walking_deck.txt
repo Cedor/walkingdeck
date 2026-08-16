@@ -19,6 +19,7 @@ Le jeu se déroule en deux grandes phases :
   - Boris : 5
   - Adrien : 4
   - Éléonore : 3
+- Si Boris est choisi, toutes les cartes du deck urbain sont déplacées dans le deck rural. Le deck rural est ensuite mélangé, puis la moitié de ses cartes, ajustée aléatoirement de -1, 0 ou +1 carte, est replacée dans le deck urbain.
 - Le jeu utilise plusieurs piles :
   - une pioche de cartes de campagne,
   - une pile de mémoire,

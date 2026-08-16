@@ -1576,16 +1576,25 @@ describe("notifications", () => {
     const context = {
       protagonistSlot: { addCard: spy() },
       hand: { removeAll: spy() },
+      ruralDeck: { setCardNumber: spy() },
+      urbanDeck: { setCardNumber: spy() },
       lossCondition: 5,
     };
     const card = { id: 2, type: "1" };
 
-    game.notif_protagonistCardPlayed.call(context, { card, lossCondition: 3 });
+    game.notif_protagonistCardPlayed.call(context, {
+      card,
+      lossCondition: 3,
+      ruralDeckNb: 18,
+      urbanDeckNb: 18,
+    });
 
     assert.equal(context.protagonistSlot.addCard.calls[0][0], card);
     assert.equal(context.protagonistSlot.addCard.calls[0][1].fromStock, context.hand);
     assert.equal(context.hand.removeAll.calls.length, 1);
     assert.equal(context.lossCondition, 3);
+    assert.equal(context.ruralDeck.setCardNumber.calls[0][0], 18);
+    assert.equal(context.urbanDeck.setCardNumber.calls[0][0], 18);
   });
 
   it("moves a drawn card between stocks", async () => {

@@ -35,6 +35,7 @@ class Game extends \Bga\GameFramework\Table
 {
     private const WIN_SCORE = 20;
     private const AENOR_TYPE_ARG = 1;
+    private const BORIS_TYPE_ARG = 2;
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
     private const REMOVED_DISASTER_LOCATION = 'removed';
@@ -328,6 +329,26 @@ class Game extends \Bga\GameFramework\Table
         $lossCon = intval($card['losscon']);
         $this->setGameStateValue('lossCondition', $lossCon);
         return $lossCon;
+    }
+
+    private function applyBorisDeckSetup(): void
+    {
+        $this->deckManager->moveAllCardsInLocation(
+            Location::URBAN,
+            Location::RURAL
+        );
+        $this->deckManager->shuffle(Location::RURAL);
+
+        $cardCount = $this->deckManager->countCardInLocation(Location::RURAL);
+        $urbanCardCount = max(
+            0,
+            min($cardCount, intdiv($cardCount, 2) + random_int(-1, 1))
+        );
+        $this->deckManager->pickCardsForLocation(
+            $urbanCardCount,
+            Location::RURAL,
+            Location::URBAN
+        );
     }
 
     private function availableDraws(): int
@@ -3791,10 +3812,15 @@ class Game extends \Bga\GameFramework\Table
             //set loss condition
             $lossCon = $this->setLossCondition($card);
             $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
+            if ($difficulty === self::BORIS_TYPE_ARG) {
+                $this->applyBorisDeckSetup();
+            }
             $this->notify->all('protagonistCardPlayed', \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
                 'card' => $card,
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
+                'ruralDeckNb' => $this->deckManager->countCardInLocation(Location::RURAL),
+                'urbanDeckNb' => $this->deckManager->countCardInLocation(Location::URBAN),
             ));
         } else {
             throw new UserException(new NotificationMessage(
