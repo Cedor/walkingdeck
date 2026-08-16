@@ -117,4 +117,18 @@ final class FakeCardDeck
     {
         $this->shuffledLocations[] = $location;
     }
+
+    public function pickCardsForLocation(
+        int $number,
+        string $fromLocation,
+        string $toLocation,
+        int $locationArg = 0,
+        bool $noDeckReform = false
+    ): array {
+        $cards = $this->getCardsOnTop($number, $fromLocation);
+        foreach ($cards as $card) {
+            $this->moveCard((int) $card['id'], $toLocation, $locationArg);
+        }
+        return $cards;
+    }
 }

@@ -94,6 +94,24 @@ final class GameRulesTest extends TestCase
             'card_name' => 'Adrien',
             'losscon' => '4',
         ];
+        foreach ([10, 11, 12] as $cardId) {
+            $deckManager->cards[$cardId] = [
+                'id' => $cardId,
+                'type' => '2',
+                'type_arg' => (string) $cardId,
+                'location' => Location::RURAL,
+                'location_arg' => $cardId,
+            ];
+        }
+        foreach ([20, 21] as $cardId) {
+            $deckManager->cards[$cardId] = [
+                'id' => $cardId,
+                'type' => '3',
+                'type_arg' => (string) $cardId,
+                'location' => Location::URBAN,
+                'location_arg' => $cardId,
+            ];
+        }
         $gamestate = new class {
             public array $transitions = [];
 
@@ -117,8 +135,22 @@ final class GameRulesTest extends TestCase
         self::assertSame(Location::DISCARD, $deckManager->cards[3]['location']);
         self::assertSame(2, $this->game->getGameStateValue('difficultyLevel'));
         self::assertSame(5, $this->game->getGameStateValue('lossCondition'));
+        $ruralDeckCount = $deckManager->countCardInLocation(Location::RURAL);
+        $urbanDeckCount = $deckManager->countCardInLocation(Location::URBAN);
+        self::assertSame(5, $ruralDeckCount + $urbanDeckCount);
+        self::assertGreaterThanOrEqual(1, $urbanDeckCount);
+        self::assertLessThanOrEqual(3, $urbanDeckCount);
+        self::assertSame([Location::RURAL], $deckManager->shuffledLocations);
         self::assertSame([Transition::DEFAULT], $gamestate->transitions);
         self::assertSame('protagonistCardPlayed', end($this->game->notify->events)['type']);
+        self::assertSame(
+            $ruralDeckCount,
+            end($this->game->notify->events)['arguments']['ruralDeckNb']
+        );
+        self::assertSame(
+            $urbanDeckCount,
+            end($this->game->notify->events)['arguments']['urbanDeckNb']
+        );
     }
 
     /**

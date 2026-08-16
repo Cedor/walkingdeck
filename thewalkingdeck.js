@@ -2067,6 +2067,12 @@ define([
         this.protagonistSlot.addCard(card, { fromStock: this.hand });
         this.hand.removeAll();
         this.lossCondition = args.lossCondition;
+        if (Number.isFinite(Number(args.ruralDeckNb))) {
+          this.ruralDeck.setCardNumber(Number(args.ruralDeckNb));
+        }
+        if (Number.isFinite(Number(args.urbanDeckNb))) {
+          this.urbanDeck.setCardNumber(Number(args.urbanDeckNb));
+        }
       }
     },
     notif_aenorAbilityUsed: function (args) {
