@@ -161,6 +161,104 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testBorisCanConsumeAResourceToRevealBothDecks(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            2 => [
+                'id' => 2,
+                'type' => '1',
+                'type_arg' => '2',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Boris',
+            ],
+            10 => [
+                'id' => 10,
+                'type' => '2',
+                'type_arg' => '1',
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural card',
+            ],
+            20 => [
+                'id' => 20,
+                'type' => '3',
+                'type_arg' => '1',
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+                'card_name' => 'Urban card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->actUseBorisResource('ressource_hunger');
+
+        self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
+        self::assertSame(10, $this->game->getGameStateValue('revealedRuralCardId'));
+        self::assertSame(20, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(
+            ['ressourceConsumed', 'deckTopRevealed', 'deckTopRevealed'],
+            array_column($this->game->notify->events, 'type')
+        );
+    }
+
+    public function testNonBorisProtagonistCannotUseBorisResource(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[3] = [
+            'id' => 3,
+            'type' => '1',
+            'type_arg' => '3',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+            'card_name' => 'Adrien',
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->expectException(UserException::class);
+        $this->game->actUseBorisResource('ressource_hunger');
+    }
+
+    public function testBorisCannotReuseAConsumedResource(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[2] = [
+            'id' => 2,
+            'type' => '1',
+            'type_arg' => '2',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+            'card_name' => 'Boris',
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 1);
+        $this->game->setGameStateValue('ressource_break', 1);
+
+        $this->expectException(UserException::class);
+        $this->game->actUseBorisResource('ressource_break');
+    }
+
+    public function testBorisCannotUseAResourceDuringPhaseTwo(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[2] = [
+            'id' => 2,
+            'type' => '1',
+            'type_arg' => '2',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+            'card_name' => 'Boris',
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->expectException(UserException::class);
+        $this->game->actUseBorisResource('ressource_hunger');
+    }
+
     /**
      * @dataProvider cardLocationProvider
      */

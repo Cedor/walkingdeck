@@ -36,6 +36,11 @@ class Game extends \Bga\GameFramework\Table
     private const WIN_SCORE = 20;
     private const AENOR_TYPE_ARG = 1;
     private const BORIS_TYPE_ARG = 2;
+    private const RESSOURCE_IDS = [
+        'ressource_hunger',
+        'ressource_break',
+        'ressource_stress',
+    ];
     private const DISASTER_CHARACTERISTICS = ['hunger', 'break', 'stress'];
     private const ROBERT_CARD_NAME = 'Robert';
     private const REMOVED_DISASTER_LOCATION = 'removed';
@@ -386,6 +391,37 @@ class Game extends \Bga\GameFramework\Table
                 'urbanDeckTop' => $this->getDeckTopForDisplay(Location::URBAN),
             ]
         );
+    }
+
+    public function actUseBorisResource(string $token_id): void
+    {
+        $this->checkAction('actUseBorisResource');
+        if (intval($this->getGameStateValue('gamePhase')) !== 1) {
+            throw new UserException(
+                \clienttranslate('Boris can only use this ability during phase 1')
+            );
+        }
+        $protagonist = $this->getProtagonistInPlay();
+        if (
+            $protagonist === null
+            || intval($protagonist['type_arg']) !== self::BORIS_TYPE_ARG
+        ) {
+            throw new UserException(
+                \clienttranslate('Only Boris can use a resource to reveal the decks')
+            );
+        }
+        if (
+            !in_array($token_id, self::RESSOURCE_IDS, true)
+            || $this->ressources->getRessourceState($token_id) !== 0
+        ) {
+            throw new UserException(
+                \clienttranslate('You must choose an available resource')
+            );
+        }
+
+        $this->ressources->consumeRessources($token_id);
+        $this->revealTopDeckCard(Location::RURAL);
+        $this->revealTopDeckCard(Location::URBAN);
     }
 
     private function availableDraws(): int

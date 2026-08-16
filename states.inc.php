@@ -449,3 +449,17 @@ $machinestates = [
         ])
         ->build()
 ];
+
+foreach ($machinestates as $stateId => &$state) {
+    if (
+        !in_array($stateId, [
+            GameStep::PROTAGONIST_SELECTION,
+            GameStep::DISASTER_CHOICE,
+            GameStep::STORY_PLAYER_CHOICE,
+        ], true)
+        && $state->possibleActions !== null
+    ) {
+        $state->possibleActions[] = 'actUseBorisResource';
+    }
+}
+unset($state);
