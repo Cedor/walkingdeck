@@ -185,27 +185,21 @@ define([
         cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {},
-        fakeCardGenerator: (deckId) => {
-          // Generate a fake card based on the original card
-          return {
-            id: `rural-top-card`,
-            type: `4`, // fake rural
-            location: `deck_rural`,
-          };
-        },
+        fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
+          deckId,
+          "4",
+          "deck_rural"
+        ),
       });
       this.urbanDeck = new BgaCards.Deck(this.cardsManager, document.getElementById("deck_urban"), {
         cardClickEventFilter: "all",
         cardNumber: 0,
         counter: {},
-        fakeCardGenerator: (deckId) => {
-          // Generate a fake card based on the original card
-          return {
-            id: `urban-top-card`,
-            type: `5`, // fake urban
-            location: `deck_urban`,
-          };
-        },
+        fakeCardGenerator: (deckId) => this.generateDeckFakeCard(
+          deckId,
+          "5",
+          "deck_urban"
+        ),
       });
       // Create protagonist slot
       this.protagonistSlot = new BgaCards.SlotStock(this.cardsManager, document.getElementById("protagonist_slot"), {
@@ -1178,6 +1172,14 @@ define([
         type_arg: `20`,
         location: card.location,
         location_arg: card.location_arg,
+      };
+    },
+
+    generateDeckFakeCard: function (deckId, type, location) {
+      return {
+        id: `${deckId}-top-card`,
+        type,
+        location,
       };
     },
 

@@ -374,6 +374,23 @@ describe("card helpers", () => {
     });
   }
 
+  it("generates unique fake deck cards for shuffle animations", () => {
+    const first = game.generateDeckFakeCard(
+      "deck_rural-shuffle-0",
+      "4",
+      "deck_rural"
+    );
+    const second = game.generateDeckFakeCard(
+      "deck_rural-shuffle-1",
+      "4",
+      "deck_rural"
+    );
+
+    assert.equal(first.id, "deck_rural-shuffle-0-top-card");
+    assert.equal(second.id, "deck_rural-shuffle-1-top-card");
+    assert.notEqual(first.id, second.id);
+  });
+
   it("enforces the client-side destination rules", () => {
     const card = {
       consequence_black: { action: "nothing" },
