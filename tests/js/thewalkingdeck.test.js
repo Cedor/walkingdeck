@@ -1114,6 +1114,86 @@ describe("player actions", () => {
     );
   });
 
+  it("lets Boris consume an available resource to reveal both decks", () => {
+    const context = {
+      difficulty: 2,
+      gamePhase: 1,
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, {
+      id: "ressource_break",
+      consumed: 0,
+    });
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(context.bgaPerformAction.calls[0][0], "actUseBorisResource");
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].token_id,
+      "ressource_break"
+    );
+  });
+
+  it("does not let Boris consume an already consumed resource", () => {
+    const context = {
+      difficulty: 2,
+      gamePhase: 1,
+      isTestMode: false,
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, {
+      id: "ressource_stress",
+      consumed: 1,
+    });
+
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
+
+  it("highlights only Boris resources that are still available", () => {
+    const resourceElement = { classList: { toggle: spy() } };
+    const context = { difficulty: 2, gamePhase: 1 };
+
+    game.updateBorisResourceClickability.call(
+      context,
+      { id: "ressource_hunger", consumed: 0 },
+      resourceElement
+    );
+    game.updateBorisResourceClickability.call(
+      context,
+      { id: "ressource_hunger", consumed: 1 },
+      resourceElement
+    );
+
+    assert.deepEqual(resourceElement.classList.toggle.calls, [
+      ["twd-boris-resource-available", true],
+      ["twd-boris-resource-available", false],
+    ]);
+  });
+
+  it("disables Boris resources during phase two", () => {
+    const resourceElement = { classList: { toggle: spy() } };
+    const context = {
+      difficulty: 2,
+      gamePhase: 2,
+      isTestMode: false,
+      bgaPerformAction: spy(),
+    };
+    const token = { id: "ressource_hunger", consumed: 0 };
+
+    game.updateBorisResourceClickability.call(
+      context,
+      token,
+      resourceElement
+    );
+    game.onRessourceClick.call(context, token);
+
+    assert.deepEqual(resourceElement.classList.toggle.calls, [
+      ["twd-boris-resource-available", false],
+    ]);
+    assert.equal(context.bgaPerformAction.calls.length, 0);
+  });
+
   it("highlights the available resource for the current disaster characteristic", () => {
     const resourceElement = {
       classList: { add: spy(), remove: spy() },
@@ -1605,19 +1685,23 @@ describe("notifications", () => {
     const context = {
       protagonistSlot: { addCard: spy(async () => undefined) },
       hand: { removeAll: spy(async () => undefined) },
+      updateAllBorisResourceClickability: spy(),
       lossCondition: 5,
     };
     const card = { id: 2, type: "1" };
 
     await game.notif_protagonistCardPlayed.call(context, {
       card,
+      difficulty: 2,
       lossCondition: 3,
     });
 
     assert.equal(context.protagonistSlot.addCard.calls[0][0], card);
     assert.equal(context.protagonistSlot.addCard.calls[0][1].fromStock, context.hand);
     assert.equal(context.hand.removeAll.calls.length, 1);
+    assert.equal(context.difficulty, 2);
     assert.equal(context.lossCondition, 3);
+    assert.equal(context.updateAllBorisResourceClickability.calls.length, 1);
   });
 
   it("animates Boris merging, shuffling and redistributing the decks", async () => {

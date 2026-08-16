@@ -282,6 +282,7 @@ define([
         getId: (token) => token.id,
         setupDiv: (token, div) => {
           div.classList.add("twd-ressource");
+          this.updateBorisResourceClickability(token, div);
         },
         setupFrontDiv: (token, div) => {
           div.classList.add("twd-ressource-front");
@@ -648,6 +649,9 @@ define([
       document.getElementById("story_organiser").style.display = phaseTwo
         ? "block"
         : "none";
+      if (this.ressourcesSlots) {
+        this.updateAllBorisResourceClickability();
+      }
     },
 
     // onLeavingState: this method is called each time we are leaving a game state.
@@ -2047,8 +2051,34 @@ define([
         }
         return;
       }
+      if (
+        Number(this.gamePhase) === 1
+        && Number(this.difficulty) === 2
+        && Number(token.consumed) === 0
+      ) {
+        this.bgaPerformAction("actUseBorisResource", { token_id: token.id });
+        return;
+      }
       if (this.isTestMode) {
         this.bgaPerformAction("actFlipRessource", { token_id: token.id });
+      }
+    },
+
+    updateBorisResourceClickability: function (token, element = null) {
+      const resourceElement = element
+        || document.getElementById(`twd-ressource-${token.id}`);
+      if (!resourceElement) return;
+      resourceElement.classList.toggle(
+        "twd-boris-resource-available",
+        Number(this.gamePhase) === 1
+          && Number(this.difficulty) === 2
+          && Number(token.consumed) === 0
+      );
+    },
+
+    updateAllBorisResourceClickability: function () {
+      for (const token of this.ressourcesSlots.getCards()) {
+        this.updateBorisResourceClickability(token);
       }
     },
 
@@ -2100,7 +2130,9 @@ define([
       if (card) {
         await this.protagonistSlot.addCard(card, { fromStock: this.hand });
         await this.hand.removeAll();
+        this.difficulty = Number(args.difficulty);
         this.lossCondition = args.lossCondition;
+        this.updateAllBorisResourceClickability();
       }
     },
     notif_borisDecksMerged: async function (args) {
@@ -2199,6 +2231,7 @@ define([
       console.log(args);
       let token = args.token;
       this.ressourcesSlots.flipCard(token);
+      this.updateBorisResourceClickability(token);
     },
     notif_disasterDrawnFromBag: async function (args) {
       console.log("notif_disasterDrawnFromBag");
@@ -2248,12 +2281,14 @@ define([
       console.log(args);
       let token = args;
       this.ressourcesManager.flipCard(token);
+      this.updateBorisResourceClickability(token);
     },
     notif_ressourceRefilled: function (args) {
       console.log("notif_ressourceRefilled");
       console.log(args);
       let token = args;
       this.ressourcesManager.flipCard(token);
+      this.updateBorisResourceClickability(token);
     },
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
