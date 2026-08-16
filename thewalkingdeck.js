@@ -2059,21 +2059,46 @@ define([
       this.bgaSetupPromiseNotifications();
     },
 
-    notif_protagonistCardPlayed: function (args) {
+    notif_protagonistCardPlayed: async function (args) {
       console.log("notif_protagonistCardPlayed");
       console.log(args);
       let card = args.card;
       if (card) {
-        this.protagonistSlot.addCard(card, { fromStock: this.hand });
-        this.hand.removeAll();
+        await this.protagonistSlot.addCard(card, { fromStock: this.hand });
+        await this.hand.removeAll();
         this.lossCondition = args.lossCondition;
-        if (Number.isFinite(Number(args.ruralDeckNb))) {
-          this.ruralDeck.setCardNumber(Number(args.ruralDeckNb));
-        }
-        if (Number.isFinite(Number(args.urbanDeckNb))) {
-          this.urbanDeck.setCardNumber(Number(args.urbanDeckNb));
-        }
       }
+    },
+    notif_borisDecksMerged: async function (args) {
+      const urbanTopCard = this.urbanDeck.getTopCard();
+      if (urbanTopCard) {
+        await this.ruralDeck.addCard(urbanTopCard, {
+          fromStock: this.urbanDeck,
+          initialSide: "back",
+          finalSide: "back",
+        });
+      }
+      await Promise.all([
+        this.ruralDeck.setCardNumber(Number(args.ruralDeckNb)),
+        this.urbanDeck.setCardNumber(Number(args.urbanDeckNb)),
+      ]);
+    },
+    notif_borisDeckShuffled: async function () {
+      await this.ruralDeck.shuffle();
+    },
+    notif_borisDecksRedistributed: async function (args) {
+      const ruralTopCard = this.ruralDeck.getTopCard();
+      if (ruralTopCard) {
+        await this.urbanDeck.addCard(ruralTopCard, {
+          fromStock: this.ruralDeck,
+          initialSide: "back",
+          finalSide: "back",
+        });
+      }
+      await Promise.all([
+        this.ruralDeck.setCardNumber(Number(args.ruralDeckNb)),
+        this.urbanDeck.setCardNumber(Number(args.urbanDeckNb)),
+      ]);
     },
     notif_aenorAbilityUsed: function (args) {
       if (args.protagonist) {

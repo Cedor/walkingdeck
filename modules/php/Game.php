@@ -337,7 +337,22 @@ class Game extends \Bga\GameFramework\Table
             Location::URBAN,
             Location::RURAL
         );
+        $this->notify->all(
+            'borisDecksMerged',
+            \clienttranslate('Boris merges the urban deck into the rural deck'),
+            [
+                'ruralDeckNb' => $this->deckManager->countCardInLocation(
+                    Location::RURAL
+                ),
+                'urbanDeckNb' => 0,
+            ]
+        );
+
         $this->deckManager->shuffle(Location::RURAL);
+        $this->notify->all(
+            'borisDeckShuffled',
+            \clienttranslate('Boris shuffles the combined deck')
+        );
 
         $cardCount = $this->deckManager->countCardInLocation(Location::RURAL);
         $urbanCardCount = max(
@@ -348,6 +363,18 @@ class Game extends \Bga\GameFramework\Table
             $urbanCardCount,
             Location::RURAL,
             Location::URBAN
+        );
+        $this->notify->all(
+            'borisDecksRedistributed',
+            \clienttranslate('Boris redistributes the cards between the rural and urban decks'),
+            [
+                'ruralDeckNb' => $this->deckManager->countCardInLocation(
+                    Location::RURAL
+                ),
+                'urbanDeckNb' => $this->deckManager->countCardInLocation(
+                    Location::URBAN
+                ),
+            ]
         );
     }
 
@@ -3812,16 +3839,14 @@ class Game extends \Bga\GameFramework\Table
             //set loss condition
             $lossCon = $this->setLossCondition($card);
             $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
-            if ($difficulty === self::BORIS_TYPE_ARG) {
-                $this->applyBorisDeckSetup();
-            }
             $this->notify->all('protagonistCardPlayed', \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
                 'card' => $card,
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
-                'ruralDeckNb' => $this->deckManager->countCardInLocation(Location::RURAL),
-                'urbanDeckNb' => $this->deckManager->countCardInLocation(Location::URBAN),
             ));
+            if ($difficulty === self::BORIS_TYPE_ARG) {
+                $this->applyBorisDeckSetup();
+            }
         } else {
             throw new UserException(new NotificationMessage(
                 \clienttranslate('Illegal move: card ${card_id} cannot be played from hand to the protagonist slot'),
