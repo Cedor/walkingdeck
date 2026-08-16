@@ -1572,29 +1572,58 @@ describe("notifications", () => {
     assert.equal(notificationFinished, true);
   });
 
-  it("updates the protagonist and loss condition", () => {
+  it("updates the protagonist and loss condition", async () => {
     const context = {
-      protagonistSlot: { addCard: spy() },
-      hand: { removeAll: spy() },
-      ruralDeck: { setCardNumber: spy() },
-      urbanDeck: { setCardNumber: spy() },
+      protagonistSlot: { addCard: spy(async () => undefined) },
+      hand: { removeAll: spy(async () => undefined) },
       lossCondition: 5,
     };
     const card = { id: 2, type: "1" };
 
-    game.notif_protagonistCardPlayed.call(context, {
+    await game.notif_protagonistCardPlayed.call(context, {
       card,
       lossCondition: 3,
-      ruralDeckNb: 18,
-      urbanDeckNb: 18,
     });
 
     assert.equal(context.protagonistSlot.addCard.calls[0][0], card);
     assert.equal(context.protagonistSlot.addCard.calls[0][1].fromStock, context.hand);
     assert.equal(context.hand.removeAll.calls.length, 1);
     assert.equal(context.lossCondition, 3);
-    assert.equal(context.ruralDeck.setCardNumber.calls[0][0], 18);
-    assert.equal(context.urbanDeck.setCardNumber.calls[0][0], 18);
+  });
+
+  it("animates Boris merging, shuffling and redistributing the decks", async () => {
+    const urbanTopCard = { id: "urban-top-card", type: "5" };
+    const ruralTopCard = { id: "rural-top-card", type: "4" };
+    const ruralDeck = {
+      addCard: spy(async () => undefined),
+      getTopCard: spy(() => ruralTopCard),
+      setCardNumber: spy(async () => undefined),
+      shuffle: spy(async () => undefined),
+    };
+    const urbanDeck = {
+      addCard: spy(async () => undefined),
+      getTopCard: spy(() => urbanTopCard),
+      setCardNumber: spy(async () => undefined),
+    };
+    const context = { ruralDeck, urbanDeck };
+
+    await game.notif_borisDecksMerged.call(context, {
+      ruralDeckNb: 36,
+      urbanDeckNb: 0,
+    });
+    await game.notif_borisDeckShuffled.call(context, {});
+    await game.notif_borisDecksRedistributed.call(context, {
+      ruralDeckNb: 17,
+      urbanDeckNb: 19,
+    });
+
+    assert.equal(ruralDeck.addCard.calls[0][0], urbanTopCard);
+    assert.equal(ruralDeck.addCard.calls[0][1].fromStock, urbanDeck);
+    assert.equal(ruralDeck.shuffle.calls.length, 1);
+    assert.equal(urbanDeck.addCard.calls[0][0], ruralTopCard);
+    assert.equal(urbanDeck.addCard.calls[0][1].fromStock, ruralDeck);
+    assert.equal(ruralDeck.setCardNumber.calls[1][0], 17);
+    assert.equal(urbanDeck.setCardNumber.calls[1][0], 19);
   });
 
   it("moves a drawn card between stocks", async () => {

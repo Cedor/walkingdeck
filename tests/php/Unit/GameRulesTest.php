@@ -142,7 +142,15 @@ final class GameRulesTest extends TestCase
         self::assertLessThanOrEqual(3, $urbanDeckCount);
         self::assertSame([Location::RURAL], $deckManager->shuffledLocations);
         self::assertSame([Transition::DEFAULT], $gamestate->transitions);
-        self::assertSame('protagonistCardPlayed', end($this->game->notify->events)['type']);
+        self::assertSame(
+            [
+                'protagonistCardPlayed',
+                'borisDecksMerged',
+                'borisDeckShuffled',
+                'borisDecksRedistributed',
+            ],
+            array_column($this->game->notify->events, 'type')
+        );
         self::assertSame(
             $ruralDeckCount,
             end($this->game->notify->events)['arguments']['ruralDeckNb']
