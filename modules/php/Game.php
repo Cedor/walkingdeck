@@ -1885,12 +1885,84 @@ class Game extends \Bga\GameFramework\Table
         return $outcome;
     }
 
-    private function consequenceCanBeResolved(array $card): bool
+    private function blackConsequenceCanBeResolved(array $card): bool
     {
-        // Check if the consequence of the card can be resolved
-        // For example, you might want to check if the player has enough resources to resolve the consequence
-        // Here we assume that all consequences can be resolved for simplicity
-        return true;
+        $consequence = $card['consequence_black'] ?? null;
+        if (!is_array($consequence)) {
+            return false;
+        }
+
+        return $this->blackConsequenceDefinitionCanBeResolved($consequence);
+    }
+
+    private function blackConsequenceDefinitionCanBeResolved(
+        array $consequence
+    ): bool {
+        $action = $consequence['action'] ?? null;
+
+        switch ($action) {
+            case 'multiple':
+                $number = intval($consequence['number'] ?? 0);
+                if ($number < 1) {
+                    return false;
+                }
+                for ($index = 0; $index < $number; $index++) {
+                    $subConsequence = $consequence[$index] ?? null;
+                    if ( !is_array($subConsequence) || !$this->blackConsequenceDefinitionCanBeResolved($subConsequence)) {
+                        return false;
+                    }
+                }
+                return true;
+
+            case 'avoid':
+                switch ($consequence['avoid'] ?? null) {
+                    case 'zombie':
+                        return $this->zombieEscapeChoiceIsAvailable();
+                    case 'memory':
+                        return $this->deckManager->getCardOnTop(Location::MEMORY) !== null;
+                    case 'deck':
+                    case 'bothdeck':
+                        return $this->deckManager->countCardInLocation(Location::RURAL) > 0
+                            || $this->deckManager->countCardInLocation(Location::URBAN) > 0;
+                    case 'zombieordie':
+                    case 'hand2':
+                    default:
+                        return true;
+                }
+
+            case 'draw':
+                return $this->deckManager->countCardInLocation(Location::RURAL) > 0
+                    || $this->deckManager->countCardInLocation(Location::URBAN) > 0;
+
+            case 'fastmemorise':
+                switch ($consequence['from'] ?? null) {
+                    case 'deck':
+                        return $this->deckManager->countCardInLocation(Location::RURAL) > 0
+                            || $this->deckManager->countCardInLocation(Location::URBAN) > 0;
+                    case Location::HAND:
+                        return $this->deckManager->countCardInLocation(Location::HAND) > 0;
+                    default:
+                        return true;
+                }
+
+            case 'recover':
+                return $this->deckManager->countCardInLocation(Location::ESCAPED) > 0;
+
+            case 'unearth':
+                return  $this->deckManager->getCardOnTop(Location::GRAVEYARD) !== null;
+
+            case 'bury':
+            case 'removedisaster':
+            case 'reveal':
+            case 'draftdisaster':
+            case 'nothing':
+            case 'addemptydisasters':
+            case 'restore':
+            case 'unremember':
+            case 'wolftrap':
+            default:
+                return true;
+        }
     }
 
     private function cardCanBePlayedInLocation(array $card, string $location): bool
@@ -1901,7 +1973,7 @@ class Game extends \Bga\GameFramework\Table
             case Location::MEMORY:
                 return $card['consequence_white'] || $card['consequence_grey'];
             case Location::ESCAPED:
-                return $card['consequence_black'] && $this->consequenceCanBeResolved($card);
+                return $this->blackConsequenceCanBeResolved($card);
         }
         return true;
     }

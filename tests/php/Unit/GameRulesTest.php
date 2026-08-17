@@ -308,6 +308,89 @@ final class GameRulesTest extends TestCase
         ];
     }
 
+    public function testAllExistingBlackConsequenceActionsHaveAResolutionCheck(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            1 => ['id' => 1, 'location' => Location::RURAL],
+            2 => ['id' => 2, 'location' => Location::HAND, 'is_zombie' => '1'],
+            3 => ['id' => 3, 'location' => Location::ESCAPED],
+            4 => ['id' => 4, 'location' => Location::GRAVEYARD],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $consequences = [
+            ['action' => 'addemptydisasters'],
+            ['action' => 'avoid', 'avoid' => 'zombie'],
+            ['action' => 'bury', 'bury' => 'this'],
+            ['action' => 'draftdisaster'],
+            ['action' => 'draw', 'number' => 1],
+            ['action' => 'fastmemorise', 'from' => 'deck'],
+            ['action' => 'nothing'],
+            ['action' => 'recover'],
+            ['action' => 'removedisaster', 'disaster' => 'break'],
+            ['action' => 'restore', 'ressource' => 'ressource_stress'],
+            ['action' => 'reveal'],
+            ['action' => 'unearth'],
+            ['action' => 'unremember'],
+            ['action' => 'wolftrap'],
+        ];
+
+        foreach ($consequences as $consequence) {
+            self::assertTrue(
+                $this->invoke(
+                    'blackConsequenceDefinitionCanBeResolved',
+                    [$consequence]
+                ),
+                "Black action {$consequence['action']} should be resolvable"
+            );
+        }
+    }
+
+    public function testMultipleBlackConsequenceChecksEverySubConsequence(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            1 => ['id' => 1, 'location' => Location::RURAL],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $consequence = [
+            'action' => 'multiple',
+            'number' => 2,
+            0 => ['action' => 'draw', 'number' => 1],
+            1 => [
+                'action' => 'multiple',
+                'number' => 2,
+                0 => ['action' => 'nothing'],
+                1 => ['action' => 'avoid', 'avoid' => 'memory'],
+            ],
+        ];
+
+        self::assertFalse($this->invoke(
+            'blackConsequenceDefinitionCanBeResolved',
+            [$consequence]
+        ));
+
+        $consequence[1][1] = ['action' => 'bury', 'bury' => 'this'];
+        self::assertTrue($this->invoke(
+            'blackConsequenceDefinitionCanBeResolved',
+            [$consequence]
+        ));
+    }
+
+    public function testBlackConsequenceCheckRejectsMissingDefinitionAndAcceptsDefaultAction(): void
+    {
+        self::assertFalse($this->invoke(
+            'blackConsequenceCanBeResolved',
+            [['consequence_black' => null]]
+        ));
+        self::assertTrue($this->invoke(
+            'blackConsequenceCanBeResolved',
+            [['consequence_black' => ['action' => 'unknown']]]
+        ));
+    }
+
     public function testMultipleConsequencesAreAggregated(): void
     {
         $card = [
