@@ -16,9 +16,7 @@
 /build/
 /.phpunit.result.cache
 
-# Local BGA Studio credentials
-/.bga-sftp-password
-
+# Local documents
+/.localDocs/
 /bga-framework.d.ts
 /_ide_helper.php
-planTheWalkingDeck.prompt.md

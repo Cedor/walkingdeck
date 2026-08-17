@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 if ([string]::IsNullOrWhiteSpace($PasswordFile)) {
-    $PasswordFile = Join-Path $projectRoot '.bga-sftp-password'
+    $PasswordFile = Join-Path $projectRoot '.localDocs\.bga-sftp-password'
 }
 elseif (-not [System.IO.Path]::IsPathRooted($PasswordFile)) {
     $PasswordFile = Join-Path $projectRoot $PasswordFile
