@@ -45,8 +45,16 @@ class Game extends \Bga\GameFramework\Table
     private const ROBERT_CARD_NAME = 'Robert';
     private const REMOVED_DISASTER_LOCATION = 'removed';
     private const REVEALED_DECK_CARD_STATES = [
-        Location::RURAL => 'revealedRuralCardId',
-        Location::URBAN => 'revealedUrbanCardId',
+        Location::RURAL => [
+            'revealedRuralCardId',
+            'revealedRuralCardId2',
+            'revealedRuralCardId3',
+        ],
+        Location::URBAN => [
+            'revealedUrbanCardId',
+            'revealedUrbanCardId2',
+            'revealedUrbanCardId3',
+        ],
     ];
 
     /**
@@ -82,6 +90,10 @@ class Game extends \Bga\GameFramework\Table
             'revealedUrbanCardId' => 17,
             'aenorAbilityUsed' => 18,
             'aenorProtectedCharacterId' => 19,
+            'revealedRuralCardId2' => 21,
+            'revealedRuralCardId3' => 22,
+            'revealedUrbanCardId2' => 23,
+            'revealedUrbanCardId3' => 24,
             'gameMode' => GameMode::GLOBAL_ID,
         ]);
 
@@ -1250,14 +1262,21 @@ class Game extends \Bga\GameFramework\Table
 
     private function revealTopDeckCard(string $location): void
     {
-        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
-        if ($state === null) {
+        $states = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        if ($states === null) {
             throw new SystemException('Invalid deck reveal location');
         }
 
         $card = $this->deckManager->getCardOnTop($location);
         $cardId = $card === null ? 0 : intval($card['id']);
-        $this->setGameStateValue($state, $cardId);
+        if (
+            $cardId === 0
+            || intval($this->getGameStateValue($states[0])) !== $cardId
+        ) {
+            $this->setGameStateValue($states[0], $cardId);
+            $this->setGameStateValue($states[1], 0);
+            $this->setGameStateValue($states[2], 0);
+        }
         if ($card === null) {
             return;
         }
@@ -1278,15 +1297,16 @@ class Game extends \Bga\GameFramework\Table
 
     private function getRevealedDeckTop(string $location): ?array
     {
-        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
-        if ($state === null) {
+        $states = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        if ($states === null) {
             throw new SystemException('Invalid revealed deck location');
         }
 
         $topCard = $this->deckManager->getCardOnTop($location);
         if (
             $topCard === null
-            || intval($topCard['id']) !== intval($this->getGameStateValue($state))
+            || intval($topCard['id'])
+                !== intval($this->getGameStateValue($states[0]))
         ) {
             return null;
         }
@@ -1344,12 +1364,20 @@ class Game extends \Bga\GameFramework\Table
         int $cardId,
         string $location
     ): void {
-        $state = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
+        $states = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
         if (
-            $state !== null
-            && intval($this->getGameStateValue($state)) === $cardId
+            $states !== null
+            && intval($this->getGameStateValue($states[0])) === $cardId
         ) {
-            $this->setGameStateValue($state, 0);
+            $this->setGameStateValue(
+                $states[0],
+                intval($this->getGameStateValue($states[1]))
+            );
+            $this->setGameStateValue(
+                $states[1],
+                intval($this->getGameStateValue($states[2]))
+            );
+            $this->setGameStateValue($states[2], 0);
         }
     }
 
@@ -3421,9 +3449,14 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $cards = $this->deckManager->getCardsOnTop(2, $location);
+        foreach ($cards as $card) {
+            $this->clearDeckRevealIfCardLeaves(
+                intval($card['id']),
+                $location
+            );
+        }
         foreach (array_reverse($cards) as $card) {
             $cardId = intval($card['id']);
-            $this->clearDeckRevealIfCardLeaves($cardId, $location);
             $this->deckManager->insertCardOnExtremePosition(
                 $cardId,
                 Location::MEMORY,
@@ -3848,11 +3881,19 @@ class Game extends \Bga\GameFramework\Table
                 'cardMoved',
                 \clienttranslate('${card_name} is returned after brainstorm'),
                 [
-                    'card' => $card,
+                    'card' => $this->withFaceDown($card, false),
                     'card_name' => $card['card_name'],
                     'destination' => $source,
                     'source' => 'brainstorm',
                 ]
+            );
+        }
+
+        $revealedCardStates = self::REVEALED_DECK_CARD_STATES[$source];
+        foreach ($revealedCardStates as $position => $state) {
+            $this->setGameStateValue(
+                $state,
+                intval($orderedCardIds[$position] ?? 0)
             );
         }
 
@@ -4470,6 +4511,10 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('lossCondition', 5);
         $this->setGameStateInitialValue('revealedRuralCardId', 0);
         $this->setGameStateInitialValue('revealedUrbanCardId', 0);
+        $this->setGameStateInitialValue('revealedRuralCardId2', 0);
+        $this->setGameStateInitialValue('revealedRuralCardId3', 0);
+        $this->setGameStateInitialValue('revealedUrbanCardId2', 0);
+        $this->setGameStateInitialValue('revealedUrbanCardId3', 0);
         $this->setGameStateInitialValue('aenorAbilityUsed', 0);
         $this->setGameStateInitialValue('aenorProtectedCharacterId', 0);
         $this->setGameStateInitialValue('gameMode', GameMode::DEFAULT);
