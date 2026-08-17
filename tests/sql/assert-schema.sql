@@ -55,6 +55,150 @@ CALL assert_equals(
     )
 );
 CALL assert_equals(
+    'card texts column',
+    1,
+    (
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'twd_card_info'
+          AND column_name = 'texts'
+          AND is_nullable = 'YES'
+          AND column_default IS NULL
+    )
+);
+CALL assert_equals(
+    'invalid card texts JSON values',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND JSON_VALID(texts) = 0
+    )
+);
+CALL assert_equals(
+    'invalid card texts root values',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND JSON_TYPE(texts) <> 'OBJECT'
+    )
+);
+CALL assert_equals(
+    'unknown card text zones',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND JSON_LENGTH(texts) <>
+              JSON_CONTAINS_PATH(texts, 'one', '$.black')
+              + JSON_CONTAINS_PATH(texts, 'one', '$.white')
+              + JSON_CONTAINS_PATH(texts, 'one', '$.grey')
+              + JSON_CONTAINS_PATH(texts, 'one', '$.special')
+    )
+);
+CALL assert_equals(
+    'invalid card text zones',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND (
+              (JSON_CONTAINS_PATH(texts, 'one', '$.black') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.black')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.white') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.white')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.grey') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.grey')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.special') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.special')) <> 'OBJECT')
+          )
+    )
+);
+CALL assert_equals(
+    'unknown card text zone properties',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND (
+              (JSON_CONTAINS_PATH(texts, 'one', '$.black') = 1
+                  AND JSON_LENGTH(JSON_EXTRACT(texts, '$.black')) <>
+                      JSON_CONTAINS_PATH(texts, 'one', '$.black.text')
+                      + JSON_CONTAINS_PATH(texts, 'one', '$.black.args'))
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.white') = 1
+                  AND JSON_LENGTH(JSON_EXTRACT(texts, '$.white')) <>
+                      JSON_CONTAINS_PATH(texts, 'one', '$.white.text')
+                      + JSON_CONTAINS_PATH(texts, 'one', '$.white.args'))
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.grey') = 1
+                  AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey')) <>
+                      JSON_CONTAINS_PATH(texts, 'one', '$.grey.text')
+                      + JSON_CONTAINS_PATH(texts, 'one', '$.grey.args'))
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.special') = 1
+                  AND JSON_LENGTH(JSON_EXTRACT(texts, '$.special')) <>
+                      JSON_CONTAINS_PATH(texts, 'one', '$.special.text')
+                      + JSON_CONTAINS_PATH(texts, 'one', '$.special.args'))
+          )
+    )
+);
+CALL assert_equals(
+    'invalid card text property types',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE texts IS NOT NULL
+          AND (
+              (JSON_CONTAINS_PATH(texts, 'one', '$.black.text') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.black.text')) <> 'STRING')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.black.args') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.black.args')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.white.text') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.white.text')) <> 'STRING')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.white.args') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.white.args')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.grey.text') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.grey.text')) <> 'STRING')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.grey.args') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.grey.args')) <> 'OBJECT')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.special.text') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.special.text')) <> 'STRING')
+              OR (JSON_CONTAINS_PATH(texts, 'one', '$.special.args') = 1
+                  AND JSON_TYPE(JSON_EXTRACT(texts, '$.special.args')) <> 'OBJECT')
+          )
+    )
+);
+CALL assert_equals(
+    'Canned food display definition',
+    1,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE card_type = '3'
+          AND card_type_arg = 7
+          AND card_name = 'Canned food'
+          AND JSON_LENGTH(texts) = 3
+          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.black')) = 1
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.black.text')) = 'No effect'
+          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.white')) = 2
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.text')) = '${consumeHunger}'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.type')) = 'icon'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.name')) = 'consumeHunger'
+          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey')) = 2
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text')) = '${heal} up to ${count} characters'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.type')) = 'icon'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.name')) = 'heal'
+          AND JSON_TYPE(JSON_EXTRACT(texts, '$.grey.args.count')) = 'INTEGER'
+          AND JSON_EXTRACT(texts, '$.grey.args.count') = 2
+    )
+);
+CALL assert_equals(
     'orphan protagonist definitions',
     0,
     (

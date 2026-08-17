@@ -40,8 +40,12 @@ mysql walkingdeck_test < dbmodel.sql
 mysql walkingdeck_test < tests/sql/assert-schema.sql
 ```
 
-These checks validate fixture counts, JSON consequences, and foreign-key
-relationships. GitHub Actions creates a disposable MariaDB service for them.
+These checks validate fixture counts, JSON consequences, card display-text
+documents and foreign-key relationships. Card display documents may only use
+the `black`, `white`, `grey`, and `special` zones, whose supported properties
+are `text` and `args`. An argument used as an inline icon is an object with
+`type: "icon"` and the sprite name in `name`. GitHub Actions creates a
+disposable MariaDB service for these checks.
 
 ## Coverage
 
