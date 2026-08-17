@@ -433,6 +433,32 @@ describe("card helpers", () => {
     assert.equal(addCard.calls[0][1].fromStock, sourceStock);
     assert.equal(addCard.calls[0][1].autoRemovePreviousCards, true);
   });
+
+  it("highlights a special draw moved to memory", async () => {
+    const highlightedCard = {
+      classList: { add: spy(), remove: spy() },
+    };
+    documentElementOverrides["twd-card-13"] = highlightedCard;
+    const context = {
+      getLocation: spy(() => ({ addCard: spy(async () => undefined) })),
+      clearSpecialDrawHighlight: game.clearSpecialDrawHighlight,
+    };
+
+    try {
+      await game.moveCardToLocation.call(
+        context,
+        { id: 13, type: "2" },
+        "memory",
+        "deck_rural",
+        true
+      );
+
+      assert.equal(context.specialDrawHighlightedCardId, 13);
+      assert.equal(highlightedCard.classList.add.calls[0][0], "twd-highlight");
+    } finally {
+      delete documentElementOverrides["twd-card-13"];
+    }
+  });
 });
 
 describe("player actions", () => {
@@ -1809,6 +1835,7 @@ describe("notifications", () => {
     const context = {
       moveCardToLocation: spy(async () => undefined),
       setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: spy(),
     };
 
     await game.notif_cardMoved.call(context, {
@@ -1824,6 +1851,54 @@ describe("notifications", () => {
       17,
       nextTopCard,
     ]);
+  });
+
+  it("removes the special draw highlight when the additional card is drawn", async () => {
+    const highlightedCard = {
+      classList: { add: spy(), remove: spy() },
+    };
+    documentElementOverrides["twd-card-13"] = highlightedCard;
+    const context = {
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: game.clearSpecialDrawHighlight,
+      specialDrawHighlightedCardId: 13,
+    };
+
+    try {
+      await game.notif_cardMoved.call(context, {
+        card: { id: 20, type: "2" },
+        source: "deck_rural",
+        destination: "hand",
+        sourceDeckNb: 16,
+      });
+
+      assert.equal(
+        highlightedCard.classList.remove.calls[0][0],
+        "twd-highlight"
+      );
+      assert.equal(context.specialDrawHighlightedCardId, undefined);
+    } finally {
+      delete documentElementOverrides["twd-card-13"];
+    }
+  });
+
+  it("keeps the current highlight when another special draw is triggered", async () => {
+    const context = {
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: spy(),
+    };
+
+    await game.notif_cardMoved.call(context, {
+      card: { id: 27, type: "3" },
+      source: "deck_urban",
+      destination: "memory",
+      special: true,
+      sourceDeckNb: 15,
+    });
+
+    assert.equal(context.clearSpecialDrawHighlight.calls.length, 0);
   });
 
   it("installs the new graveyard top after its top card is removed", async () => {

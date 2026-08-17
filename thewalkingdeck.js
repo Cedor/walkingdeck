@@ -1267,8 +1267,19 @@ define([
       // Move the card to the new location
       await this.getLocation(destination).addCard(card, settings);
       if (special) {
-        document.getElementById(`twd-card-${card.id}`).classList.add("twd-highlight");
+        this.clearSpecialDrawHighlight();
+        this.specialDrawHighlightedCardId = card.id;
+        document.getElementById(`twd-card-${card.id}`)?.classList.add("twd-highlight");
       }
+    },
+
+    clearSpecialDrawHighlight: function () {
+      if (this.specialDrawHighlightedCardId === undefined) return;
+
+      document
+        .getElementById(`twd-card-${this.specialDrawHighlightedCardId}`)
+        ?.classList.remove("twd-highlight");
+      this.specialDrawHighlightedCardId = undefined;
     },
 
     ///////////////////////////////////////////////////
@@ -2293,6 +2304,13 @@ define([
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
       console.log(args);
+      if (
+        !args.special
+        && args.destination === "hand"
+        && ["deck_rural", "deck_urban"].includes(args.source)
+      ) {
+        this.clearSpecialDrawHighlight();
+      }
       if (args.destination === "brainstorm") {
         document.getElementById("brainstorm_wrap").style.display = "block";
       }
