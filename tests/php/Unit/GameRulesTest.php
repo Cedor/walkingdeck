@@ -173,12 +173,28 @@ final class GameRulesTest extends TestCase
                 'location_arg' => 0,
                 'card_name' => 'Boris',
             ],
+            12 => [
+                'id' => 12,
+                'type' => '2',
+                'type_arg' => '3',
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+                'card_name' => 'Rural third visible card',
+            ],
+            11 => [
+                'id' => 11,
+                'type' => '2',
+                'type_arg' => '2',
+                'location' => Location::RURAL,
+                'location_arg' => 2,
+                'card_name' => 'Rural second visible card',
+            ],
             10 => [
                 'id' => 10,
                 'type' => '2',
                 'type_arg' => '1',
                 'location' => Location::RURAL,
-                'location_arg' => 1,
+                'location_arg' => 3,
                 'card_name' => 'Rural card',
             ],
             20 => [
@@ -192,12 +208,18 @@ final class GameRulesTest extends TestCase
         ];
         $this->setProperty('deckManager', $deckManager);
         $this->game->setGameStateValue('gamePhase', 1);
+        $this->game->setGameStateValue('revealedRuralCardId', 10);
+        $this->game->setGameStateValue('revealedRuralCardId2', 11);
+        $this->game->setGameStateValue('revealedRuralCardId3', 12);
+        $this->game->setGameStateValue('revealedUrbanCardId', 20);
 
         $this->game->actUseBorisResource('ressource_hunger');
 
         self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
         self::assertSame(10, $this->game->getGameStateValue('revealedRuralCardId'));
         self::assertSame(20, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(11, $this->game->getGameStateValue('revealedRuralCardId2'));
+        self::assertSame(12, $this->game->getGameStateValue('revealedRuralCardId3'));
         self::assertSame(
             ['ressourceConsumed', 'deckTopRevealed', 'deckTopRevealed'],
             array_column($this->game->notify->events, 'type')
@@ -466,6 +488,9 @@ final class GameRulesTest extends TestCase
             ],
         ];
         $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('revealedRuralCardId', 10);
+        $this->game->setGameStateValue('revealedRuralCardId2', 11);
+        $this->game->setGameStateValue('revealedUrbanCardId', 20);
         $card = [
             'id' => 32,
             'consequence_black' => ['action' => 'reveal'],
@@ -475,6 +500,7 @@ final class GameRulesTest extends TestCase
 
         self::assertSame(10, $this->game->getGameStateValue('revealedRuralCardId'));
         self::assertSame(20, $this->game->getGameStateValue('revealedUrbanCardId'));
+        self::assertSame(11, $this->game->getGameStateValue('revealedRuralCardId2'));
         self::assertSame(10, $this->invoke('getRevealedDeckTop', [Location::RURAL])['id']);
         self::assertSame(20, $this->invoke('getRevealedDeckTop', [Location::URBAN])['id']);
         $revealEvents = array_values(array_filter(
@@ -3135,6 +3161,87 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testBrainstormReturnsCardsFaceUpAndKeepsTopVisible(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        foreach ([10, 11, 12] as $position => $cardId) {
+            $deckManager->cards[$cardId] = [
+                'id' => $cardId,
+                'type' => '2',
+                'type_arg' => (string) $cardId,
+                'location' => Location::BRAINSTORM_RURAL,
+                'location_arg' => $position,
+                'card_name' => "Card $cardId",
+            ];
+        }
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->gamestate = $gamestate;
+
+        $this->game->actConfirmBrainstorm('[11,12,10]');
+
+        self::assertSame(
+            11,
+            $this->game->getGameStateValue('revealedRuralCardId')
+        );
+        self::assertSame(
+            12,
+            $this->game->getGameStateValue('revealedRuralCardId2')
+        );
+        self::assertSame(
+            10,
+            $this->game->getGameStateValue('revealedRuralCardId3')
+        );
+        self::assertSame(
+            [10, 12, 11],
+            array_column($deckManager->extremeInsertions, 0)
+        );
+        self::assertSame(
+            [false, false, false],
+            array_map(
+                static fn (array $event): bool =>
+                    $event['arguments']['card']['face_down'],
+                $this->game->notify->events
+            )
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+
+        $this->invoke('clearDeckRevealIfCardLeaves', [11, Location::RURAL]);
+        self::assertSame(
+            12,
+            $this->game->getGameStateValue('revealedRuralCardId')
+        );
+        self::assertSame(
+            10,
+            $this->game->getGameStateValue('revealedRuralCardId2')
+        );
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('revealedRuralCardId3')
+        );
+
+        $this->invoke('clearDeckRevealIfCardLeaves', [12, Location::RURAL]);
+        $this->invoke('clearDeckRevealIfCardLeaves', [10, Location::RURAL]);
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('revealedRuralCardId')
+        );
+        self::assertNull($this->invoke(
+            'getRevealedDeckTop',
+            [Location::RURAL]
+        ));
+    }
+
     public function testFastMemoriseWaitsForADeckChoice(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -3218,6 +3325,9 @@ final class GameRulesTest extends TestCase
         };
         $this->setProperty('deckManager', $deckManager);
         $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('revealedRuralCardId', 10);
+        $this->game->setGameStateValue('revealedRuralCardId2', 11);
+        $this->game->setGameStateValue('revealedRuralCardId3', 12);
 
         $this->game->actFastMemorise(Location::RURAL);
 
@@ -3235,6 +3345,14 @@ final class GameRulesTest extends TestCase
         self::assertSame(
             ['cardMoved', 'cardMoved'],
             array_column($this->game->notify->events, 'type')
+        );
+        self::assertSame(
+            12,
+            $this->game->getGameStateValue('revealedRuralCardId')
+        );
+        self::assertSame(
+            0,
+            $this->game->getGameStateValue('revealedRuralCardId2')
         );
     }
 

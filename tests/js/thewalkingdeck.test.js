@@ -1650,6 +1650,30 @@ describe("notifications", () => {
     assert.equal(context.deckTopTypes.deck_urban, "3");
   });
 
+  it("returns brainstorm cards to their deck face up", async () => {
+    const brainstorm = {};
+    const ruralDeck = { addCard: spy(async () => undefined) };
+    const context = {
+      brainstorm,
+      ruralDeck,
+      deckTopTypes: { deck_rural: "4" },
+      generateFakeCard: game.generateFakeCard,
+      getLocation: (location) => location === "brainstorm" ? brainstorm : ruralDeck,
+    };
+    const card = { id: 20, type: "2", face_down: false };
+
+    await game.moveCardToLocation.call(
+      context,
+      card,
+      "deck_rural",
+      "brainstorm"
+    );
+
+    assert.equal(ruralDeck.addCard.calls[0][0], card);
+    assert.equal(ruralDeck.addCard.calls[0][1].fromStock, brainstorm);
+    assert.equal(context.deckTopTypes.deck_rural, "2");
+  });
+
   it("waits until the face-down Memory card is installed when Story Check starts", async () => {
     let finishAdding;
     const addPromise = new Promise((resolve) => {

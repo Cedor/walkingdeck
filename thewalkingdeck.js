@@ -1252,7 +1252,7 @@ define([
           break;
         case "deck_rural":
         case "deck_urban":
-          card = this.generateFakeCard(card);
+          if (card.face_down !== false) card = this.generateFakeCard(card);
           break;
         default:
           console.log("Unknown/Illegal destination for card movement", destination);
