@@ -47,6 +47,10 @@ are `text` and `args`. An argument used as an inline icon is an object with
 `type: "icon"` and the sprite name in `name`. GitHub Actions creates a
 disposable MariaDB service for these checks.
 
+Each non-null black, white, or grey consequence must have a matching display
+zone with a non-empty `text`. A card whose three consequences are null must
+keep its complete `texts` document null.
+
 ## Coverage
 
 Generate and enforce the initial 60% statement threshold for the isolated PHP

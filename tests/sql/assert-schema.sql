@@ -175,6 +175,55 @@ CALL assert_equals(
     )
 );
 CALL assert_equals(
+    'card texts nullability does not match consequences',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE (
+            consequence_black IS NULL
+            AND consequence_white IS NULL
+            AND consequence_grey IS NULL
+            AND texts IS NOT NULL
+        ) OR (
+            (
+                consequence_black IS NOT NULL
+                OR consequence_white IS NOT NULL
+                OR consequence_grey IS NOT NULL
+            )
+            AND texts IS NULL
+        )
+    )
+);
+CALL assert_equals(
+    'card text zones do not match consequences',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE (consequence_black IS NOT NULL) <>
+              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.black.text') = 1)
+           OR (consequence_white IS NOT NULL) <>
+              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.white.text') = 1)
+           OR (consequence_grey IS NOT NULL) <>
+              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.grey.text') = 1)
+    )
+);
+CALL assert_equals(
+    'empty card display texts',
+    0,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.black.text') = 1
+                  AND TRIM(JSON_UNQUOTE(JSON_EXTRACT(texts, '$.black.text'))) = '')
+           OR (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.white.text') = 1
+                  AND TRIM(JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.text'))) = '')
+           OR (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.grey.text') = 1
+                  AND TRIM(JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text'))) = '')
+    )
+);
+CALL assert_equals(
     'Canned food display definition',
     1,
     (
@@ -189,13 +238,12 @@ CALL assert_equals(
           AND JSON_LENGTH(JSON_EXTRACT(texts, '$.white')) = 2
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.text')) = '${consumeHunger}'
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.type')) = 'icon'
-          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.name')) = 'consumeHunger'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.name')) = 'consumedHunger'
           AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey')) = 2
-          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text')) = '${heal} up to ${count} characters'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text')) = '${heal} up to 2 characters'
+          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey.args')) = 1
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.type')) = 'icon'
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.name')) = 'heal'
-          AND JSON_TYPE(JSON_EXTRACT(texts, '$.grey.args.count')) = 'INTEGER'
-          AND JSON_EXTRACT(texts, '$.grey.args.count') = 2
     )
 );
 CALL assert_equals(
