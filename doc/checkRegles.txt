@@ -1,2 +1,3 @@
 carte tallahassee : si j'evite la derniere carte de la memoire, ça veut dire que j'hevite tallahassee, non?
 café jeux : si l'evité est vide, au moment ou l'on evite le café jeux, c'est donc la seule carte de l'evité, donc il remonte dans la main, c'est normal?
+quand je depile un personnage en phase 2, je cherche à appliquer sa consequence grise et si je ne peux pas, je l'enteree. le probleme c'est que lorsque je revele le premier personnage, si il a des morsures, ou une calamité, je nepeux pas les résoudre car je n'ai pas de personnage. donc je l'entere, et j'ai le meme probleme avec le personnage suivant, don cje n'ai jamais de personnage, et ils finissent entérés
