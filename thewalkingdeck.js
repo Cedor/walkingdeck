@@ -873,18 +873,6 @@ define([
                   total: disasterArgs.requiredDraws,
                 }
               );
-            } else if (disasterArgs.phase === "confirmDraw") {
-              this.statusBar.setTitle(
-                _("Draw ${total} disasters"),
-                {
-                  total: disasterArgs.requiredDraws,
-                }
-              );
-              this.statusBar.addActionButton(
-                _("Confirm draw"),
-                () => this.bgaPerformAction("actConfirmDisasterDraw"),
-                { id: "confirm_disaster_draw", color: "primary" }
-              );
             } else if (disasterArgs.phase === "characteristic") {
               const characteristic = disasterArgs.characteristic;
               const affectedNames = (disasterArgs.affectedCharacters || [])

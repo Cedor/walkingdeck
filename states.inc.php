@@ -254,7 +254,6 @@ $machinestates = [
         ->args('argDisasterChoice')
         ->possibleactions([
             'actDrawDisaster',
-            'actConfirmDisasterDraw',
             'actUseDisasterResource',
             'actConfirmDisasterCharacteristic',
             'actResolveDisaster',
