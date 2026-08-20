@@ -1279,9 +1279,9 @@ describe("player actions", () => {
     );
   });
 
-  it("does not flip a resource outside test mode", () => {
+  it("does not let players flip a resource in test mode", () => {
     const context = {
-      isTestMode: false,
+      isTestMode: true,
       bgaPerformAction: spy(),
     };
 

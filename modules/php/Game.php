@@ -4467,19 +4467,6 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Game state action, flip a resource
-     */
-    public function actFlipRessource(string $token_id): void
-    {
-        $this->assertTestMode();
-        $this->checkAction('actFlipRessource');
-        $state = $this->ressources->getRessourceState($token_id);
-        if ($state == 1)
-            $this->ressources->refillRessources($token_id);
-        else $this->ressources->consumeRessources($token_id);
-    }
-
-    /**
      * Migrate database.
      *
      * You don't have to care about this until your game has been published on BGA. Once your game is on BGA, this
