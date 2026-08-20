@@ -7,7 +7,6 @@ namespace Bga\Games\TheWalkingDeck\Constants;
 final class Transition
 {
     public const DISPATCH_EVENTS = 'dispatchEvents';
-    public const PHASE_2 = 'phase2';
     public const DRAW_CARDS = 'drawCards';
     public const PLAY_CARDS = 'playCards';
     public const ADDITIONAL_DRAW_CARDS = 'additionalDrawCards';

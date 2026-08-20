@@ -1051,9 +1051,6 @@ define([
               case "applyGreyConsequence":
                 storyTitle = _("The grey consequence of ${card_name} will be applied");
                 break;
-              case "placeCharacter":
-                storyTitle = _("${card_name} will be placed in the Characters area");
-                break;
               default:
                 return;
             }

@@ -4164,30 +4164,35 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $cardId = intval($currentCard['id']);
-        if ($this->getPendingStoryAction($currentCard) === 'applyGreyConsequence') {
-            $this->deckManager->moveCard(
-                $cardId,
-                Location::STORY_CURRENT,
-                1
-            );
-            $this->pushConsequenceEvent(
-                $cardId,
-                'grey',
-                Transition::STORY_CHECK_STEP
-            );
-            $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
-            return;
-        }
-
-        if (!$this->cardCanBePlayedInLocation(
-            $currentCard,
-            Location::CHARACTERS_IN_PLAY
-        )) {
+        if ($this->getPendingStoryAction($currentCard) !== 'applyGreyConsequence') {
             throw new UserException(
                 \clienttranslate('This Story Check card does not require confirmation')
             );
         }
 
+        $this->pushConsequenceEvent(
+            $cardId,
+            'grey',
+            Transition::STORY_CHECK_STEP
+        );
+        if ($this->cardCanBePlayedInLocation(
+            $currentCard,
+            Location::CHARACTERS_IN_PLAY
+        )) {
+            $this->putStoryCharacterInPlay($currentCard);
+        } else {
+            $this->deckManager->moveCard(
+                $cardId,
+                Location::STORY_CURRENT,
+                1
+            );
+        }
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function putStoryCharacterInPlay(array $card): void
+    {
+        $cardId = intval($card['id']);
         $this->deckManager->moveCard(
             $cardId,
             Location::CHARACTERS_IN_PLAY
@@ -4202,7 +4207,6 @@ class Game extends \Bga\GameFramework\Table
                 'source' => Location::STORY_CURRENT,
             ]
         );
-        $this->gamestate->nextState(Transition::PHASE_2);
     }
 
     /**
@@ -4319,10 +4323,17 @@ class Game extends \Bga\GameFramework\Table
         }
 
         if (empty($currentCard['consequence_grey'])) {
-            $this->moveCard(
-                intval($currentCard['id']),
-                Location::GRAVEYARD
-            );
+            if ($this->cardCanBePlayedInLocation(
+                $currentCard,
+                Location::CHARACTERS_IN_PLAY
+            )) {
+                $this->putStoryCharacterInPlay($currentCard);
+            } else {
+                $this->moveCard(
+                    intval($currentCard['id']),
+                    Location::GRAVEYARD
+                );
+            }
             $this->gamestate->nextState('gameCheck');
             return;
         }
@@ -4365,12 +4376,7 @@ class Game extends \Bga\GameFramework\Table
             return 'applyGreyConsequence';
         }
 
-        return $this->cardCanBePlayedInLocation(
-            $card,
-            Location::CHARACTERS_IN_PLAY
-        )
-            ? 'placeCharacter'
-            : 'resolveCard';
+        return 'resolveCard';
     }
 
     private function getCurrentStoryCard(): ?array

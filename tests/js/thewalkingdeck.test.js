@@ -568,11 +568,7 @@ describe("player actions", () => {
     assert.deepEqual(setAenorCharacterHighlighted.calls[1], [8, false]);
   });
 
-  for (const [pendingAction, expectedTitle] of [
-    ["applyGreyConsequence", "The grey consequence of ${card_name} will be applied"],
-    ["placeCharacter", "${card_name} will be placed in the Characters area"],
-  ]) {
-    it(`shows and submits the ${pendingAction} confirmation`, () => {
+  it("shows and submits the grey consequence confirmation", () => {
       let confirmCallback;
       const statusBar = {
         setTitle: spy(),
@@ -591,17 +587,19 @@ describe("player actions", () => {
 
       game.onUpdateActionButtons.call(context, "storyCheckPlayerChoice", {
         currentCard: { id: 8, card_name: "Ellie and Joel" },
-        pendingAction,
+        pendingAction: "applyGreyConsequence",
       });
 
-      assert.equal(statusBar.setTitle.calls[0][0], expectedTitle);
+      assert.equal(
+        statusBar.setTitle.calls[0][0],
+        "The grey consequence of ${card_name} will be applied"
+      );
       assert.equal(statusBar.setTitle.calls[0][1].card_name, "Ellie and Joel");
       assert.equal(statusBar.addActionButton.calls[0][0], "Confirm");
 
       confirmCallback();
       assert.equal(context.bgaPerformAction.calls[0][0], "actStoryCheckPlayerChoice");
-    });
-  }
+  });
 
   it("shows and submits the card burial confirmation", () => {
     let confirmCallback;
