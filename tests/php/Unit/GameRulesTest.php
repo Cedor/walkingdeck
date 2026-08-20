@@ -4574,16 +4574,148 @@ final class GameRulesTest extends TestCase
         $this->game->setGameStateValue('gamePhase', 1);
 
         $this->game->actPlayCard(6, Location::ESCAPED);
-        $this->game->stEventDispatcher();
-        $this->game->actEscapeZombie(41);
+
+        self::assertSame(Location::HAND, $deckManager->cards[6]['location']);
+
         $this->game->stEventDispatcher();
 
+        self::assertSame(Location::HAND, $deckManager->cards[6]['location']);
+
+        $this->game->actEscapeZombie(41);
+
+        self::assertSame(Location::HAND, $deckManager->cards[6]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[41]['location']);
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(Location::ESCAPED, $deckManager->cards[6]['location']);
+        self::assertSame(
+            [
+                [41, Location::ESCAPED, 0],
+                [6, Location::ESCAPED, 0],
+            ],
+            $deckManager->moves
+        );
         self::assertSame(
             [
                 Transition::DISPATCH_EVENTS,
                 Transition::AVOID_ZOMBIE_CHOICE,
                 Transition::DISPATCH_EVENTS,
                 Transition::PLAY_CARDS,
+            ],
+            $gamestate->transitions
+        );
+    }
+
+    public function testBlackConsequenceDoesNotEscapeACardItAlreadyBuried(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[5] = [
+            'id' => 5,
+            'type' => '2',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Punk',
+            'is_zombie' => '1',
+            'is_character' => '0',
+            'consequence_black' => [
+                'action' => 'bury',
+                'bury' => 'this',
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+        $this->game->setGameStateValue('lossCondition', 5);
+
+        $this->game->actPlayCard(5, Location::ESCAPED);
+        self::assertSame(Location::HAND, $deckManager->cards[5]['location']);
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[5]['location']);
+        self::assertSame(
+            [[5, Location::GRAVEYARD, 0]],
+            $deckManager->moves
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS, Transition::STORY_CHECK],
+            $gamestate->transitions
+        );
+    }
+
+    public function testTallahasseeEscapesThePreviousMemoryTopBeforeJoiningMemory(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'type' => '2',
+                'location' => Location::HAND,
+                'location_arg' => 0,
+                'card_name' => 'Tallahassee',
+                'is_zombie' => '0',
+                'consequence_white' => ['action' => 'escapeTalla'],
+            ],
+            20 => [
+                'id' => 20,
+                'type' => '3',
+                'location' => Location::MEMORY,
+                'location_arg' => 1,
+                'card_name' => 'Previous memory top',
+                'is_zombie' => '0',
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->actPlayCard(10, Location::MEMORY);
+
+        self::assertSame(Location::HAND, $deckManager->cards[10]['location']);
+        self::assertSame(Location::MEMORY, $deckManager->cards[20]['location']);
+
+        $this->game->stEventDispatcher();
+        self::assertTrue($this->game->argEscapeTallaChoice()['mustChooseMemory']);
+        $this->game->actEscapeTallaFromMemory();
+
+        self::assertSame(Location::HAND, $deckManager->cards[10]['location']);
+        self::assertSame(Location::ESCAPED, $deckManager->cards[20]['location']);
+
+        $this->game->stEventDispatcher();
+
+        self::assertSame(Location::MEMORY, $deckManager->cards[10]['location']);
+        self::assertSame(
+            [
+                [20, Location::ESCAPED, 0],
+                [10, Location::MEMORY, 0],
+            ],
+            $deckManager->moves
+        );
+        self::assertSame(
+            [
+                Transition::DISPATCH_EVENTS,
+                Transition::PLAYER_CHOICE,
+                Transition::DISPATCH_EVENTS,
+                Transition::STORY_CHECK,
             ],
             $gamestate->transitions
         );
@@ -4628,6 +4760,10 @@ final class GameRulesTest extends TestCase
 
         self::assertSame(0, $deckManager->countCardInLocation(Location::HAND));
         self::assertSame(Location::MEMORY, $deckManager->cards[18]['location']);
+        self::assertSame(
+            ['applyingConsequence', 'cardMoved', 'cardInMemory'],
+            array_column($this->game->notify->events, 'type')
+        );
         self::assertSame(
             [Transition::DISPATCH_EVENTS, Transition::DRAW_CARDS],
             $gamestate->transitions
