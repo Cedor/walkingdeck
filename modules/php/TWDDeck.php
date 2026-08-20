@@ -19,12 +19,15 @@ class TWDDeck
     if ($type === 1) {
       // protagonist
       $cardInfo = $this->game->getObjectFromDB(
-        "SELECT `card_name`, `losscon`
+        "SELECT `card_name`, `losscon`, `texts`
           FROM `twd_card_info` JOIN `twd_protagonist_info` ON `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
           WHERE `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
           AND `twd_card_info`.`card_type` = $type
           AND `twd_card_info`.`card_type_arg` = $type_arg"
       );
+      if (!empty($cardInfo['texts']) && is_string($cardInfo['texts'])) {
+        $cardInfo['texts'] = json_decode($cardInfo['texts'], true);
+      }
     } else { // type == 2 or 3
       // rural and urban
       $cardInfo = $this->game->getObjectFromDB(
