@@ -71,7 +71,7 @@ $machinestates = [
         ->build(),
     GameStep::EVENT_DISPATCHER => GameStateBuilder::create()
         ->name(Transition::DISPATCH_EVENTS)
-        ->description(clienttranslate(''))
+        ->description('')
         ->type(StateType::GAME)
         ->action('stEventDispatcher')
         ->transitions([

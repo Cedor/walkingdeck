@@ -130,7 +130,7 @@ class TWDDeck
   {
     $card = $this->getCard($card_id);
     if (intval($card['is_character'] ?? 0) !== 1 || $wounds < 0 || $wounds > 4) {
-      throw new \InvalidArgumentException('Invalid character wounds');
+      throw new \InvalidArgumentException(\clienttranslate('Invalid character wounds'));
     }
 
     $type = intval($card['type']);

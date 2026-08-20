@@ -47,7 +47,7 @@ class TWDRessources
     if ($ressource_id && ($value == 0 || $value == 1))
       $this->game->setGameStateValue($ressource_id, $value);
     else
-      throw new \InvalidArgumentException("Invalid ressource id or state");
+      throw new \InvalidArgumentException(\clienttranslate('Invalid ressource id or state'));
   }
 
   public function consumeRessources(string $ressource_id): void
@@ -55,8 +55,9 @@ class TWDRessources
     $ressource_consumed = $this->getRessourceState($ressource_id);
     if (!$ressource_consumed) {
       $this->setRessourceState($ressource_id, 1);
-      $this->game->notify->all('ressourceConsumed', \clienttranslate("Ressource $ressource_id consumed"), array(
+      $this->game->notify->all('ressourceConsumed', \clienttranslate('Ressource ${resource_id} consumed'), array(
         'id' => $ressource_id,
+        'resource_id' => $ressource_id,
         'consumed' => 1
       ));
     }
@@ -66,8 +67,9 @@ class TWDRessources
   {
     if ($this->getRessourceState($ressource_id)) {
       $this->setRessourceState($ressource_id, 0);
-      $this->game->notify->all('ressourceRefilled', \clienttranslate("Ressource $ressource_id refilled"), array(
+      $this->game->notify->all('ressourceRefilled', \clienttranslate('Ressource ${resource_id} refilled'), array(
         'id' => $ressource_id,
+        'resource_id' => $ressource_id,
         'consumed' => 0
       ));
     }

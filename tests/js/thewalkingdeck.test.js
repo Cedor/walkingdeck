@@ -631,6 +631,8 @@ describe("player actions", () => {
   });
 
   it("returns translated card names and safely falls back for unknown cards", () => {
+    assert.equal(game.getCardName({ card_name: "Aénor" }), "Aénor");
+    assert.equal(game.getCardName({ card_name: "Éléonore" }), "Éléonore");
     assert.equal(game.getCardName({ card_name: "Wolf Trap" }), "Wolf Trap");
     assert.equal(game.getCardName({ card_name: "Custom card" }), "Custom card");
     assert.equal(game.getCardName(null), "Unknown card");
