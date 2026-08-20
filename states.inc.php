@@ -434,7 +434,6 @@ $machinestates = [
             'actStoryCheckPlayerChoice',
         ])
         ->transitions([
-            Transition::PHASE_2 => GameStep::STORY_CHECK_WIN_LOSS,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
         ])
         ->build(),

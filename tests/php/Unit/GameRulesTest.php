@@ -4202,7 +4202,7 @@ final class GameRulesTest extends TestCase
         );
     }
 
-    public function testResolvedStoryCharacterJoinsCharactersInPlay(): void
+    public function testStoryCharacterJoinsCharactersBeforeItsGreyConsequenceIsResolved(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
@@ -4222,7 +4222,8 @@ final class GameRulesTest extends TestCase
             }
         };
         $this->setProperty('deckManager', $deckManager);
-        $this->setProperty('eventStack', $this->createEventStack());
+        $eventStack = $this->createEventStack();
+        $this->setProperty('eventStack', $eventStack);
         $this->game->gamestate = $gamestate;
 
         $this->game->stStoryCheckStep();
@@ -4231,13 +4232,22 @@ final class GameRulesTest extends TestCase
             $this->game->argStoryCheckPlayerChoice()['pendingAction']
         );
         $this->game->actStoryCheckPlayerChoice(8);
+
+        self::assertSame(
+            Location::CHARACTERS_IN_PLAY,
+            $deckManager->cards[8]['location']
+        );
+        self::assertSame(
+            EventType::CONSEQUENCE,
+            $eventStack->getCurrentEvent()['type']
+        );
+        self::assertSame(
+            'characterPutInPlay',
+            end($this->game->notify->events)['type']
+        );
+
         $this->game->stEventDispatcher();
         $this->game->stStoryCheckStep();
-        self::assertSame(
-            'placeCharacter',
-            $this->game->argStoryCheckPlayerChoice()['pendingAction']
-        );
-        $this->game->actStoryCheckPlayerChoice(8);
 
         self::assertSame(
             Location::CHARACTERS_IN_PLAY,
@@ -4248,13 +4258,16 @@ final class GameRulesTest extends TestCase
                 'playerChoice',
                 Transition::DISPATCH_EVENTS,
                 Transition::STORY_CHECK_STEP,
-                'playerChoice',
-                Transition::PHASE_2,
+                'gameCheck',
             ],
             $gamestate->transitions
         );
-        $notification = end($this->game->notify->events);
-        self::assertSame('characterPutInPlay', $notification['type']);
+        $notification = array_values(array_filter(
+            $this->game->notify->events,
+            static function (array $event): bool {
+                return $event['type'] === 'characterPutInPlay';
+            }
+        ))[0];
         self::assertSame(Location::STORY_CURRENT, $notification['arguments']['source']);
     }
 
@@ -4323,6 +4336,56 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testStoryCharactersCanReceiveTheirOwnGreyBiteConsequence(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[8] = [
+            'id' => 8,
+            'location' => Location::STORY_CURRENT,
+            'location_arg' => 0,
+            'card_name' => 'Bitten character',
+            'is_character' => '1',
+            'wounds' => 0,
+            'consequence_grey' => [
+                'action' => 'bite',
+                'bite' => 1,
+            ],
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        $this->game->stStoryCheckStep();
+        $this->game->actStoryCheckPlayerChoice(8);
+        $this->game->stEventDispatcher();
+
+        self::assertSame(
+            Location::CHARACTERS_IN_PLAY,
+            $deckManager->cards[8]['location']
+        );
+        self::assertSame(
+            [8],
+            $this->game->argBiteChoice()['eligibleCardsIds']
+        );
+        self::assertSame(
+            [
+                'playerChoice',
+                Transition::DISPATCH_EVENTS,
+                Transition::BITE_CHOICE,
+            ],
+            $gamestate->transitions
+        );
+    }
+
     public function testGreyConsequenceCanBuryCurrentCardAndCauseImmediateLoss(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -4367,7 +4430,7 @@ final class GameRulesTest extends TestCase
         );
     }
 
-    public function testBuriedStoryCharacterDoesNotJoinCharactersInPlay(): void
+    public function testStoryCharacterJoinsCharactersBeforeItsGreyConsequenceBuriesIt(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[9] = [
@@ -4397,14 +4460,20 @@ final class GameRulesTest extends TestCase
 
         $this->game->stStoryCheckStep();
         $this->game->actStoryCheckPlayerChoice(9);
+
+        self::assertSame(
+            Location::CHARACTERS_IN_PLAY,
+            $deckManager->cards[9]['location']
+        );
+        self::assertContains(
+            'characterPutInPlay',
+            array_column($this->game->notify->events, 'type')
+        );
+
         $this->game->stEventDispatcher();
         $this->game->stStoryCheckStep();
 
         self::assertSame(Location::GRAVEYARD, $deckManager->cards[9]['location']);
-        self::assertNotContains(
-            'characterPutInPlay',
-            array_column($this->game->notify->events, 'type')
-        );
         self::assertSame(
             [
                 'playerChoice',
