@@ -26,9 +26,11 @@ $directories = @(
 )
 $files = @(
     'dbmodel.sql'
+    'gameinfos.inc.php'
     'gameoptions.json'
     'gamepreferences.json'
     'states.inc.php'
+    'stats.json'
     'thewalkingdeck.css'
     'thewalkingdeck.js'
 )
