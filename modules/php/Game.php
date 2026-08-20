@@ -492,9 +492,33 @@ class Game extends \Bga\GameFramework\Table
                     break;
 
                 case EventType::PLAY_CARD:
+                    $cardId = intval($event['parameters']['cardId'] ?? 0);
+                    $destination = strval(
+                        $event['parameters']['destination'] ?? ''
+                    );
+                    if (
+                        $cardId < 1
+                        || !in_array(
+                            $destination,
+                            [Location::MEMORY, Location::ESCAPED],
+                            true
+                        )
+                    ) {
+                        throw new SystemException(
+                            "Invalid deferred play card event {$event['id']}"
+                        );
+                    }
+                    $card = $this->deckManager->getCard($cardId);
+                    if ($card === null) {
+                        throw new SystemException(
+                            "Deferred played card {$cardId} no longer exists"
+                        );
+                    }
+                    if ($card['location'] === Location::HAND) {
+                        $this->placeCardFromHand($cardId, $destination);
+                    }
                     $this->popEvent($event['id']);
-                    $this->gamestate->nextState(Transition::PLAY_CARDS);
-                    return;
+                    break;
 
                 case EventType::BITE_CHOICE:
                     $biteEvent = $this->getPendingBiteChoiceEvent();
@@ -1390,37 +1414,23 @@ class Game extends \Bga\GameFramework\Table
         $card = $this->deckManager->getCard($card_id);
         $card_name = '';
         if ($card && $card['location'] == Location::HAND && ($card['type'] == CardType::RURAL || $card['type'] == CardType::URBAN) && $this->cardCanBePlayedInLocation($card, $location)) { // card can be played
-            $this->deckManager->insertCardOnExtremePosition($card_id, $location, true);
-            $card = $this->deckManager->getCard($card_id);
             $card_name = $card['card_name'];
-            $this->notify->all('cardMoved', \clienttranslate("Card $card_name played from hand to $location"), array(
-                'card' => $card,
-                'destination' => $location,
-                'source' => Location::HAND
-            ));
-
-            $consequenceColor = null;
-            switch ($location) {
-                case Location::MEMORY:
-                    $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply white consequences"), array(
-                        'card' => $card,
-                    ));
-                    $consequenceColor = 'white';
-                    break;
-                case Location::ESCAPED:
-                    $this->notify->all('cardInMemory', \clienttranslate("Card $card_name placed in memory, we will apply black consequences"), array(
-                        'card' => $card,
-                    ));
-                    $consequenceColor = 'black';
-                    break;
-            }
-
-            if ($consequenceColor !== null) {
+            if (in_array(
+                $location,
+                [Location::MEMORY, Location::ESCAPED],
+                true
+            )) {
+                $this->eventStack->pushEvent(EventType::PLAY_CARD, [
+                    'cardId' => $card_id,
+                    'destination' => $location,
+                ]);
                 $this->pushConsequenceEvent(
-                    intval($card['id']),
-                    $consequenceColor,
+                    $card_id,
+                    $location === Location::MEMORY ? 'white' : 'black',
                     null
                 );
+            } else {
+                $this->placeCardFromHand($card_id, $location);
             }
 
             $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
@@ -1433,6 +1443,45 @@ class Game extends \Bga\GameFramework\Table
                     'location' => $location,
                 ]
             ));
+        }
+    }
+
+    private function placeCardFromHand(int $cardId, string $location): void
+    {
+        $card = $this->deckManager->getCard($cardId);
+        if ($card === null || $card['location'] !== Location::HAND) {
+            throw new SystemException('The played card is no longer in hand');
+        }
+
+        $this->deckManager->insertCardOnExtremePosition(
+            $cardId,
+            $location,
+            true
+        );
+        $card = $this->deckManager->getCard($cardId);
+        $cardName = $card['card_name'];
+        $this->notify->all(
+            'cardMoved',
+            \clienttranslate("Card $cardName played from hand to $location"),
+            [
+                'card' => $card,
+                'destination' => $location,
+                'source' => Location::HAND,
+            ]
+        );
+
+        if ($location === Location::MEMORY) {
+            $this->notify->all(
+                'cardInMemory',
+                \clienttranslate("Card $cardName placed in memory after applying white consequences"),
+                ['card' => $card]
+            );
+        } elseif ($location === Location::ESCAPED) {
+            $this->notify->all(
+                'cardInMemory',
+                \clienttranslate("Card $cardName escaped after applying black consequences"),
+                ['card' => $card]
+            );
         }
     }
 
@@ -1990,9 +2039,6 @@ class Game extends \Bga\GameFramework\Table
     private function getZombieEscapeChoiceArgs(bool $canChooseMemory): array
     {
         $zombies = $this->getZombiesInHand();
-        $handIsEmpty = $this->deckManager->getCardsInLocation(
-            Location::HAND
-        ) === [];
         $memoryIsAvailable = $canChooseMemory
             && $this->deckManager->getCardOnTop(Location::MEMORY) !== null;
 
@@ -2002,7 +2048,7 @@ class Game extends \Bga\GameFramework\Table
                 array_column($zombies, 'id')
             ),
             'canChooseMemory' => $memoryIsAvailable,
-            'mustChooseMemory' => $handIsEmpty && $memoryIsAvailable,
+            'mustChooseMemory' => $zombies === [] && $memoryIsAvailable,
         ];
     }
 
