@@ -956,13 +956,6 @@ define([
               id: "refill_hand_button",
               color: "secondary",
             });
-            if (this.isTestMode) {
-              this.statusBar.addActionButton(
-                _("Story Check"),
-                () => this.bgaPerformAction("actGoToStoryCheck", { force: true }),
-                { color: "secondary" }
-              );
-            }
             break;
           case "escapeTallaChoice": {
             const escapeArgs = args.args || args;
