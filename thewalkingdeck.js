@@ -1221,10 +1221,10 @@ define([
     getCardName: function (card) {
       const originalName = typeof card === "string" ? card : card?.card_name;
       const translatedNames = {
-        Aenor: _("Aenor"),
+        "Aénor": _("Aénor"),
         Boris: _("Boris"),
         Adrien: _("Adrien"),
-        Eleonore: _("Eleonore"),
+        "Éléonore": _("Éléonore"),
         Punk: _("Punk"),
         "Wolf Trap": _("Wolf Trap"),
         Clown: _("Clown"),

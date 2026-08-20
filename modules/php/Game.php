@@ -772,7 +772,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'An avoid deck choice cannot be combined with another deferred consequence'
+                                \clienttranslate('An avoid deck choice cannot be combined with another deferred consequence')
                             );
                         }
                         foreach ($outcome['avoidDeckChoices'] as $avoidChoice) {
@@ -802,7 +802,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A draft disaster choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A draft disaster choice cannot be combined with another deferred consequence')
                             );
                         }
                         foreach ($outcome['draftDisasterChoices'] as $draftChoice) {
@@ -831,7 +831,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A bury character choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A bury character choice cannot be combined with another deferred consequence')
                             );
                         }
                         foreach ($outcome['buryCharacterChoices'] as $buryChoice) {
@@ -860,7 +860,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A bury top card choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A bury top card choice cannot be combined with another deferred consequence')
                             );
                         }
                         foreach ($outcome['buryTopCardChoices'] as $buryChoice) {
@@ -887,7 +887,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['healChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A bite choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A bite choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -917,7 +917,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A heal choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A heal choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -944,7 +944,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A disaster choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A disaster choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -970,7 +970,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A Wolf Trap choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A Wolf Trap choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -986,7 +986,7 @@ class Game extends \Bga\GameFramework\Table
                         if ($hasEscapeChoice) {
                             if ($outcome['escapeTallaChoice'] && $outcome['avoidZombieChoice']) {
                                 throw new SystemException(
-                                    'Multiple escape choices cannot be resolved together'
+                                    \clienttranslate('Multiple escape choices cannot be resolved together')
                                 );
                             }
                             $choiceIsAvailable = $outcome['escapeTallaChoice']
@@ -1019,7 +1019,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['wolfTrapChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'A recover choice cannot be combined with another deferred consequence'
+                                \clienttranslate('A recover choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -1048,7 +1048,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'An unremember choice cannot be combined with another deferred consequence'
+                                \clienttranslate('An unremember choice cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -1073,7 +1073,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['fastMemorise']
                         ) {
                             throw new SystemException(
-                                'brainstorm cannot be combined with another deferred consequence'
+                                \clienttranslate('brainstorm cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -1100,7 +1100,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'fastmemorise cannot be combined with another deferred consequence'
+                                \clienttranslate('fastmemorise cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -1138,7 +1138,7 @@ class Game extends \Bga\GameFramework\Table
                             || $outcome['recoverChoices'] !== []
                         ) {
                             throw new SystemException(
-                                'avoid hand2 cannot be combined with another deferred consequence'
+                                \clienttranslate('avoid hand2 cannot be combined with another deferred consequence')
                             );
                         }
 
@@ -1161,12 +1161,12 @@ class Game extends \Bga\GameFramework\Table
                     if ($hasEscapeChoice) {
                         if ($outcome['additionalDraws'] > 0 || $outcome['startNormalDraw']) {
                             throw new SystemException(
-                                'An escape choice cannot be combined with another deferred consequence'
+                                \clienttranslate('An escape choice cannot be combined with another deferred consequence')
                             );
                         }
                         if ($outcome['escapeTallaChoice'] && $outcome['avoidZombieChoice']) {
                             throw new SystemException(
-                                'Multiple escape choices cannot be resolved together'
+                                \clienttranslate('Multiple escape choices cannot be resolved together')
                             );
                         }
 
@@ -1472,25 +1472,36 @@ class Game extends \Bga\GameFramework\Table
         $cardName = $card['card_name'];
         $this->notify->all(
             'cardMoved',
-            \clienttranslate("Card $cardName played from hand to $location"),
+            \clienttranslate('Card ${card_name} played from hand to ${location}'),
             [
                 'card' => $card,
+                'card_name' => $cardName,
+                'location' => $location,
                 'destination' => $location,
                 'source' => Location::HAND,
+                'i18n' => ['card_name'],
             ]
         );
 
         if ($location === Location::MEMORY) {
             $this->notify->all(
                 'cardInMemory',
-                \clienttranslate("Card $cardName placed in memory after applying white consequences"),
-                ['card' => $card]
+                \clienttranslate('Card ${card_name} placed in memory after applying white consequences'),
+                [
+                    'card' => $card,
+                    'card_name' => $cardName,
+                    'i18n' => ['card_name'],
+                ]
             );
         } elseif ($location === Location::ESCAPED) {
             $this->notify->all(
                 'cardInMemory',
-                \clienttranslate("Card $cardName escaped after applying black consequences"),
-                ['card' => $card]
+                \clienttranslate('Card ${card_name} escaped after applying black consequences'),
+                [
+                    'card' => $card,
+                    'card_name' => $cardName,
+                    'i18n' => ['card_name'],
+                ]
             );
         }
     }
@@ -1511,8 +1522,11 @@ class Game extends \Bga\GameFramework\Table
         $card_name = $card['card_name'];
         $notificationArguments = array(
             'card' => $card,
+            'card_name' => $card_name,
+            'location' => $location,
             'destination' => $location,
-            'source' => $source
+            'source' => $source,
+            'i18n' => ['card_name'],
         );
         $notificationArguments = array_merge(
             $notificationArguments,
@@ -1530,7 +1544,7 @@ class Game extends \Bga\GameFramework\Table
         }
         $this->notify->all(
             'cardMoved',
-            \clienttranslate("Card $card_name moved from $source to $location"),
+            \clienttranslate('Card ${card_name} moved from ${source} to ${location}'),
             $notificationArguments
         );
     }
@@ -1685,7 +1699,7 @@ class Game extends \Bga\GameFramework\Table
                     true
                 )) {
                     throw new SystemException(
-                        'Invalid removedisaster characteristic'
+                        \clienttranslate('Invalid removedisaster characteristic')
                     );
                 }
                 $this->removeSingleCharacteristicDisasters($characteristic);
@@ -1802,7 +1816,7 @@ class Game extends \Bga\GameFramework\Table
                         break;
                     default:
                         throw new SystemException(
-                            'Invalid avoid consequence target'
+                            \clienttranslate('Invalid avoid consequence target')
                         );
                 }
                 break;
@@ -1813,7 +1827,11 @@ class Game extends \Bga\GameFramework\Table
             default:
                 // Unrecognized action
                 $action = $consequence ? $consequence['action'] : 'none';
-                $this->notify->all('unmanagedAction', \clienttranslate("Unmanaged action: $action"), array("card" => $card));
+                $this->notify->all(
+                    'unmanagedAction',
+                    \clienttranslate('Unmanaged action: ${action}'),
+                    ['card' => $card, 'action' => $action]
+                );
         }
         return $outcome;
     }
@@ -1873,13 +1891,13 @@ class Game extends \Bga\GameFramework\Table
             $action = strval($currentConsequence['action'] ?? 'none');
             if ($action === 'wolftrap' && $color !== 'black') {
                 throw new SystemException(
-                    'Wolf Trap consequence is only valid as a black consequence'
+                    \clienttranslate('Wolf Trap consequence is only valid as a black consequence')
                 );
             }
             $this->notify->all(
                 'applyingConsequence',
-                \clienttranslate("Applying consequence: $action"),
-                ['card' => $card]
+                \clienttranslate('Applying consequence: ${action}'),
+                ['card' => $card, 'action' => $action]
             );
 
             $currentOutcome = $this->applyConsequence($currentConsequence, $card);
@@ -1893,7 +1911,7 @@ class Game extends \Bga\GameFramework\Table
             if ($currentOutcome['fastMemorise'] !== false) {
                 if ($outcome['fastMemorise'] !== false) {
                     throw new SystemException(
-                        'Multiple fastmemorise consequences cannot be resolved together'
+                        \clienttranslate('Multiple fastmemorise consequences cannot be resolved together')
                     );
                 }
                 $outcome['fastMemorise'] = $currentOutcome['fastMemorise'];
@@ -2327,7 +2345,7 @@ class Game extends \Bga\GameFramework\Table
             || intval($event['parameters']['sourceCardId'] ?? 0) < 1
         ) {
             throw new SystemException(
-                'There is no pending card burial confirmation'
+                \clienttranslate('There is no pending card burial confirmation')
             );
         }
 
@@ -3278,7 +3296,7 @@ class Game extends \Bga\GameFramework\Table
             || $event['type'] !== EventType::UNREMEMBER_CHOICE
         ) {
             throw new SystemException(
-                'There is no pending unremember choice'
+                \clienttranslate('There is no pending unremember choice')
             );
         }
         $sourceCardId = intval(
@@ -4061,10 +4079,13 @@ class Game extends \Bga\GameFramework\Table
             //set loss condition
             $lossCon = $this->setLossCondition($card);
             $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
-            $this->notify->all('protagonistCardPlayed', \clienttranslate("Protagonist $cardname played, loss condition: $lossCon event buried"), array(
+            $this->notify->all('protagonistCardPlayed', \clienttranslate('Protagonist ${card_name} played, loss condition: ${loss_condition} event buried'), array(
                 'card' => $card,
+                'card_name' => $cardname,
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
+                'loss_condition' => $lossCon,
+                'i18n' => ['card_name'],
             ));
             if ($difficulty === self::BORIS_TYPE_ARG) {
                 $this->applyBorisDeckSetup();
@@ -4114,14 +4135,19 @@ class Game extends \Bga\GameFramework\Table
             $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
             $card = $this->deckManager->getCard($cardId);
-            $this->notify->all('cardMoved', \clienttranslate("Special draw triggered by card " . $card['card_name']), array_merge(array(
+            $this->notify->all('cardMoved', \clienttranslate('Special draw triggered by card ${card_name}'), array_merge(array(
                 'card' => $card,
+                'card_name' => $card['card_name'],
                 'source' => $location,
                 'destination' => $destination,
-                'special' => true
+                'special' => true,
+                'i18n' => ['card_name'],
             ), $this->getSourceDeckNotificationArguments($location)));
         } else {
-            $this->notify->all('cardMoved', \clienttranslate("Card drawn from " . ($location == Location::RURAL ? "Rural" : "Urban") . " deck"), array_merge(array(
+            $message = $location === Location::RURAL
+                ? \clienttranslate('Card drawn from the Rural deck')
+                : \clienttranslate('Card drawn from the Urban deck');
+            $this->notify->all('cardMoved', $message, array_merge(array(
                 'card' => $cardPicked,
                 'source' => $location,
                 'destination' => Location::HAND
@@ -4323,7 +4349,7 @@ class Game extends \Bga\GameFramework\Table
                 $currentCard = $this->getCurrentCardResolution();
                 if ($currentCard === null) {
                     throw new SystemException(
-                        'Story Check card could not be installed'
+                        \clienttranslate('Story Check card could not be installed')
                     );
                 }
             }
