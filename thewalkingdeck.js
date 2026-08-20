@@ -2212,9 +2212,6 @@ define([
         this.bgaPerformAction("actUseBorisResource", { token_id: token.id });
         return;
       }
-      if (this.isTestMode) {
-        this.bgaPerformAction("actFlipRessource", { token_id: token.id });
-      }
     },
 
     updateBorisResourceClickability: function (token, element = null) {

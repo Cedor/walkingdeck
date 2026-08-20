@@ -141,7 +141,6 @@ $machinestates = [
             'actPlayCard',
             'actRefillHand',
             'actGoToStoryCheck',// TEST remove after tests
-            'actFlipRessource',// TEST remove after tests
         ])
         ->transitions([
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
