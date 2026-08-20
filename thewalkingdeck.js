@@ -148,6 +148,119 @@ define([
         element.style.setProperty("--twd-card-sprite-y", `${y}%`);
       };
 
+      const setupCardContentZones = (card, element) => {
+        const cardType = String(card.type);
+        const cardTypeArg = Number(card.type_arg);
+        let cardTexts = card.texts;
+        if (typeof cardTexts === "string") {
+          try {
+            cardTexts = JSON.parse(cardTexts);
+          } catch (_error) {
+            cardTexts = {};
+          }
+        }
+        if (!cardTexts || typeof cardTexts !== "object" || Array.isArray(cardTexts)) {
+          cardTexts = {};
+        }
+
+        element.dataset.cardType = cardType;
+        element.dataset.cardTypeArg = String(cardTypeArg);
+        [...element.classList]
+          .filter((className) => className.startsWith("twd-card-layout-"))
+          .forEach((className) => element.classList.remove(className));
+        element.querySelector(":scope > .twd-card-content")?.remove();
+
+        // Les protagonistes et les dos de carte n'utilisent pas ces zones.
+        if (!["2", "3"].includes(cardType) || !Number.isInteger(cardTypeArg) || cardTypeArg < 1) {
+          return;
+        }
+
+        element.classList.add(`twd-card-layout-${cardType}-${cardTypeArg}`);
+        const content = document.createElement("div");
+        content.className = "twd-card-content";
+
+        const appendZoneText = (zone, definition) => {
+          if (!definition || typeof definition.text !== "string") {
+            return;
+          }
+
+          const copy = document.createElement("span");
+          copy.className = "twd-card-zone-copy";
+          const translatedText = _(definition.text);
+          const args = definition.args && typeof definition.args === "object"
+            ? definition.args
+            : {};
+          const iconLabels = {
+            bite: "\u{1F9B7}",
+            heal: "\u271A",
+            disaster: "\u25C6",
+            hunger: "H",
+            break: "B",
+            stress: "S",
+            consumedHunger: "H",
+            consumedBreak: "B",
+            consumedStress: "S",
+            breakHunger: "B/H",
+            breakStress: "B/S",
+          };
+          const placeholderPattern = /\$\{([A-Za-z0-9_]+)\}/g;
+          let cursor = 0;
+          let match;
+
+          while ((match = placeholderPattern.exec(translatedText)) !== null) {
+            if (match.index > cursor) {
+              copy.appendChild(document.createTextNode(translatedText.slice(cursor, match.index)));
+            }
+
+            const argument = args[match[1]];
+            if (argument?.type === "icon" && typeof argument.name === "string") {
+              const iconName = argument.name.replace(/[^A-Za-z0-9_-]/g, "");
+              const icon = document.createElement("span");
+              icon.className = `twd-card-text-icon twd-card-text-icon-${iconName}`;
+              icon.dataset.icon = iconName;
+              icon.setAttribute("role", "img");
+              icon.setAttribute("aria-label", iconName);
+              icon.textContent = iconLabels[iconName] || iconName;
+              copy.appendChild(icon);
+            } else {
+              const replacement = argument?.value ?? argument;
+              copy.appendChild(document.createTextNode(
+                replacement === null || replacement === undefined
+                  ? match[0]
+                  : String(replacement)
+              ));
+            }
+            cursor = placeholderPattern.lastIndex;
+          }
+
+          if (cursor < translatedText.length) {
+            copy.appendChild(document.createTextNode(translatedText.slice(cursor)));
+          }
+          zone.appendChild(copy);
+        };
+
+        const addZone = (zoneName, text = "", definition = null) => {
+          const zone = document.createElement("div");
+          zone.className = `twd-card-zone twd-card-zone-${zoneName}`;
+          zone.dataset.cardZone = zoneName;
+          zone.textContent = text;
+          appendZoneText(zone, definition);
+          content.appendChild(zone);
+        };
+
+        addZone("name", this.getCardName(card));
+        if (Number(card.special_draw) === 1) {
+          addZone("special", "", cardTexts.special);
+        }
+        ["black", "white", "grey"].forEach((color) => {
+          const consequence = card[`consequence_${color}`];
+          if (consequence !== null && consequence !== undefined && consequence !== "") {
+            addZone(color, "", cardTexts[color]);
+          }
+        });
+        element.appendChild(content);
+      };
+
       // create the card manager
       this.cardsManager = new BgaCards.Manager({
         animationManager: this.animationManager,
@@ -175,6 +288,7 @@ define([
             default:
               setCardSpriteCell(div, 6, 5);
           }
+          setupCardContentZones(card, div);
           this.addTooltipHtml(div.id, `tooltip de ${card.type}, ${card.type_arg}`);
         },
         setupBackDiv: (card, div) => {

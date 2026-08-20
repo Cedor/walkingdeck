@@ -30,6 +30,7 @@ final class TWDDeckTest extends TestCase
             'consequence_white' => '{"action":"draw","number":2}',
             'consequence_grey' => '{"action":"bury","bury":"this"}',
             'special_draw' => 0,
+            'texts' => '{"white":{"text":"Draw ${disaster}","args":{"disaster":{"type":"icon","name":"disaster"}}},"grey":{"text":"Bury this peripeteia"}}',
             'weakness_hunger' => null,
             'weakness_break' => null,
             'weakness_stress' => null,
@@ -41,6 +42,8 @@ final class TWDDeckTest extends TestCase
         self::assertSame('Clown', $card['card_name']);
         self::assertSame(['action' => 'bury', 'bury' => 'this'], $card['consequence_grey']);
         self::assertSame(2, $card['consequence_white']['number']);
+        self::assertSame('Draw ${disaster}', $card['texts']['white']['text']);
+        self::assertSame('disaster', $card['texts']['white']['args']['disaster']['name']);
     }
 
     public function testMissingCardIsRejected(): void

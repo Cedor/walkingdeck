@@ -28,15 +28,15 @@ class TWDDeck
     } else { // type == 2 or 3
       // rural and urban
       $cardInfo = $this->game->getObjectFromDB(
-        "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`, `weakness_hunger`, `weakness_break`, `weakness_stress`, `wounds`
+        "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`, `texts`, `weakness_hunger`, `weakness_break`, `weakness_stress`, `wounds`
           FROM `twd_card_info` LEFT JOIN `twd_character_info` ON `twd_card_info`.`info_id` = `twd_character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"
       );
       if ($cardInfo) {
-        $ids = ['consequence_black', 'consequence_white', 'consequence_grey'];
+        $ids = ['consequence_black', 'consequence_white', 'consequence_grey', 'texts'];
         foreach ($ids as $id) {
-          if ($cardInfo[$id]) {
+          if (!empty($cardInfo[$id]) && is_string($cardInfo[$id])) {
             $cardInfo[$id] = json_decode($cardInfo[$id], true);
           }
         }
