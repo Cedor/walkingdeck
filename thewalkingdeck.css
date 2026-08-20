@@ -140,23 +140,32 @@
   height: 179px;
 }
 
-.twd-card-front {
-  background: url("img/sprite_sheet.png");
+.twd-card-front,
+.twd-card-back,
+.twd-card-back-rural,
+.twd-card-back-urban {
+  --twd-card-sprite-x: 0px;
+  --twd-card-sprite-y: 0px;
+  background-image: url("img/cards-sprite.png");
+  background-repeat: no-repeat;
+  /* Grille 8x6 avec gouttieres incluses dans les proportions de la feuille. */
+  background-size: 802.898551% 601.468429%;
+  background-position: var(--twd-card-sprite-x) var(--twd-card-sprite-y);
 }
 
 .twd-card-back {
-  background: url("img/sprite_sheet.png");
-  background-position: -508px -358px;
+  --twd-card-sprite-x: 85.714286%;
+  --twd-card-sprite-y: 100%;
 }
 
 .twd-card-back-rural {
-  background: url("img/sprite_sheet.png");
-  background-position: -635px -358px;
+  --twd-card-sprite-x: 57.142857%;
+  --twd-card-sprite-y: 100%;
 }
 
 .twd-card-back-urban {
-  background: url("img/sprite_sheet.png");
-  background-position: -762px -358px;
+  --twd-card-sprite-x: 71.428571%;
+  --twd-card-sprite-y: 100%;
 }
 
 /* ressources */

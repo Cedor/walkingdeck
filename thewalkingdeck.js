@@ -140,6 +140,14 @@ define([
         graveyard: this.gamedatas.graveyardTop?.type || "2",
       };
 
+      const cardSpriteGrid = { columns: 8, rows: 6 };
+      const setCardSpriteCell = (element, column, row) => {
+        const x = (column * 100) / (cardSpriteGrid.columns - 1);
+        const y = (row * 100) / (cardSpriteGrid.rows - 1);
+        element.style.setProperty("--twd-card-sprite-x", `${x}%`);
+        element.style.setProperty("--twd-card-sprite-y", `${y}%`);
+      };
+
       // create the card manager
       this.cardsManager = new BgaCards.Manager({
         animationManager: this.animationManager,
@@ -150,18 +158,22 @@ define([
         },
         setupFrontDiv: (card, div) => {
           div.classList.add("twd-card-front");
-          switch (card.type) {
+          switch (String(card.type)) {
             case "1":
-              div.style.backgroundPositionY = `100%`;
-              div.style.backgroundPositionX = `${((card.type_arg - 1) * 100) / 17}%`;
+              setCardSpriteCell(div, Number(card.type_arg) - 1, 5);
               break;
-            case "2":
-            case "3":
-              div.style.backgroundPositionY = `${((card.type - 2) * 100) / 2}%`;
-              div.style.backgroundPositionX = `${((card.type_arg - 1) * 100) / 17}%`;
+            case "2": {
+              const spriteIndex = Number(card.type_arg) - 1;
+              setCardSpriteCell(div, spriteIndex % 8, Math.floor(spriteIndex / 8));
               break;
+            }
+            case "3": {
+              const spriteIndex = 18 + Number(card.type_arg) - 1;
+              setCardSpriteCell(div, spriteIndex % 8, Math.floor(spriteIndex / 8));
+              break;
+            }
             default:
-              div.style.backgroundPosition = "-508px -358px";
+              setCardSpriteCell(div, 6, 5);
           }
           this.addTooltipHtml(div.id, `tooltip de ${card.type}, ${card.type_arg}`);
         },
