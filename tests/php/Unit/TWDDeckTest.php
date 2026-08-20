@@ -52,6 +52,28 @@ final class TWDDeckTest extends TestCase
         (new TWDDeck(new FakeGame()))->getCard(999);
     }
 
+    public function testProtagonistDisplayTextsAreDecoded(): void
+    {
+        $game = new FakeGame();
+        $game->cardDeck->cards[1] = [
+            'id' => 1,
+            'type' => 1,
+            'type_arg' => 2,
+            'location' => Location::HAND,
+            'location_arg' => 0,
+        ];
+        $game->cardInfo[1][2] = [
+            'card_name' => 'Boris',
+            'losscon' => 5,
+            'texts' => '{"start":{"text":"Shuffle the cards"},"defeat":{"text":"Five buried cards"}}',
+        ];
+
+        $card = (new TWDDeck($game))->getCard(1);
+
+        self::assertSame('Shuffle the cards', $card['texts']['start']['text']);
+        self::assertSame('Five buried cards', $card['texts']['defeat']['text']);
+    }
+
     public function testCharacterWoundsArePersisted(): void
     {
         $game = new FakeGame();

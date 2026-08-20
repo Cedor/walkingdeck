@@ -78,10 +78,10 @@ CREATE TABLE IF NOT EXISTS `twd_event_stack` (
 
 -- Create all the cards info
 INSERT INTO `twd_card_info` (`info_id`, `card_type`, `card_type_arg`, `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`, `texts`) VALUES
-(1, '1', 1, 'Aenor', 0, 0, NULL, NULL, NULL, 0, NULL),
-(2, '1', 2, 'Boris', 0, 0, NULL, NULL, NULL, 0, NULL),
-(3, '1', 3, 'Adrien', 0, 0, NULL, NULL, NULL, 0, NULL),
-(4, '1', 4, 'Eleonore', 0, 0, NULL, NULL, NULL, 0, NULL),
+(1, '1', 1, 'Aénor', 0, 0, NULL, NULL, NULL, 0, '{"defeat" : {"text" : "5 peripeteia in the graveyard"}, "rule" : {"text" : "Once a game : Tap this Protagonist to prevent one damage done on one character"}}'),
+(2, '1', 2, 'Boris', 0, 0, NULL, NULL, NULL, 0, '{"start" : {"text" : "Shuffle all peripeteias and separate them in 2 decks"}, "defeat" : {"text" : "5 peripeteia in the graveyard"}, "rule" : {"text" : "Anytime : consume an available ressource to reveal the top card of each deck"}}'),
+(3, '1', 3, 'Adrien', 0, 0, NULL, NULL, NULL, 0, '{"defeat" : {"text" : "4 peripeteia in the graveyard"}, "rule" : {"text" : "something something something"}, "caseUp" : {"text" : "something something something"}, "caseDown" : {"text" : "something something something"}}'),
+(4, '1', 4, 'Éléonore', 0, 0, NULL, NULL, NULL, 0, '{"defeat" : {"text" : "3 peripeteia in the graveyard"}, "rule" : {"text" : "something something something"}, "case1" : {"text" : "something something something"}, "case2" : {"text" : "something something something"}, "case3" : {"text" : "something something something"}}'),
 (5, '2', 1, 'Punk', 1, 0, '{"action" : "bury", "bury" : "this"}', NULL, NULL, 0, '{"black" : {"text" : "Bury this peripeteia"}}'),
 (6, '2', 2, 'Wolf Trap', 0, 0, '{"action" : "multiple", "number" : 2, "0" : {"action" : "avoid", "avoid" : "zombie"}, "1" : {"action" : "wolftrap"}}', NULL, '{"action" : "disasterignore", "number" : 1, "ignore" : "stress"}', 0, '{"black" : {"text" : "Avoid a zombie from your hand, then draw a disaster. If it is ${disaster1}/${disaster2}, bury this peripeteia", "args" : {"disaster1" : {"type" : "icon", "name" : "breakStress"}, "disaster2" : {"type" : "icon", "name" : "breakHunger"}}}, "grey" : {"text" : "${disaster} and ignore ${stress}", "args" : {"disaster" : {"type" : "icon", "name" : "disaster"}, "stress" : {"type" : "icon", "name" : "stress"}}}}'),
 (7, '2', 3, 'Clown', 1, 0, NULL, NULL, '{"action" : "bury", "bury" : "this"}', 0, '{"grey" : {"text" : "Bury this peripeteia"}}'),

@@ -170,8 +170,8 @@ define([
           .forEach((className) => element.classList.remove(className));
         element.querySelector(":scope > .twd-card-content")?.remove();
 
-        // Les protagonistes et les dos de carte n'utilisent pas ces zones.
-        if (!["2", "3"].includes(cardType) || !Number.isInteger(cardTypeArg) || cardTypeArg < 1) {
+        // Les dos de carte et les identifiants inconnus n'utilisent pas ces zones.
+        if (!["1", "2", "3"].includes(cardType) || !Number.isInteger(cardTypeArg) || cardTypeArg < 1) {
           return;
         }
 
@@ -246,9 +246,37 @@ define([
           zone.textContent = text;
           appendZoneText(zone, definition);
           content.appendChild(zone);
+          return zone;
         };
 
         addZone("name", this.getCardName(card));
+        if (cardType === "1") {
+          const body = addZone("body");
+          const preferredBlockOrder = [
+            "start", "defeat", "rule", "caseUp", "caseDown", "case1", "case2", "case3",
+          ];
+          Object.entries(cardTexts)
+            .sort(([left], [right]) => {
+              const leftIndex = preferredBlockOrder.indexOf(left);
+              const rightIndex = preferredBlockOrder.indexOf(right);
+              return (leftIndex < 0 ? preferredBlockOrder.length : leftIndex)
+                - (rightIndex < 0 ? preferredBlockOrder.length : rightIndex);
+            })
+            .forEach(([blockName, definition]) => {
+              if (!definition || typeof definition.text !== "string") {
+                return;
+              }
+              const safeBlockName = blockName.replace(/[^A-Za-z0-9_-]/g, "");
+              const block = document.createElement("div");
+              block.className = `twd-card-body-block twd-card-body-block-${safeBlockName}`;
+              block.dataset.cardBodyBlock = blockName;
+              appendZoneText(block, definition);
+              body.appendChild(block);
+            });
+          element.appendChild(content);
+          return;
+        }
+
         if (Number(card.special_draw) === 1) {
           addZone("special", "", cardTexts.special);
         }

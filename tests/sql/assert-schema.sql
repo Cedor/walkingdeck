@@ -94,6 +94,7 @@ CALL assert_equals(
         SELECT COUNT(*)
         FROM twd_card_info
         WHERE texts IS NOT NULL
+          AND card_type <> 1
           AND JSON_LENGTH(texts) <>
               JSON_CONTAINS_PATH(texts, 'one', '$.black')
               + JSON_CONTAINS_PATH(texts, 'one', '$.white')
@@ -108,6 +109,7 @@ CALL assert_equals(
         SELECT COUNT(*)
         FROM twd_card_info
         WHERE texts IS NOT NULL
+          AND card_type <> 1
           AND (
               (JSON_CONTAINS_PATH(texts, 'one', '$.black') = 1
                   AND JSON_TYPE(JSON_EXTRACT(texts, '$.black')) <> 'OBJECT')
@@ -127,6 +129,7 @@ CALL assert_equals(
         SELECT COUNT(*)
         FROM twd_card_info
         WHERE texts IS NOT NULL
+          AND card_type <> 1
           AND (
               (JSON_CONTAINS_PATH(texts, 'one', '$.black') = 1
                   AND JSON_LENGTH(JSON_EXTRACT(texts, '$.black')) <>
@@ -154,6 +157,7 @@ CALL assert_equals(
         SELECT COUNT(*)
         FROM twd_card_info
         WHERE texts IS NOT NULL
+          AND card_type <> 1
           AND (
               (JSON_CONTAINS_PATH(texts, 'one', '$.black.text') = 1
                   AND JSON_TYPE(JSON_EXTRACT(texts, '$.black.text')) <> 'STRING')
@@ -180,19 +184,22 @@ CALL assert_equals(
     (
         SELECT COUNT(*)
         FROM twd_card_info
-        WHERE (
-            consequence_black IS NULL
-            AND consequence_white IS NULL
-            AND consequence_grey IS NULL
-            AND texts IS NOT NULL
-        ) OR (
-            (
-                consequence_black IS NOT NULL
-                OR consequence_white IS NOT NULL
-                OR consequence_grey IS NOT NULL
-            )
-            AND texts IS NULL
-        )
+        WHERE card_type <> 1
+          AND (
+              (
+                  consequence_black IS NULL
+                  AND consequence_white IS NULL
+                  AND consequence_grey IS NULL
+                  AND texts IS NOT NULL
+              ) OR (
+                  (
+                      consequence_black IS NOT NULL
+                      OR consequence_white IS NOT NULL
+                      OR consequence_grey IS NOT NULL
+                  )
+                  AND texts IS NULL
+              )
+          )
     )
 );
 CALL assert_equals(
@@ -201,12 +208,15 @@ CALL assert_equals(
     (
         SELECT COUNT(*)
         FROM twd_card_info
-        WHERE (consequence_black IS NOT NULL) <>
-              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.black.text') = 1)
-           OR (consequence_white IS NOT NULL) <>
-              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.white.text') = 1)
-           OR (consequence_grey IS NOT NULL) <>
-              (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.grey.text') = 1)
+        WHERE card_type <> 1
+          AND (
+              (consequence_black IS NOT NULL) <>
+                  (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.black.text') = 1)
+              OR (consequence_white IS NOT NULL) <>
+                  (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.white.text') = 1)
+              OR (consequence_grey IS NOT NULL) <>
+                  (JSON_CONTAINS_PATH(COALESCE(texts, JSON_OBJECT()), 'one', '$.grey.text') = 1)
+          )
     )
 );
 CALL assert_equals(
