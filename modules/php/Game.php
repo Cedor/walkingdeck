@@ -194,8 +194,7 @@ class Game extends \Bga\GameFramework\Table
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
         if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] !== $requiredDraws
+            $resolution['confirmedDraws'] !== $requiredDraws
             || $resolution['characteristicIndex'] >= count(
                 self::DISASTER_CHARACTERISTICS
             )
@@ -2626,9 +2625,7 @@ class Game extends \Bga\GameFramework\Table
             $this->disasterManager->getCardsInLocation('hand', $event['id'])
         );
 
-        if ($resolution['pendingDrawCardId'] > 0) {
-            $phase = 'confirmDraw';
-        } elseif ($resolution['confirmedDraws'] < $requiredDraws) {
+        if ($resolution['confirmedDraws'] < $requiredDraws) {
             $phase = 'draw';
         } elseif ($resolution['characteristicIndex'] < count(self::DISASTER_CHARACTERISTICS)) {
             $phase = 'characteristic';
@@ -2728,10 +2725,7 @@ class Game extends \Bga\GameFramework\Table
         $event = $this->getPendingDisasterChoiceEvent();
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
-        if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] >= $requiredDraws
-        ) {
+        if ($resolution['confirmedDraws'] >= $requiredDraws) {
             throw new UserException(
                 \clienttranslate('The required disasters have already been drawn')
             );
@@ -2751,12 +2745,7 @@ class Game extends \Bga\GameFramework\Table
                 throw new SystemException('The disaster deck is empty');
             }
 
-            $isFinalDraw = $drawIndex === $drawsRemaining - 1;
-            if ($isFinalDraw) {
-                $resolution['pendingDrawCardId'] = intval($disaster['id']);
-            } else {
-                $resolution['confirmedDraws']++;
-            }
+            $resolution['confirmedDraws']++;
             $this->notify->all(
                 'disasterDrawnFromBag',
                 \clienttranslate('Disaster drawn from bag'),
@@ -2766,32 +2755,6 @@ class Game extends \Bga\GameFramework\Table
                 ]
             );
         }
-        $this->updateDisasterResolution($event, $resolution);
-        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
-    }
-
-    public function actConfirmDisasterDraw(): void
-    {
-        $this->checkAction('actConfirmDisasterDraw');
-        $event = $this->getPendingDisasterChoiceEvent();
-        $resolution = $this->getDisasterResolution($event);
-        if ($resolution['pendingDrawCardId'] < 1) {
-            throw new UserException(\clienttranslate('There is no disaster draw to confirm'));
-        }
-
-        $drawnIds = array_map(
-            'intval',
-            array_column(
-                $this->disasterManager->getCardsInLocation('hand', $event['id']),
-                'id'
-            )
-        );
-        if (!in_array($resolution['pendingDrawCardId'], $drawnIds, true)) {
-            throw new SystemException('The pending disaster is no longer drawn');
-        }
-
-        $resolution['confirmedDraws']++;
-        $resolution['pendingDrawCardId'] = 0;
         $resolution = $this->skipInactiveDisasterCharacteristics(
             $event,
             $resolution
@@ -2807,8 +2770,7 @@ class Game extends \Bga\GameFramework\Table
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
         if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] !== $requiredDraws
+            $resolution['confirmedDraws'] !== $requiredDraws
             || $resolution['characteristicIndex'] >= count(self::DISASTER_CHARACTERISTICS)
         ) {
             throw new UserException(\clienttranslate('This disaster characteristic cannot be confirmed yet'));
@@ -2856,8 +2818,7 @@ class Game extends \Bga\GameFramework\Table
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
         if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] !== $requiredDraws
+            $resolution['confirmedDraws'] !== $requiredDraws
             || $resolution['characteristicIndex'] >= count(self::DISASTER_CHARACTERISTICS)
         ) {
             throw new UserException(\clienttranslate('No disaster characteristic can be ignored now'));
@@ -2901,8 +2862,7 @@ class Game extends \Bga\GameFramework\Table
         $event = $this->getPendingDisasterChoiceEvent();
         $resolution = $this->getDisasterResolution($event);
         if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] !== intval(
+            $resolution['confirmedDraws'] !== intval(
                 $event['parameters']['consequence']['number']
             )
             || $resolution['characteristicIndex'] !== count(self::DISASTER_CHARACTERISTICS)
@@ -2932,7 +2892,6 @@ class Game extends \Bga\GameFramework\Table
         $resolution = $event['parameters']['resolution'] ?? [];
         return [
             'confirmedDraws' => max(0, intval($resolution['confirmedDraws'] ?? 0)),
-            'pendingDrawCardId' => max(0, intval($resolution['pendingDrawCardId'] ?? 0)),
             'characteristicIndex' => max(0, intval($resolution['characteristicIndex'] ?? 0)),
             'ignoredCharacteristics' => array_values(array_intersect(
                 self::DISASTER_CHARACTERISTICS,
@@ -2955,10 +2914,7 @@ class Game extends \Bga\GameFramework\Table
         array $resolution
     ): array {
         $requiredDraws = intval($event['parameters']['consequence']['number']);
-        if (
-            $resolution['pendingDrawCardId'] > 0
-            || $resolution['confirmedDraws'] !== $requiredDraws
-        ) {
+        if ($resolution['confirmedDraws'] !== $requiredDraws) {
             return $resolution;
         }
 

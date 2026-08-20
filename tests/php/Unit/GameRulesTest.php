@@ -1766,13 +1766,11 @@ final class GameRulesTest extends TestCase
 
         self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
         $this->game->actDrawDisaster();
-        self::assertSame('confirmDraw', $this->game->argDisasterChoice()['phase']);
-        self::assertSame(1, $this->game->argDisasterChoice()['confirmedDraws']);
-        self::assertCount(2, $this->game->argDisasterChoice()['drawnDisasters']);
-        $this->game->actConfirmDisasterDraw();
 
         $args = $this->game->argDisasterChoice();
         self::assertSame('characteristic', $args['phase']);
+        self::assertSame(2, $args['confirmedDraws']);
+        self::assertCount(2, $args['drawnDisasters']);
         self::assertSame('hunger', $args['characteristic']);
         self::assertTrue($args['characteristicPresent']);
         self::assertSame([25], array_column($args['affectedCharacters'], 'id'));
@@ -1814,7 +1812,7 @@ final class GameRulesTest extends TestCase
         self::assertSame(Transition::DISPATCH_EVENTS, end($gamestate->transitions));
     }
 
-    public function testSingleDisasterDrawImmediatelyRequiresConfirmation(): void
+    public function testSingleDisasterDrawImmediatelyStartsCharacteristicResolution(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
@@ -1857,13 +1855,6 @@ final class GameRulesTest extends TestCase
         self::assertSame('draw', $this->game->argDisasterChoice()['phase']);
 
         $this->game->actDrawDisaster();
-
-        $args = $this->game->argDisasterChoice();
-        self::assertSame('confirmDraw', $args['phase']);
-        self::assertSame(0, $args['confirmedDraws']);
-        self::assertCount(1, $args['drawnDisasters']);
-
-        $this->game->actConfirmDisasterDraw();
 
         $args = $this->game->argDisasterChoice();
         self::assertSame('characteristic', $args['phase']);
@@ -2149,7 +2140,6 @@ final class GameRulesTest extends TestCase
         $this->game->gamestate = $gamestate;
 
         $this->game->actDrawDisaster();
-        $this->game->actConfirmDisasterDraw();
 
         $args = $this->game->argDisasterChoice();
         self::assertSame('characteristic', $args['phase']);
@@ -3103,7 +3093,6 @@ final class GameRulesTest extends TestCase
             'consequence' => ['action' => 'disaster', 'number' => 1],
             'resolution' => [
                 'confirmedDraws' => 1,
-                'pendingDrawCardId' => 0,
                 'characteristicIndex' => 0,
                 'ignoredCharacteristics' => [],
             ],
