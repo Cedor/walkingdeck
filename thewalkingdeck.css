@@ -168,6 +168,463 @@
   --twd-card-sprite-y: 100%;
 }
 
+/*
+ * Zones HTML superposees aux cartes. Les coordonnees sont exprimees en
+ * pourcentage de l'image source (635 x 895), donc independantes de la taille
+ * d'affichage de la carte et de la resolution de la sprite sheet.
+ */
+.twd-card-content {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.twd-card-zone {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.twd-card-zone-black,
+.twd-card-zone-white,
+.twd-card-zone-grey,
+.twd-card-zone-special {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 3px;
+  font-size: 5.5px;
+  font-weight: 700;
+  line-height: 1.08;
+  text-align: center;
+}
+
+.twd-card-zone-copy {
+  display: inline;
+}
+
+.twd-card-text-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25em;
+  min-height: 1.25em;
+  margin: 0 0.12em;
+  font-size: 1.2em;
+  font-style: normal;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.twd-card-text-icon-hunger,
+.twd-card-text-icon-break,
+.twd-card-text-icon-stress,
+.twd-card-text-icon-consumedHunger,
+.twd-card-text-icon-consumedBreak,
+.twd-card-text-icon-consumedStress {
+  width: 1.7em;
+  height: 1.7em;
+  min-width: 1.7em;
+  min-height: 1.7em;
+  background-image: url("img/ressources.png");
+  background-repeat: no-repeat;
+  background-size: 300% 200%;
+  font-size: 0;
+}
+
+.twd-card-text-icon-hunger,
+.twd-card-text-icon-consumedHunger {
+  background-position-x: 0%;
+}
+
+.twd-card-text-icon-break,
+.twd-card-text-icon-consumedBreak {
+  background-position-x: 50%;
+}
+
+.twd-card-text-icon-stress,
+.twd-card-text-icon-consumedStress {
+  background-position-x: 100%;
+}
+
+.twd-card-text-icon-hunger,
+.twd-card-text-icon-break,
+.twd-card-text-icon-stress {
+  background-position-y: 0%;
+}
+
+.twd-card-text-icon-consumedHunger,
+.twd-card-text-icon-consumedBreak,
+.twd-card-text-icon-consumedStress {
+  background-position-y: 100%;
+}
+
+.twd-card-text-icon-breakHunger,
+.twd-card-text-icon-breakStress {
+  width: 1.9em;
+  height: 1.9em;
+  min-width: 1.9em;
+  min-height: 1.9em;
+  background-image: url("img/disasters.png");
+  background-repeat: no-repeat;
+  background-size: 700% 100%;
+  font-size: 0;
+}
+
+.twd-card-text-icon-breakHunger {
+  background-position: 50% 0;
+}
+
+.twd-card-text-icon-breakStress {
+  background-position: 66.6667% 0;
+}
+
+.twd-card-zone-name {
+  left: var(--twd-card-name-left);
+  top: var(--twd-card-name-top);
+  width: var(--twd-card-name-width);
+  height: var(--twd-card-name-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #151515;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.twd-card-zone-black {
+  left: var(--twd-card-black-left);
+  top: var(--twd-card-black-top);
+  width: var(--twd-card-black-width);
+  height: var(--twd-card-black-height);
+  color: #fff;
+}
+
+.twd-card-zone-white {
+  left: var(--twd-card-white-left);
+  top: var(--twd-card-white-top);
+  width: var(--twd-card-white-width);
+  height: var(--twd-card-white-height);
+  color: #151515;
+}
+
+.twd-card-zone-grey {
+  left: var(--twd-card-grey-left);
+  top: var(--twd-card-grey-top);
+  width: var(--twd-card-grey-width);
+  height: var(--twd-card-grey-height);
+  color: #151515;
+}
+
+.twd-card-zone-special {
+  left: var(--twd-card-special-left);
+  top: var(--twd-card-special-top);
+  width: var(--twd-card-special-width);
+  height: var(--twd-card-special-height);
+  color: #151515;
+}
+
+/* Zone de nom : symbole a gauche conserve. */
+.twd-card-layout-2-1,
+.twd-card-layout-2-3,
+.twd-card-layout-2-9,
+.twd-card-layout-2-15,
+.twd-card-layout-2-16,
+.twd-card-layout-3-1,
+.twd-card-layout-3-2,
+.twd-card-layout-3-5,
+.twd-card-layout-3-6,
+.twd-card-layout-3-12,
+.twd-card-layout-3-13,
+.twd-card-layout-3-18 {
+  --twd-card-name-left: 24.2520%;
+  --twd-card-name-top: 4.8045%;
+  --twd-card-name-width: 68.0315%;
+  --twd-card-name-height: 8.7151%;
+}
+
+/* Zone de nom sans symbole lateral. */
+.twd-card-layout-2-2,
+.twd-card-layout-2-10,
+.twd-card-layout-2-11,
+.twd-card-layout-2-12,
+.twd-card-layout-2-13,
+.twd-card-layout-2-14,
+.twd-card-layout-2-17,
+.twd-card-layout-2-18,
+.twd-card-layout-3-7,
+.twd-card-layout-3-8,
+.twd-card-layout-3-9,
+.twd-card-layout-3-10,
+.twd-card-layout-3-17 {
+  --twd-card-name-left: 7.0866%;
+  --twd-card-name-top: 4.8045%;
+  --twd-card-name-width: 85.1969%;
+  --twd-card-name-height: 8.7151%;
+}
+
+/* Zone de nom : symbole a droite conserve. */
+.twd-card-layout-2-4,
+.twd-card-layout-2-5,
+.twd-card-layout-2-6,
+.twd-card-layout-2-7,
+.twd-card-layout-2-8,
+.twd-card-layout-3-3,
+.twd-card-layout-3-4,
+.twd-card-layout-3-11,
+.twd-card-layout-3-14,
+.twd-card-layout-3-15,
+.twd-card-layout-3-16 {
+  --twd-card-name-left: 7.0866%;
+  --twd-card-name-top: 4.8045%;
+  --twd-card-name-width: 68.8189%;
+  --twd-card-name-height: 8.7151%;
+}
+
+/* Consequences noires. */
+.twd-card-layout-2-1,
+.twd-card-layout-3-18 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 73.1844%;
+  --twd-card-black-width: 84.7244%;
+  --twd-card-black-height: 22.0112%;
+}
+
+.twd-card-layout-2-2 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 19.2179%;
+}
+
+.twd-card-layout-2-5 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 15.8659%;
+}
+
+.twd-card-layout-2-7 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 14.7486%;
+}
+
+.twd-card-layout-2-10,
+.twd-card-layout-2-11,
+.twd-card-layout-2-12,
+.twd-card-layout-2-13,
+.twd-card-layout-2-14,
+.twd-card-layout-2-17,
+.twd-card-layout-2-18,
+.twd-card-layout-3-4,
+.twd-card-layout-3-8,
+.twd-card-layout-3-9,
+.twd-card-layout-3-10,
+.twd-card-layout-3-11,
+.twd-card-layout-3-13,
+.twd-card-layout-3-14,
+.twd-card-layout-3-17 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 13.9665%;
+}
+
+.twd-card-layout-2-15 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 16.4246%;
+}
+
+.twd-card-layout-2-16 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 15.5307%;
+}
+
+.twd-card-layout-3-7,
+.twd-card-layout-3-16 {
+  --twd-card-black-left: 7.7165%;
+  --twd-card-black-top: 61.3408%;
+  --twd-card-black-width: 84.7244%;
+  --twd-card-black-height: 10.3911%;
+}
+
+.twd-card-layout-3-12 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 17.7654%;
+}
+
+.twd-card-layout-3-15 {
+  --twd-card-black-left: 7.5591%;
+  --twd-card-black-top: 65.9218%;
+  --twd-card-black-width: 84.8819%;
+  --twd-card-black-height: 15.4190%;
+}
+
+/* Consequences blanches. */
+.twd-card-layout-2-6 {
+  --twd-card-white-left: 7.7165%;
+  --twd-card-white-top: 65.9218%;
+  --twd-card-white-width: 84.4094%;
+  --twd-card-white-height: 15.5307%;
+}
+
+.twd-card-layout-3-2,
+.twd-card-layout-3-6 {
+  --twd-card-white-left: 7.7165%;
+  --twd-card-white-top: 65.9218%;
+  --twd-card-white-width: 84.4094%;
+  --twd-card-white-height: 13.7430%;
+}
+
+.twd-card-layout-3-3 {
+  --twd-card-white-left: 7.7165%;
+  --twd-card-white-top: 65.9218%;
+  --twd-card-white-width: 84.4094%;
+  --twd-card-white-height: 14.9721%;
+}
+
+.twd-card-layout-3-7,
+.twd-card-layout-3-16 {
+  --twd-card-white-left: 8.1890%;
+  --twd-card-white-top: 73.1844%;
+  --twd-card-white-width: 84.0945%;
+  --twd-card-white-height: 10.0559%;
+}
+
+/* Zone speciale "memorisez immediatement" de Brigade et Horde. */
+.twd-card-layout-2-9,
+.twd-card-layout-3-5 {
+  --twd-card-special-left: 5.3543%;
+  --twd-card-special-top: 63.4637%;
+  --twd-card-special-width: 89.4488%;
+  --twd-card-special-height: 15.3073%;
+}
+
+/* Consequences grises. */
+.twd-card-layout-2-2 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 86.4804%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 8.1564%;
+}
+
+.twd-card-layout-2-3,
+.twd-card-layout-2-4,
+.twd-card-layout-2-8,
+.twd-card-layout-3-1 {
+  --twd-card-grey-left: 8.0315%;
+  --twd-card-grey-top: 73.1844%;
+  --twd-card-grey-width: 84.2520%;
+  --twd-card-grey-height: 21.8994%;
+}
+
+.twd-card-layout-2-5 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 83.1285%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 11.5084%;
+}
+
+.twd-card-layout-2-6 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 82.9050%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 11.7318%;
+}
+
+.twd-card-layout-2-7 {
+  --twd-card-grey-left: 7.4016%;
+  --twd-card-grey-top: 82.0112%;
+  --twd-card-grey-width: 84.5669%;
+  --twd-card-grey-height: 12.6257%;
+}
+
+.twd-card-layout-2-9,
+.twd-card-layout-3-5 {
+  --twd-card-grey-left: 8.0315%;
+  --twd-card-grey-top: 80.8939%;
+  --twd-card-grey-width: 84.2520%;
+  --twd-card-grey-height: 14.7486%;
+}
+
+.twd-card-layout-2-10,
+.twd-card-layout-2-11,
+.twd-card-layout-2-12,
+.twd-card-layout-2-13,
+.twd-card-layout-2-14,
+.twd-card-layout-2-17,
+.twd-card-layout-2-18,
+.twd-card-layout-3-2,
+.twd-card-layout-3-4,
+.twd-card-layout-3-6,
+.twd-card-layout-3-8,
+.twd-card-layout-3-9,
+.twd-card-layout-3-10,
+.twd-card-layout-3-11,
+.twd-card-layout-3-13,
+.twd-card-layout-3-14,
+.twd-card-layout-3-17 {
+  --twd-card-grey-left: 7.4016%;
+  --twd-card-grey-top: 81.2291%;
+  --twd-card-grey-width: 84.5669%;
+  --twd-card-grey-height: 13.4078%;
+}
+
+.twd-card-layout-2-15 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 83.6872%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 10.9497%;
+}
+
+.twd-card-layout-2-16 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 82.6816%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 11.9553%;
+}
+
+.twd-card-layout-3-3 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 82.3464%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 12.2905%;
+}
+
+.twd-card-layout-3-7,
+.twd-card-layout-3-16 {
+  --twd-card-grey-left: 8.0315%;
+  --twd-card-grey-top: 84.9162%;
+  --twd-card-grey-width: 84.5669%;
+  --twd-card-grey-height: 10.1676%;
+}
+
+.twd-card-layout-3-12 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 85.0279%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 9.6089%;
+}
+
+.twd-card-layout-3-15 {
+  --twd-card-grey-left: 7.5591%;
+  --twd-card-grey-top: 82.6816%;
+  --twd-card-grey-width: 84.4094%;
+  --twd-card-grey-height: 11.9553%;
+}
+
 /* ressources */
 .twd-ressources-slot {
   width: 90px;
