@@ -1685,7 +1685,7 @@ final class GameRulesTest extends TestCase
         $deckManager->cards = [
             8 => [
                 'id' => 8,
-                'location' => Location::STORY_CURRENT,
+                'location' => Location::CURRENT_CARD_RESOLUTION,
                 'location_arg' => 0,
                 'card_name' => 'Site Manager',
                 'consequence_grey' => $consequence,
@@ -1817,7 +1817,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
             'id' => 8,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
         ];
@@ -2103,7 +2103,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[6] = [
             'id' => 6,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Wolf Trap',
         ];
@@ -2155,7 +2155,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
             'id' => 8,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
             'consequence_grey' => [
@@ -2212,7 +2212,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
             'id' => 8,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
         ];
@@ -2534,7 +2534,7 @@ final class GameRulesTest extends TestCase
             public array $cards = [
                 19 => [
                     'id' => 19,
-                    'location' => Location::STORY_CURRENT,
+                    'location' => Location::CURRENT_CARD_RESOLUTION,
                     'card_name' => 'Wild Zero',
                     'consequence_grey' => [
                         'action' => 'bite',
@@ -2621,7 +2621,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[13] = [
             'id' => 13,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Brigade',
             'consequence_grey' => [
@@ -2747,7 +2747,7 @@ final class GameRulesTest extends TestCase
         $deckManager->cards = [
             17 => [
                 'id' => 17,
-                'location' => Location::STORY_CURRENT,
+                'location' => Location::CURRENT_CARD_RESOLUTION,
                 'location_arg' => 0,
                 'card_name' => 'Cellar',
                 'consequence_grey' => [
@@ -4006,12 +4006,12 @@ final class GameRulesTest extends TestCase
 
         self::assertTrue($this->invoke('checkWin'));
 
-        $deckManager->cardsByLocation[Location::STORY_CURRENT] = [
+        $deckManager->cardsByLocation[Location::CURRENT_CARD_RESOLUTION] = [
             ['id' => 7],
         ];
         self::assertFalse($this->invoke('checkWin'));
 
-        $deckManager->cardsByLocation[Location::STORY_CURRENT] = [];
+        $deckManager->cardsByLocation[Location::CURRENT_CARD_RESOLUTION] = [];
         $deckManager->cardsByLocation[Location::MEMORY] = [
             ['id' => 8],
         ];
@@ -4159,7 +4159,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[15] = [
             'id' => 15,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Horse',
             'is_character' => '0',
@@ -4182,7 +4182,7 @@ final class GameRulesTest extends TestCase
         $notification = end($this->game->notify->events);
         self::assertSame('cardMoved', $notification['type']);
         self::assertSame(
-            Location::STORY_CURRENT,
+            Location::CURRENT_CARD_RESOLUTION,
             $notification['arguments']['source']
         );
         self::assertSame(
@@ -4196,7 +4196,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
             'id' => 8,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Ellie and Joel',
             'is_character' => '1',
@@ -4257,7 +4257,7 @@ final class GameRulesTest extends TestCase
                 return $event['type'] === 'characterPutInPlay';
             }
         ))[0];
-        self::assertSame(Location::STORY_CURRENT, $notification['arguments']['source']);
+        self::assertSame(Location::CURRENT_CARD_RESOLUTION, $notification['arguments']['source']);
     }
 
     public function testStoryCheckAppliesGreyConsequenceOnlyWhenCardIsRevealed(): void
@@ -4330,7 +4330,7 @@ final class GameRulesTest extends TestCase
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
         $deckManager->cards[8] = [
             'id' => 8,
-            'location' => Location::STORY_CURRENT,
+            'location' => Location::CURRENT_CARD_RESOLUTION,
             'location_arg' => 0,
             'card_name' => 'Bitten character',
             'is_character' => '1',
@@ -4576,6 +4576,10 @@ final class GameRulesTest extends TestCase
         $this->game->actPlayCard(6, Location::ESCAPED);
 
         self::assertSame(Location::HAND, $deckManager->cards[6]['location']);
+        self::assertSame(
+            'cardResolutionStarted',
+            end($this->game->notify->events)['type']
+        );
 
         $this->game->stEventDispatcher();
 
@@ -4692,6 +4696,10 @@ final class GameRulesTest extends TestCase
 
         self::assertSame(Location::HAND, $deckManager->cards[10]['location']);
         self::assertSame(Location::MEMORY, $deckManager->cards[20]['location']);
+        self::assertSame(
+            'cardResolutionStarted',
+            end($this->game->notify->events)['type']
+        );
 
         $this->game->stEventDispatcher();
         self::assertTrue($this->game->argEscapeTallaChoice()['mustChooseMemory']);
@@ -4761,7 +4769,12 @@ final class GameRulesTest extends TestCase
         self::assertSame(0, $deckManager->countCardInLocation(Location::HAND));
         self::assertSame(Location::MEMORY, $deckManager->cards[18]['location']);
         self::assertSame(
-            ['applyingConsequence', 'cardMoved', 'cardInMemory'],
+            [
+                'cardResolutionStarted',
+                'applyingConsequence',
+                'cardMoved',
+                'cardInMemory',
+            ],
             array_column($this->game->notify->events, 'type')
         );
         self::assertSame(

@@ -1429,6 +1429,16 @@ class Game extends \Bga\GameFramework\Table
                     $location === Location::MEMORY ? 'white' : 'black',
                     null
                 );
+                $this->notify->all(
+                    'cardResolutionStarted',
+                    \clienttranslate('${card_name} is resolving its consequence'),
+                    [
+                        'card' => $card,
+                        'card_name' => $card_name,
+                        'destination' => $location,
+                        'source' => Location::HAND,
+                    ]
+                );
             } else {
                 $this->placeCardFromHand($card_id, $location);
             }
@@ -4153,7 +4163,7 @@ class Game extends \Bga\GameFramework\Table
     {
         $this->checkAction('actStoryCheckPlayerChoice');
 
-        $currentCard = $this->getCurrentStoryCard();
+        $currentCard = $this->getCurrentCardResolution();
         if ($currentCard === null) {
             throw new UserException(
                 \clienttranslate('There is no current Story Check card')
@@ -4181,18 +4191,18 @@ class Game extends \Bga\GameFramework\Table
             $currentCard,
             Location::CHARACTERS_IN_PLAY
         )) {
-            $this->putStoryCharacterInPlay($currentCard);
+            $this->putResolvedCharacterInPlay($currentCard);
         } else {
             $this->deckManager->moveCard(
                 $cardId,
-                Location::STORY_CURRENT,
+                Location::CURRENT_CARD_RESOLUTION,
                 1
             );
         }
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
     }
 
-    private function putStoryCharacterInPlay(array $card): void
+    private function putResolvedCharacterInPlay(array $card): void
     {
         $cardId = intval($card['id']);
         $this->deckManager->moveCard(
@@ -4206,7 +4216,7 @@ class Game extends \Bga\GameFramework\Table
             [
                 'card' => $character,
                 'card_name' => $character['card_name'],
-                'source' => Location::STORY_CURRENT,
+                'source' => Location::CURRENT_CARD_RESOLUTION,
             ]
         );
     }
@@ -4283,14 +4293,14 @@ class Game extends \Bga\GameFramework\Table
      */
     public function stStoryCheckStep(): void
     {
-        $currentCard = $this->getCurrentStoryCard();
+        $currentCard = $this->getCurrentCardResolution();
         if ($currentCard === null) {
             $memoryTop = $this->deckManager->getCardOnTop(Location::MEMORY);
             if ($memoryTop !== null) {
                 $cardId = intval($memoryTop['id']);
                 $this->deckManager->moveCard(
                     $cardId,
-                    Location::STORY_CURRENT
+                    Location::CURRENT_CARD_RESOLUTION
                 );
                 $currentCard = $this->deckManager->getCard($cardId);
                 $nextMemoryTop = $this->deckManager->getCardOnTop(
@@ -4310,7 +4320,7 @@ class Game extends \Bga\GameFramework\Table
                         ),
                     ]
                 );
-                $currentCard = $this->getCurrentStoryCard();
+                $currentCard = $this->getCurrentCardResolution();
                 if ($currentCard === null) {
                     throw new SystemException(
                         'Story Check card could not be installed'
@@ -4329,7 +4339,7 @@ class Game extends \Bga\GameFramework\Table
                 $currentCard,
                 Location::CHARACTERS_IN_PLAY
             )) {
-                $this->putStoryCharacterInPlay($currentCard);
+                $this->putResolvedCharacterInPlay($currentCard);
             } else {
                 $this->moveCard(
                     intval($currentCard['id']),
@@ -4360,7 +4370,7 @@ class Game extends \Bga\GameFramework\Table
 
     public function argStoryCheckPlayerChoice(): array
     {
-        $currentCard = $this->getCurrentStoryCard();
+        $currentCard = $this->getCurrentCardResolution();
         return [
             'currentCard' => $currentCard,
             'pendingAction' => $currentCard === null
@@ -4381,15 +4391,17 @@ class Game extends \Bga\GameFramework\Table
         return 'resolveCard';
     }
 
-    private function getCurrentStoryCard(): ?array
+    private function getCurrentCardResolution(): ?array
     {
-        return $this->deckManager->getCardOnTop(Location::STORY_CURRENT);
+        return $this->deckManager->getCardOnTop(
+            Location::CURRENT_CARD_RESOLUTION
+        );
     }
 
     private function checkWin(): bool
     {
         return $this->deckManager->countCardInLocation(Location::MEMORY) === 0
-            && $this->getCurrentStoryCard() === null;
+            && $this->getCurrentCardResolution() === null;
     }
     private function isLossReached(): bool
     {
@@ -4499,7 +4511,7 @@ class Game extends \Bga\GameFramework\Table
         $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
         $result['memoryTop'] = $this->getMemoryTopForDisplay();
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
-        $result['storyCurrent'] = $this->getCurrentStoryCard();
+        $result['currentCardResolution'] = $this->getCurrentCardResolution();
         $result['escaped'] = $this->deckManager->getCardsInLocation(Location::ESCAPED, null, 'location_arg');
         $result['graveyardNb'] = $this->deckManager->countCardInLocation(Location::GRAVEYARD);
         $graveyardTop = $this->deckManager->getCardOnTop(Location::GRAVEYARD);

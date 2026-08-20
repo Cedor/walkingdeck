@@ -114,8 +114,8 @@ describe("card helpers", () => {
   });
 
   it("restores the phase two areas from numeric gamedata", () => {
-    const storyOrganiser = { style: {} };
-    documentElementOverrides.story_organiser = storyOrganiser;
+    const resolutionOrganiser = { style: {} };
+    documentElementOverrides.card_resolution_organiser = resolutionOrganiser;
     const context = { setHandVisible: spy() };
 
     try {
@@ -123,9 +123,9 @@ describe("card helpers", () => {
 
       assert.equal(context.gamePhase, 2);
       assert.equal(context.setHandVisible.calls[0][0], false);
-      assert.equal(storyOrganiser.style.display, "block");
+      assert.equal(resolutionOrganiser.style.display, "block");
     } finally {
-      delete documentElementOverrides.story_organiser;
+      delete documentElementOverrides.card_resolution_organiser;
     }
   });
 
@@ -1789,6 +1789,60 @@ describe("notifications", () => {
     assert.equal(destination.addCard.calls[0][1].fromStock, source);
   });
 
+  it("shows a played card in the intermediate area during consequence resolution", async () => {
+    const resolutionOrganiser = { style: { display: "none" } };
+    documentElementOverrides.card_resolution_organiser = resolutionOrganiser;
+    const hand = {};
+    const currentCardResolution = { addCard: spy(async () => undefined) };
+    const context = {
+      hand,
+      currentCardResolution,
+      resolvingCardIds: new Set(),
+    };
+    const card = { id: 10, card_name: "Tallahassee" };
+
+    try {
+      await game.notif_cardResolutionStarted.call(context, { card });
+
+      assert.equal(resolutionOrganiser.style.display, "block");
+      assert.equal(context.resolvingCardIds.has(10), true);
+      assert.equal(currentCardResolution.addCard.calls[0][0], card);
+      assert.equal(currentCardResolution.addCard.calls[0][1].fromStock, hand);
+    } finally {
+      delete documentElementOverrides.card_resolution_organiser;
+    }
+  });
+
+  it("moves a resolved card from the intermediate area and hides it in phase one", async () => {
+    const resolutionOrganiser = { style: { display: "block" } };
+    documentElementOverrides.card_resolution_organiser = resolutionOrganiser;
+    const context = {
+      gamePhase: 1,
+      resolvingCardIds: new Set([10]),
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: spy(),
+    };
+    const card = { id: 10, card_name: "Tallahassee" };
+
+    try {
+      await game.notif_cardMoved.call(context, {
+        card,
+        source: "hand",
+        destination: "memory",
+      });
+
+      assert.deepEqual(
+        context.moveCardToLocation.calls[0],
+        [card, "memory", "current_card_resolution", false]
+      );
+      assert.equal(context.resolvingCardIds.size, 0);
+      assert.equal(resolutionOrganiser.style.display, "none");
+    } finally {
+      delete documentElementOverrides.card_resolution_organiser;
+    }
+  });
+
   it("updates a mixed deck back after its top card moves", async () => {
     const nextTopCard = {
       id: "deck_rural-5-top-card",
@@ -1901,12 +1955,12 @@ describe("notifications", () => {
       addCard: spy(async () => undefined),
       removeAll: spy(),
     };
-    const storyCurrent = {
+    const currentCardResolution = {
       addCard: spy(async () => undefined),
     };
     const context = {
       memory,
-      storyCurrent,
+      currentCardResolution,
       deckTopTypes: { memory: "2" },
       getLocation: () => memory,
       setDeckState: game.setDeckState,
@@ -1920,23 +1974,26 @@ describe("notifications", () => {
       memoryNb: 2,
     });
 
-    assert.equal(storyCurrent.addCard.calls[0][0], card);
-    assert.equal(storyCurrent.addCard.calls[0][1].fromStock, memory);
+    assert.equal(currentCardResolution.addCard.calls[0][0], card);
+    assert.equal(currentCardResolution.addCard.calls[0][1].fromStock, memory);
     assert.equal(memory.setCardNumber.calls[0][0], 2);
     assert.equal(memory.setCardNumber.calls[0][1], memoryTopCard);
   });
 
   it("moves a resolved character from the current Story card to the characters area", async () => {
-    const storyCurrent = {};
+    const currentCardResolution = {};
     const characters = { addCard: spy(async () => undefined) };
-    const context = { storyCurrent, characters };
+    const context = { currentCardResolution, characters };
     const card = { id: 8, is_character: "1" };
 
     await game.notif_characterPutInPlay.call(context, { card });
 
     assert.equal(characters.addCard.calls.length, 1);
     assert.equal(characters.addCard.calls[0][0], card);
-    assert.equal(characters.addCard.calls[0][1].fromStock, storyCurrent);
+    assert.equal(
+      characters.addCard.calls[0][1].fromStock,
+      currentCardResolution
+    );
   });
 
   it("updates a character after its wounds change", () => {

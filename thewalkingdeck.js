@@ -31,6 +31,7 @@ define([
       this.gamePhase = 1;
       this.isTestMode = false;
       this.lossCondition = 5; //default value
+      this.resolvingCardIds = new Set();
     },
 
     /*
@@ -99,10 +100,10 @@ define([
                 </div>
               </div>
             </div>
-            <div id="story_organiser">
-              <div id="story_current_wrap" class="characters-slot-wrap">
-                <b>${_("Current Story Card")}</b>
-                <div id="story_current"></div>
+            <div id="card_resolution_organiser">
+              <div id="current_card_resolution_wrap" class="characters-slot-wrap">
+                <b>${_("Current Card Resolution")}</b>
+                <div id="current_card_resolution"></div>
               </div>
               <div id="characters_wrap" class="characters-slot-wrap">
                 <b>${_("Characters")}</b>
@@ -365,9 +366,9 @@ define([
         direction: "row",
         center: false,
       });
-      this.storyCurrent = new BgaCards.SlotStock(
+      this.currentCardResolution = new BgaCards.SlotStock(
         this.cardsManager,
-        document.getElementById("story_current"),
+        document.getElementById("current_card_resolution"),
         {
           slotsIds: ["current"],
           slotClasses: ["twd-card-slot"],
@@ -445,8 +446,10 @@ define([
       for (let character in this.gamedatas.charactersInPlay) {
         this.characters.addCard(this.gamedatas.charactersInPlay[character]);
       }
-      if (this.gamedatas.storyCurrent) {
-        this.storyCurrent.addCard(this.gamedatas.storyCurrent);
+      if (this.gamedatas.currentCardResolution) {
+        this.currentCardResolution.addCard(
+          this.gamedatas.currentCardResolution
+        );
       }
 
       // Setup connections
@@ -628,7 +631,7 @@ define([
           }
           break;
         case "storyCheck":
-          document.getElementById("story_organiser").style.display = "block";
+          document.getElementById("card_resolution_organiser").style.display = "block";
           break;
         case "dummy":
           break;
@@ -646,7 +649,7 @@ define([
       this.gamePhase = Number(gamePhase);
       const phaseTwo = this.gamePhase === 2;
       this.setHandVisible(!phaseTwo);
-      document.getElementById("story_organiser").style.display = phaseTwo
+      document.getElementById("card_resolution_organiser").style.display = phaseTwo
         ? "block"
         : "none";
       if (this.ressourcesSlots) {
@@ -1125,8 +1128,8 @@ define([
           return this.urbanDeck;
         case "brainstorm":
           return this.brainstorm;
-        case "story_current":
-          return this.storyCurrent;
+        case "current_card_resolution":
+          return this.currentCardResolution;
         case "characters":
           return this.characters;
         default:
@@ -1231,7 +1234,7 @@ define([
           break;
         case "escaped":
         case "hand":
-        case "story_current":
+        case "current_card_resolution":
           break;
         case "brainstorm":
           break;
@@ -2202,6 +2205,18 @@ define([
       let destination = this.getLocation(args.destination);
       await destination.addCard(card, { fromStock: source });
     },
+    notif_cardResolutionStarted: async function (args) {
+      if (!args.card) return;
+      if (!this.resolvingCardIds) this.resolvingCardIds = new Set();
+      this.resolvingCardIds.add(Number(args.card.id));
+      const resolutionOrganiser = document.getElementById(
+        "card_resolution_organiser"
+      );
+      if (resolutionOrganiser) resolutionOrganiser.style.display = "block";
+      await this.currentCardResolution.addCard(args.card, {
+        fromStock: this.hand,
+      });
+    },
     notif_storyCheckStarted: async function (args) {
       console.log("notif_storyCheckStarted");
       console.log(args);
@@ -2216,10 +2231,12 @@ define([
       }
     },
     notif_storyCardResolved: async function (args) {
-      await this.storyCurrent.removeCard(args.card);
+      await this.currentCardResolution.removeCard(args.card);
     },
     notif_storyCardRevealed: async function (args) {
-      await this.storyCurrent.addCard(args.card, { fromStock: this.memory });
+      await this.currentCardResolution.addCard(args.card, {
+        fromStock: this.memory,
+      });
       await this.setDeckState("memory", args.memoryNb, args.memoryTopCard);
     },
     notif_ressourceFlipped: function (args) {
@@ -2263,7 +2280,9 @@ define([
       console.log(args);
       let card = args.card;
       if (card) {
-        await this.characters.addCard(card, { fromStock: this.storyCurrent });
+        await this.characters.addCard(card, {
+          fromStock: this.currentCardResolution,
+        });
       }
     },
     notif_characterWoundsChanged: function (args) {
@@ -2299,7 +2318,25 @@ define([
       if (args.destination === "brainstorm") {
         document.getElementById("brainstorm_wrap").style.display = "block";
       }
-      await this.moveCardToLocation(args.card, args.destination, args.source, args.special || false);
+      const cardId = Number(args.card?.id);
+      const wasResolving = Boolean(
+        this.resolvingCardIds && this.resolvingCardIds.has(cardId)
+      );
+      await this.moveCardToLocation(
+        args.card,
+        args.destination,
+        wasResolving ? "current_card_resolution" : args.source,
+        args.special || false
+      );
+      if (wasResolving) {
+        this.resolvingCardIds.delete(cardId);
+        if (Number(this.gamePhase) !== 2 && this.resolvingCardIds.size === 0) {
+          const resolutionOrganiser = document.getElementById(
+            "card_resolution_organiser"
+          );
+          if (resolutionOrganiser) resolutionOrganiser.style.display = "none";
+        }
+      }
       if (args.sourceDeckNb !== undefined) {
         await this.setDeckState(
           args.source,
