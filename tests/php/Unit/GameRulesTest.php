@@ -4783,6 +4783,46 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testPlayingLastCardWithBothDrawDecksEmptyStartsStoryCheck(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[18] = [
+            'id' => 18,
+            'type' => '2',
+            'location' => Location::HAND,
+            'location_arg' => 0,
+            'card_name' => 'Teddy Bear',
+            'is_character' => '0',
+            'consequence_black' => null,
+            'consequence_white' => ['action' => 'nothing'],
+            'consequence_grey' => null,
+        ];
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('eventStack', $this->createEventStack());
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        $this->game->actPlayCard(18, Location::MEMORY);
+        $this->game->stEventDispatcher();
+
+        self::assertSame(0, $deckManager->countCardInLocation(Location::HAND));
+        self::assertSame(0, $deckManager->countCardInLocation(Location::RURAL));
+        self::assertSame(0, $deckManager->countCardInLocation(Location::URBAN));
+        self::assertSame(Location::MEMORY, $deckManager->cards[18]['location']);
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS, Transition::STORY_CHECK],
+            $gamestate->transitions
+        );
+    }
+
     public function testInvalidProtagonistCannotSetLossCondition(): void
     {
         $this->expectException(UserException::class);
@@ -4792,13 +4832,6 @@ final class GameRulesTest extends TestCase
             'type_arg' => 1,
             'losscon' => 5,
         ]]);
-    }
-
-    public function testDevelopmentActionIsRejectedInNormalMode(): void
-    {
-        $this->game->setGameStateValue('gameMode', 1);
-        $this->expectException(UserException::class);
-        $this->game->actGoToStoryCheck();
     }
 
     public function testGameModeUsesThePersistedGlobalValue(): void

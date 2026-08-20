@@ -4163,24 +4163,6 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * TODO : remove after tests
-     *
-     * @throws BgaUserException
-     */
-    public function actGoToStoryCheck(): void
-    {
-        $this->assertTestMode();
-        $this->checkAction('actGoToStoryCheck');
-        if (intval($this->getGameStateValue('gamePhase')) !== 1) {
-            throw new UserException(
-                \clienttranslate('Story Check has already started')
-            );
-        }
-
-        $this->gamestate->nextState(Transition::STORY_CHECK);
-    }
-
-    /**
      * Player action : resolve effects during a story check step
      *
      * @throws BgaUserException

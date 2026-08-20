@@ -140,13 +140,11 @@ $machinestates = [
         ->possibleactions([
             'actPlayCard',
             'actRefillHand',
-            'actGoToStoryCheck',// TEST remove after tests
         ])
         ->transitions([
             Transition::PLAY_CARDS => GameStep::PLAY_CARDS,
             Transition::DRAW_CARDS => GameStep::DRAW_CARDS,
             Transition::ADDITIONAL_DRAW_CARDS => GameStep::ADDITIONAL_DRAW,
-            Transition::STORY_CHECK => GameStep::STORY_CHECK,
             Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
             Transition::GAME_END => GameStep::GAME_END
         ])
