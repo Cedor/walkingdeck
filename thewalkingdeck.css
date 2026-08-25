@@ -93,46 +93,93 @@
   cursor: pointer;
 }
 
+#table_scale_wrap {
+  --twd-table-scale: 1;
+  position: relative;
+  margin: 0 auto;
+}
+
+#player_table {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
 #table_organiser {
   position: relative;
   width: max-content;
   display: grid;
-  grid-auto-columns: auto;
+  grid-template-areas:
+    "rural urban escaped resources"
+    "memory protagonist graveyard disasters";
+  grid-template-columns: repeat(4, max-content);
+  justify-items: center;
+  transform: scale(var(--twd-table-scale));
+  transform-origin: top left;
 }
 
-#memory_wrap {
-  grid-column: 1;
-  grid-row: 2;
+#table_scale_wrap[data-twd-columns="2"] #table_organiser {
+  grid-template-areas:
+    "rural urban"
+    "memory protagonist"
+    "escaped graveyard"
+    "resources disasters";
+  grid-template-columns: repeat(2, max-content);
 }
 
-#escaped_wrap {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-#ressources_wrap {
-  grid-column: 4;
-  grid-row: 1;
+#table_scale_wrap[data-twd-columns="1"] #table_organiser {
+  grid-template-areas:
+    "rural"
+    "urban"
+    "memory"
+    "protagonist"
+    "escaped"
+    "graveyard"
+    "resources"
+    "disasters";
+  grid-template-columns: max-content;
 }
 
 #deck_rural_wrap {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: rural;
 }
 
 #deck_urban_wrap {
-  grid-column: 2;
-  grid-row: 1;
+  grid-area: urban;
+}
+
+#memory_wrap {
+  grid-area: memory;
 }
 
 #protagonist_wrap {
-  grid-column: 2;
-  grid-row: 2;
+  grid-area: protagonist;
+}
+
+#escaped_wrap {
+  grid-area: escaped;
 }
 
 #graveyard_wrap {
-  grid-column: 3;
-  grid-row: 2;
+  grid-area: graveyard;
+}
+
+#ressources_wrap {
+  grid-area: resources;
+}
+
+#disasters_wrap {
+  grid-area: disasters;
+}
+
+#card_resolution_organiser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.characters-slot-wrap {
+  min-width: 0;
+  flex: 1 1 179px;
 }
 
 .location-wrap {
@@ -155,21 +202,22 @@
    * Echelle typographique mesuree sur les cartes source de 635 x 895 px,
    * affichees ici en 127 x 179 px (facteur 1/5).
    *
-   * Source       CSS     Usage
-   * 76-80 px     16 px   nom de la carte
-   * 32 px        6.4 px  texte courant
-   * 40 px        8 px    effet court (une ou deux lignes)
-   * 27.5 px      5.5 px  texte dense
+   * Source       CSS initial   Ratio   Usage
+   * 76-80 px     16 px         2.5em   nom de la carte
+   * 32 px        6.4 px        1em     texte courant
+   * 40 px        8 px          1.25em  effet court (une ou deux lignes)
+   * 27.5 px      5.5 px        .859em  texte dense
    */
-  --twd-card-font-size-name: 16px;
-  --twd-card-font-size-body: 6.4px;
-  --twd-card-font-size-short: 8px;
-  --twd-card-font-size-dense: 5.5px;
+  --twd-card-font-size-name: 2.5em;
+  --twd-card-font-size-body: 1em;
+  --twd-card-font-size-short: 1.25em;
+  --twd-card-font-size-dense: 0.859375em;
   --twd-card-line-height-body: 1.06;
   display: inline-block;
   position: relative;
   width: 127px;
   height: 179px;
+  font-size: 6.4px;
 }
 
 .twd-card-front,
@@ -902,6 +950,7 @@
 
 #brainstorm {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
   min-height: 179px;
