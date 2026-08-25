@@ -61,12 +61,16 @@ describe("card helpers", () => {
     assert.match(protagonistSlotSetup, /cardClickEventFilter:\s*"all"/);
   });
 
-  it("renders the brainstorm area above the hand", () => {
+  it("renders the brainstorm area above card resolution and the hand", () => {
     const source = readFileSync(
       new URL("../../thewalkingdeck.js", import.meta.url),
       "utf8"
     );
 
+    assert.ok(
+      source.indexOf('<div id="brainstorm_wrap"')
+        < source.indexOf('<div id="card_resolution_organiser"')
+    );
     assert.ok(
       source.indexOf('<div id="brainstorm_wrap"')
         < source.indexOf('<div id="hand_wrap"')

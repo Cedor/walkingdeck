@@ -165,6 +165,11 @@ define([
               </div>
               </div>
             </div>
+            <div id="brainstorm_wrap" class="whiteblock">
+              <b id="brainstorm_label">${_("Brainstorm")}</b>
+              <div id="brainstorm_help" class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
+              <div id="brainstorm"></div>
+            </div>
             <div id="card_resolution_organiser">
               <div id="current_card_resolution_wrap" class="characters-slot-wrap">
                 <b>${_("Current Card Resolution")}</b>
@@ -177,14 +182,6 @@ define([
             </div>
           </div>
           `
-      );
-      document.getElementById("game_play_area").insertAdjacentHTML(
-        "beforeend",
-        `<div id="brainstorm_wrap" class="whiteblock">
-            <b id="brainstorm_label">${_("Brainstorm")}</b>
-            <div id="brainstorm_help" class="brainstorm-help">${_("Drag the cards to reorder them. The left card will be on top.")}</div>
-            <div id="brainstorm"></div>
-          </div>`
       );
       document.getElementById("game_play_area").insertAdjacentHTML(
         "beforeend",
