@@ -46,6 +46,23 @@
 
 /********* You can start writing your CSS below this line: **********/
 
+/* Polices embarquees localement : aucun chargement externe en cours de partie. */
+@font-face {
+  font-family: "TWD Amatic SC";
+  src: url("fonts/AmaticSC-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "TWD Comic Neue";
+  src: url("fonts/ComicNeue-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 /*
     Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
 
@@ -134,6 +151,21 @@
 }
 
 .twd-card {
+  /*
+   * Echelle typographique mesuree sur les cartes source de 635 x 895 px,
+   * affichees ici en 127 x 179 px (facteur 1/5).
+   *
+   * Source       CSS     Usage
+   * 76-80 px     16 px   nom de la carte
+   * 32 px        6.4 px  texte courant
+   * 40 px        8 px    effet court (une ou deux lignes)
+   * 27.5 px      5.5 px  texte dense
+   */
+  --twd-card-font-size-name: 16px;
+  --twd-card-font-size-body: 6.4px;
+  --twd-card-font-size-short: 8px;
+  --twd-card-font-size-dense: 5.5px;
+  --twd-card-line-height-body: 1.06;
   display: inline-block;
   position: relative;
   width: 127px;
@@ -195,9 +227,10 @@
   align-items: center;
   justify-content: center;
   padding: 1px 3px;
-  font-size: 5.5px;
+  font-family: "TWD Comic Neue", "Comic Sans MS", cursive;
+  font-size: var(--twd-card-font-size-body);
   font-weight: 700;
-  line-height: 1.08;
+  line-height: var(--twd-card-line-height-body);
   text-align: center;
 }
 
@@ -290,7 +323,8 @@
   align-items: center;
   justify-content: center;
   color: #151515;
-  font-size: 8px;
+  font-family: "TWD Amatic SC", "Arial Narrow", sans-serif;
+  font-size: var(--twd-card-font-size-name);
   font-weight: 700;
   line-height: 1;
   text-align: center;
@@ -347,10 +381,20 @@
   padding: 1px 3px;
   overflow: hidden;
   box-sizing: border-box;
-  font-size: 5.5px;
+  font-family: "TWD Comic Neue", "Comic Sans MS", cursive;
+  font-size: var(--twd-card-font-size-body);
   font-weight: 700;
-  line-height: 1.08;
+  line-height: var(--twd-card-line-height-body);
   text-align: center;
+}
+
+/* Variantes a appliquer lorsque la quantite de texte est connue. */
+.twd-card-text-short {
+  font-size: var(--twd-card-font-size-short);
+}
+
+.twd-card-text-dense {
+  font-size: var(--twd-card-font-size-dense);
 }
 
 /* Protagonistes : le nom reste a gauche des symboles conserves. */
@@ -360,7 +404,7 @@
 .twd-card-layout-1-4 .twd-card-zone-name {
   justify-content: flex-start;
   padding: 0 2px;
-  font-size: 9px;
+  font-size: var(--twd-card-font-size-name);
 }
 
 .twd-card-layout-1-1 {

@@ -20,6 +20,7 @@ elseif (-not [System.IO.Path]::IsPathRooted($PasswordFile)) {
 
 $directories = @(
     'doc'
+    'fonts'
     'img'
     'misc'
     'modules'

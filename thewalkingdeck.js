@@ -148,6 +148,60 @@ define([
         element.style.setProperty("--twd-card-sprite-y", `${y}%`);
       };
 
+      /*
+       * Ajustements typographiques mesures sur les cartes source 635 x 895.
+       * Les cles sont "type-type_arg", puis le nom de la zone affichee.
+       * Une zone absente de cette table conserve la taille normale.
+       */
+      const cardTextSizeModifiers = {
+        "1-3": {
+          "body-defeat": "dense",
+          "body-rule": "dense",
+          "body-caseUp": "dense",
+          "body-caseDown": "dense",
+        },
+        "1-4": {
+          "body-rule": "dense",
+          "body-case1": "dense",
+          "body-case2": "dense",
+          "body-case3": "dense",
+        },
+        "2-1": { black: "short" },
+        "2-2": { black: "dense", grey: "short" },
+        "2-3": { grey: "short" },
+        "2-5": { black: "dense" },
+        "2-6": { white: "dense" },
+        "2-8": { grey: "short" },
+        "2-9": { special: "short", grey: "short" },
+        "2-10": { black: "short", grey: "dense" },
+        "2-11": { black: "short", grey: "dense" },
+        "2-12": { black: "short" },
+        "2-13": { grey: "dense" },
+        "2-14": { grey: "dense" },
+        "2-15": { black: "dense", grey: "short" },
+        "2-16": { grey: "short" },
+        "3-1": { grey: "short" },
+        "3-2": { white: "short" },
+        "3-4": { black: "short" },
+        "3-5": { special: "short", grey: "short" },
+        "3-6": { grey: "short" },
+        "3-7": { black: "short", grey: "dense" },
+        "3-8": { grey: "dense" },
+        "3-9": { grey: "dense" },
+        "3-10": { black: "short", grey: "dense" },
+        "3-11": { black: "dense", grey: "short" },
+        "3-12": { grey: "short" },
+        "3-13": { grey: "short" },
+        "3-15": { black: "dense" },
+        "3-16": { black: "short", grey: "short" },
+        "3-17": { black: "short" },
+      };
+
+      const getCardTextSizeClass = (cardType, cardTypeArg, zoneName) => {
+        const size = cardTextSizeModifiers[`${cardType}-${cardTypeArg}`]?.[zoneName];
+        return size ? `twd-card-text-${size}` : null;
+      };
+
       const setupCardContentZones = (card, element) => {
         const cardType = String(card.type);
         const cardTypeArg = Number(card.type_arg);
@@ -242,6 +296,10 @@ define([
         const addZone = (zoneName, text = "", definition = null) => {
           const zone = document.createElement("div");
           zone.className = `twd-card-zone twd-card-zone-${zoneName}`;
+          const sizeClass = getCardTextSizeClass(cardType, cardTypeArg, zoneName);
+          if (sizeClass) {
+            zone.classList.add(sizeClass);
+          }
           zone.dataset.cardZone = zoneName;
           zone.textContent = text;
           appendZoneText(zone, definition);
@@ -269,6 +327,14 @@ define([
               const safeBlockName = blockName.replace(/[^A-Za-z0-9_-]/g, "");
               const block = document.createElement("div");
               block.className = `twd-card-body-block twd-card-body-block-${safeBlockName}`;
+              const sizeClass = getCardTextSizeClass(
+                cardType,
+                cardTypeArg,
+                `body-${blockName}`
+              );
+              if (sizeClass) {
+                block.classList.add(sizeClass);
+              }
               block.dataset.cardBodyBlock = blockName;
               appendZoneText(block, definition);
               body.appendChild(block);
