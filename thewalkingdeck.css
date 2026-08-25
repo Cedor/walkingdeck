@@ -251,6 +251,26 @@
   vertical-align: middle;
 }
 
+.twd-card-text-icon-bite,
+.twd-card-text-icon-disaster {
+  width: 1.7em;
+  height: 1.7em;
+  min-width: 1.7em;
+  min-height: 1.7em;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  font-size: 0;
+}
+
+.twd-card-text-icon-bite {
+  background-image: url("img/card-icon-bite.gif");
+}
+
+.twd-card-text-icon-disaster {
+  background-image: url("img/card-icon-disaster.gif");
+}
+
 .twd-card-text-icon-hunger,
 .twd-card-text-icon-break,
 .twd-card-text-icon-stress,
