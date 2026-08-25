@@ -34,6 +34,58 @@ define([
       this.resolvingCardIds = new Set();
     },
 
+    setupResponsiveTable: function () {
+      const wrapper = document.getElementById("table_scale_wrap");
+      const table = document.getElementById("table_organiser");
+      const availableContainer = wrapper?.parentElement;
+      if (!wrapper || !table || !availableContainer) {
+        return;
+      }
+
+      this.tableResizeObserver?.disconnect();
+      if (this.tableResizeHandler) {
+        window.removeEventListener("resize", this.tableResizeHandler);
+      }
+      this.tableResponsiveState = null;
+
+      const updateTableScale = () => {
+        const availableWidth = availableContainer.clientWidth;
+        let columns = 1;
+        for (const candidate of [4, 2, 1]) {
+          wrapper.dataset.twdColumns = String(candidate);
+          if (candidate === 1 || table.scrollWidth <= availableWidth) {
+            columns = candidate;
+            break;
+          }
+        }
+
+        const logicalWidth = Math.max(table.offsetWidth, table.scrollWidth);
+        const logicalHeight = Math.max(table.offsetHeight, table.scrollHeight);
+        const scale = logicalWidth > 0
+          ? Math.min(1, availableWidth / logicalWidth)
+          : 1;
+        const state = [availableWidth, columns, logicalWidth, logicalHeight, scale].join(":");
+        if (this.tableResponsiveState === state) {
+          return;
+        }
+        this.tableResponsiveState = state;
+
+        wrapper.style.setProperty("--twd-table-scale", String(scale));
+        wrapper.style.width = `${logicalWidth * scale}px`;
+        wrapper.style.height = `${logicalHeight * scale}px`;
+      };
+
+      this.tableResizeHandler = updateTableScale;
+      if (typeof ResizeObserver === "function") {
+        this.tableResizeObserver = new ResizeObserver(updateTableScale);
+        this.tableResizeObserver.observe(availableContainer);
+        this.tableResizeObserver.observe(table);
+      } else {
+        window.addEventListener("resize", updateTableScale);
+      }
+      updateTableScale();
+    },
+
     /*
             setup:
             
@@ -60,7 +112,8 @@ define([
         "beforeend",
         `
           <div id="player_table" class="whiteblock">
-            <div id="table_organiser">
+            <div id="table_scale_wrap" data-twd-columns="4">
+              <div id="table_organiser">
               <div id="deck_rural_wrap" class="location-wrap">
                 <b>${_("Rural Deck")}</b>
                 <div id="deck_rural"></div>
@@ -99,6 +152,7 @@ define([
                   <div id="disasters_drawn_slot"></div>
                 </div>
               </div>
+              </div>
             </div>
             <div id="card_resolution_organiser">
               <div id="current_card_resolution_wrap" class="characters-slot-wrap">
@@ -128,6 +182,7 @@ define([
             <div id="hand"></div>
           </div>`
       );
+      this.setupResponsiveTable();
 
       // create the animation manager, and bind it to the `game.bgaAnimationsActive()` function
       this.animationManager = new BgaAnimations.Manager({
