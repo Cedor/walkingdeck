@@ -253,6 +253,24 @@
 
 .twd-card-text-icon-bite,
 .twd-card-text-icon-disaster,
+.twd-card-text-icon-heal,
+.twd-card-text-icon-hunger,
+.twd-card-text-icon-break,
+.twd-card-text-icon-stress,
+.twd-card-text-icon-consumedHunger,
+.twd-card-text-icon-consumedBreak,
+.twd-card-text-icon-consumedStress,
+.twd-card-text-icon-breakHunger,
+.twd-card-text-icon-breakStress {
+  color: transparent;
+  font-size: 1em;
+  overflow: hidden;
+  text-indent: -9999px;
+  white-space: nowrap;
+}
+
+.twd-card-text-icon-bite,
+.twd-card-text-icon-disaster,
 .twd-card-text-icon-heal {
   width: 1.7em;
   height: 1.7em;
@@ -261,7 +279,6 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  font-size: 0;
 }
 
 .twd-card-text-icon-bite {
@@ -289,7 +306,6 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  font-size: 0;
 }
 
 .twd-card-text-icon-hunger {
@@ -325,7 +341,6 @@
   background-image: url("img/disasters.png");
   background-repeat: no-repeat;
   background-size: 700% 100%;
-  font-size: 0;
 }
 
 .twd-card-text-icon-breakHunger {
