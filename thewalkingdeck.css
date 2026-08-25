@@ -46,6 +46,11 @@
 
 /********* You can start writing your CSS below this line: **********/
 
+:root {
+  /* Seule valeur a modifier pour ajuster toutes les cartes et leurs zones. */
+  --twd-card-scale: 1.3;
+}
+
 /* Polices embarquees localement : aucun chargement externe en cours de partie. */
 @font-face {
   font-family: "TWD Amatic SC";
@@ -179,12 +184,12 @@
 
 .characters-slot-wrap {
   min-width: 0;
-  flex: 1 1 179px;
+  flex: 1 1 var(--twd-card-height, 179px);
 }
 
 .location-wrap {
-  width: 179px;
-  height: 230px;
+  width: var(--twd-card-height, 179px);
+  height: var(--twd-card-location-height, 230px);
 }
 
 #escaped .twd-card {
@@ -193,14 +198,14 @@
 
 .twd-deck {
   position: relative;
-  width: 127px;
-  height: 179px;
+  width: var(--twd-card-width, 127px);
+  height: var(--twd-card-height, 179px);
 }
 
 .twd-card {
   /*
    * Echelle typographique mesuree sur les cartes source de 635 x 895 px,
-   * affichees ici en 127 x 179 px (facteur 1/5).
+   * affichees ici en 127 x 179 px lorsque --twd-card-scale vaut 1.
    *
    * Source       CSS initial   Ratio   Usage
    * 76-80 px     16 px         2.5em   nom de la carte
@@ -215,9 +220,9 @@
   --twd-card-line-height-body: 1.06;
   display: inline-block;
   position: relative;
-  width: 127px;
-  height: 179px;
-  font-size: 6.4px;
+  width: var(--twd-card-width, 127px);
+  height: var(--twd-card-height, 179px);
+  font-size: var(--twd-card-font-base-size, 6.4px);
 }
 
 .twd-card-front,
@@ -953,7 +958,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  min-height: 179px;
+  min-height: var(--twd-card-height, 179px);
   padding: 12px;
 }
 

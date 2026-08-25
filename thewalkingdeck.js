@@ -25,8 +25,19 @@ define([
   return declare("bgagame.thewalkingdeck", ebg.core.gamegui, {
     constructor: function () {
       console.log("thewalkingdeck constructor");
-      this.cardwidth = 127;
-      this.cardheight = 179;
+      const root = document.documentElement;
+      const configuredCardScale = Number.parseFloat(
+        window.getComputedStyle(root).getPropertyValue("--twd-card-scale")
+      );
+      this.cardScale = Number.isFinite(configuredCardScale) && configuredCardScale > 0
+        ? configuredCardScale
+        : 1;
+      this.cardwidth = 127 * this.cardScale;
+      this.cardheight = 179 * this.cardScale;
+      root.style.setProperty("--twd-card-width", `${this.cardwidth}px`);
+      root.style.setProperty("--twd-card-height", `${this.cardheight}px`);
+      root.style.setProperty("--twd-card-location-height", `${230 * this.cardScale}px`);
+      root.style.setProperty("--twd-card-font-base-size", `${6.4 * this.cardScale}px`);
       this.difficulty = 1;
       this.gamePhase = 1;
       this.isTestMode = false;
@@ -458,8 +469,8 @@ define([
           return !card.face_down && (card.type === "1" || card.type === "2" || card.type === "3");
         },
         getCardRotation: (card) => this.getCardRotation(card),
-        cardWidth: 127,
-        cardHeight: 179,
+        cardWidth: this.cardwidth,
+        cardHeight: this.cardheight,
       });
 
       // create decks
