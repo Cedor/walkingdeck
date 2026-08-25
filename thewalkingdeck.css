@@ -352,10 +352,10 @@
 .twd-card-text-icon-consumedHunger,
 .twd-card-text-icon-consumedBreak,
 .twd-card-text-icon-consumedStress {
-  width: 1.7em;
-  height: 1.7em;
-  min-width: 1.7em;
-  min-height: 1.7em;
+  width: 3.4em;
+  height: 3.4em;
+  min-width: 3.4em;
+  min-height: 3.4em;
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
