@@ -10,6 +10,9 @@ Les cartes PROTA ont un nettoyage dedie qui conserve leurs symboles et leurs
 elements graphiques. Les cartes 00 et DEFAULT sont copiees sans modification;
 les autres PNG sont ignores. Une sprite sheet RGBA est ensuite produite avec
 des gouttieres transparentes et une taille maximale configurable.
+La resolution est reduite automatiquement si necessaire pour respecter la
+taille de fichier maximale demandee. Les cartes intermediaires restent en
+memoire : seule la sprite sheet est ecrite dans le dossier cible.
 """
 
 from __future__ import annotations
@@ -19,7 +22,6 @@ from collections.abc import Callable
 import math
 from pathlib import Path
 import re
-import shutil
 import sys
 
 from PIL import Image
@@ -524,45 +526,63 @@ def choose_sprite_layout(
 def build_sprite(
     regular: list[Path],
     special: list[Path],
-    output_dir: Path,
+    prepared_images: dict[str, Image.Image],
     sprite_path: Path,
     max_size: int,
     gap: int,
-) -> tuple[int, int, int, int, int]:
+    max_file_bytes: int,
+) -> tuple[int, int, int, int, int, int]:
     ordered = regular + special
     if not ordered:
         raise ValueError("Aucune image reconnue pour la sprite sheet")
 
-    with Image.open(output_dir / ordered[0].name) as first:
-        source_size = first.size
+    source_size = prepared_images[ordered[0].name].size
     for source in ordered[1:]:
-        with Image.open(output_dir / source.name) as image:
-            if image.size[0] * source_size[1] != image.size[1] * source_size[0]:
-                raise ValueError(f"Ratio incompatible pour {source.name}: {image.size}, attendu {source_size}")
+        image = prepared_images[source.name]
+        if image.size[0] * source_size[1] != image.size[1] * source_size[0]:
+            raise ValueError(f"Ratio incompatible pour {source.name}: {image.size}, attendu {source_size}")
 
-    columns, rows, regular_rows, card_width, card_height = choose_sprite_layout(
-        len(regular), len(special), source_size, max_size, gap
-    )
-    sprite_width = columns * card_width + (columns - 1) * gap
-    sprite_height = rows * card_height + (rows - 1) * gap
-    sprite = Image.new("RGBA", (sprite_width, sprite_height), (0, 0, 0, 0))
+    current_max_size = max_size
+    while True:
+        columns, rows, regular_rows, card_width, card_height = choose_sprite_layout(
+            len(regular), len(special), source_size, current_max_size, gap
+        )
+        sprite_width = columns * card_width + (columns - 1) * gap
+        sprite_height = rows * card_height + (rows - 1) * gap
+        sprite = Image.new("RGBA", (sprite_width, sprite_height), (0, 0, 0, 0))
 
-    placements: list[tuple[Path, int, int]] = []
-    for index, source in enumerate(regular):
-        placements.append((source, index % columns, index // columns))
-    for index, source in enumerate(special):
-        placements.append((source, index, regular_rows))
+        placements: list[tuple[Path, int, int]] = []
+        for index, source in enumerate(regular):
+            placements.append((source, index % columns, index // columns))
+        for index, source in enumerate(special):
+            placements.append((source, index, regular_rows))
 
-    for source, column, row in placements:
-        with Image.open(output_dir / source.name) as image:
-            resized = image.convert("RGBA").resize((card_width, card_height), Image.Resampling.LANCZOS)
-        x = column * (card_width + gap)
-        y = row * (card_height + gap)
-        sprite.alpha_composite(resized, (x, y))
-        print(f"sprite {source.name}: x={x}, y={y}")
+        for source, column, row in placements:
+            resized = prepared_images[source.name].resize(
+                (card_width, card_height), Image.Resampling.LANCZOS
+            )
+            x = column * (card_width + gap)
+            y = row * (card_height + gap)
+            sprite.alpha_composite(resized, (x, y))
 
-    sprite.save(sprite_path, format="PNG", optimize=True)
-    return sprite_width, sprite_height, card_width, card_height, columns
+        sprite.save(sprite_path, format="PNG", optimize=True)
+        file_bytes = sprite_path.stat().st_size
+        if max_file_bytes == 0 or file_bytes <= max_file_bytes:
+            for source, column, row in placements:
+                x = column * (card_width + gap)
+                y = row * (card_height + gap)
+                print(f"sprite {source.name}: x={x}, y={y}")
+            return sprite_width, sprite_height, card_width, card_height, columns, file_bytes
+
+        # Le poids d'un PNG varie approximativement avec sa surface. La marge
+        # evite une deuxieme passe pour quelques octets dus a la compression.
+        reduction = math.sqrt(max_file_bytes / file_bytes) * 0.98
+        next_max_size = min(current_max_size - 1, math.floor(current_max_size * reduction))
+        print(
+            f"Sprite trop lourde ({file_bytes / 1_000_000:.2f} Mo); "
+            f"nouvel essai avec --max-size={next_max_size}"
+        )
+        current_max_size = next_max_size
 
 
 def parse_args() -> argparse.Namespace:
@@ -579,13 +599,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sprite-name", default="cards-sprite.png", help="Nom du PNG de sprite sheet")
     parser.add_argument("--gap", type=int, default=2, help="Gouttiere transparente en pixels (defaut: 2)")
     parser.add_argument("--max-size", type=int, default=4096, help="Largeur/hauteur maximale (defaut: 4096)")
+    parser.add_argument(
+        "--max-sprite-mb",
+        type=float,
+        default=9.0,
+        help="Poids maximal du sprite en Mo decimaux; 0 desactive la limite (defaut: 9)",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    if args.gap < 0 or args.max_size <= 0:
-        print("--gap doit etre positif ou nul et --max-size strictement positif", file=sys.stderr)
+    if args.gap < 0 or args.max_size <= 0 or args.max_sprite_mb < 0:
+        print(
+            "--gap et --max-sprite-mb doivent etre positifs ou nuls, "
+            "et --max-size strictement positif",
+            file=sys.stderr,
+        )
         return 1
     regular, special, ignored = ordered_sources(args.input_dir)
     sources = regular + special
@@ -595,42 +625,42 @@ def main() -> int:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     sprite_path = args.output_dir / args.sprite_name
-    existing = [args.output_dir / source.name for source in sources if (args.output_dir / source.name).exists()]
-    if sprite_path.exists():
-        existing.append(sprite_path)
-    if existing and not args.overwrite:
+    if sprite_path.exists() and not args.overwrite:
         print(
-            f"{len(existing)} fichier(s) cible(s) existent deja; utilisez --overwrite pour les remplacer.",
+            f"{sprite_path} existe deja; utilisez --overwrite pour le remplacer.",
             file=sys.stderr,
         )
         return 2
 
+    prepared_images: dict[str, Image.Image] = {}
     for source in regular:
         with Image.open(source) as image:
             result, consequence_top = neutralize(image)
-            target = args.output_dir / source.name
-            result.save(target, format="PNG", optimize=True)
+            prepared_images[source.name] = result
             print(f"{source.name}: consequences detectees a y={consequence_top}/{image.height}")
 
     for source in special:
         if PROTA_RE.match(source.name):
             with Image.open(source) as image:
                 result, frame_top = neutralize_prota(image)
-                result.save(args.output_dir / source.name, format="PNG", optimize=True)
+                prepared_images[source.name] = result
                 print(f"{source.name}: nom et cadre inferieur neutralises a y={frame_top}/{image.height}")
         else:
-            shutil.copy2(source, args.output_dir / source.name)
-            print(f"{source.name}: copie sans modification")
+            with Image.open(source) as image:
+                prepared_images[source.name] = image.convert("RGBA")
+            print(f"{source.name}: ajoutee sans modification")
 
-    sprite_width, sprite_height, card_width, card_height, columns = build_sprite(
-        regular, special, args.output_dir, sprite_path, args.max_size, args.gap
+    max_file_bytes = round(args.max_sprite_mb * 1_000_000)
+    sprite_width, sprite_height, card_width, card_height, columns, file_bytes = build_sprite(
+        regular, special, prepared_images, sprite_path, args.max_size, args.gap, max_file_bytes
     )
     if ignored:
         print("PNG ignores: " + ", ".join(path.name for path in ignored))
-    print(f"{len(sources)} carte(s) ecrite(s) dans {args.output_dir}")
+    print(f"{len(sources)} carte(s) integree(s); seule la sprite sheet a ete ecrite")
     print(
         f"Sprite: {sprite_path} ({sprite_width}x{sprite_height}), "
-        f"cartes {card_width}x{card_height}, {columns} colonne(s), gouttiere {args.gap}px"
+        f"cartes {card_width}x{card_height}, {columns} colonne(s), gouttiere {args.gap}px, "
+        f"{file_bytes / 1_000_000:.2f} Mo"
     )
     return 0
 
