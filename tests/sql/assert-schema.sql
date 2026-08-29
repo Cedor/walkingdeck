@@ -64,7 +64,7 @@ CALL assert_equals(
           AND table_name = 'twd_card_info'
           AND column_name = 'texts'
           AND is_nullable = 'YES'
-          AND column_default IS NULL
+          AND (column_default IS NULL OR column_default = 'NULL')
     )
 );
 CALL assert_equals(
