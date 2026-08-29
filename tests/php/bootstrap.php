@@ -44,6 +44,7 @@ namespace Bga\GameFramework {
         public $bga;
         public $gamestate;
         public $notify;
+        public array $extraTimePlayerIds = [];
         private array $testStateValues = [];
 
         public function __construct()
@@ -95,6 +96,16 @@ namespace Bga\GameFramework {
 
         public function checkAction(string $action): void
         {
+        }
+
+        public function getActivePlayerId(): string
+        {
+            return '1';
+        }
+
+        public function giveExtraTime(int $playerId, ?int $specificTime = null): void
+        {
+            $this->extraTimePlayerIds[] = $playerId;
         }
     }
 }

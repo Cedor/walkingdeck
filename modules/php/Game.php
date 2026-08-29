@@ -283,6 +283,7 @@ class Game extends \Bga\GameFramework\Table
                 'card_name' => $eligibleCharactersById[$card_id]['card_name'],
             ]
         );
+        $this->giveExtraTimeToActivePlayer();
     }
 
     private function applyAenorProtection(array $character, int $wounds): int
@@ -433,6 +434,7 @@ class Game extends \Bga\GameFramework\Table
         $this->ressources->consumeRessources($token_id);
         $this->revealTopDeckCard(Location::RURAL);
         $this->revealTopDeckCard(Location::URBAN);
+        $this->giveExtraTimeToActivePlayer();
     }
 
     private function availableDraws(): int
@@ -448,10 +450,23 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
+     * Restore reflection time when the same player must make another decision.
+     */
+    private function giveExtraTimeToActivePlayer(): void
+    {
+        $playerId = intval($this->getActivePlayerId());
+        if ($playerId > 0) {
+            $this->giveExtraTime($playerId);
+        }
+    }
+
+    /**
      * Resolve the shared event stack and resume the phase that queued it.
      */
     public function stEventDispatcher(): void
     {
+        $this->giveExtraTimeToActivePlayer();
+
         while (!$this->eventStack->isEmpty()) {
             $event = $this->eventStack->getCurrentEvent();
             if ($event === null) {
@@ -2638,6 +2653,7 @@ class Game extends \Bga\GameFramework\Table
                 ]
             );
         }
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::DRAFT_DISASTER_CHOICE);
     }
 
@@ -2834,6 +2850,7 @@ class Game extends \Bga\GameFramework\Table
             $resolution
         );
         $this->updateDisasterResolution($event, $resolution);
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
 
@@ -2882,6 +2899,7 @@ class Game extends \Bga\GameFramework\Table
             $resolution
         );
         $this->updateDisasterResolution($event, $resolution);
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
 
@@ -2926,6 +2944,7 @@ class Game extends \Bga\GameFramework\Table
         $this->ressources->consumeRessources($token_id);
         $resolution['ignoredCharacteristics'][] = $characteristic;
         $this->updateDisasterResolution($event, $resolution);
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::DISASTER_CHOICE);
     }
 
@@ -3130,6 +3149,7 @@ class Game extends \Bga\GameFramework\Table
                 'shuffle' => true,
             ]
         );
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::WOLF_TRAP_CHOICE);
     }
 
@@ -3766,6 +3786,7 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
+        $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::BRAINSTORM_REORDER);
     }
 
@@ -4359,6 +4380,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         if ($this->getPendingStoryAction($currentCard) !== 'resolveCard') {
+            $this->giveExtraTimeToActivePlayer();
             $this->gamestate->nextState('playerChoice');
             return;
         }

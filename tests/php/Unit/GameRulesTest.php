@@ -36,6 +36,13 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testExtraTimeIsGivenToActivePlayer(): void
+    {
+        $this->invoke('giveExtraTimeToActivePlayer');
+
+        self::assertSame([1], $this->game->extraTimePlayerIds);
+    }
+
     public function testNormalDrawRequiresCardsAndRoomInHand(): void
     {
         $counts = [
