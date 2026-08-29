@@ -65,7 +65,7 @@ $destination = "$UserName@$HostName`:$Port/$remoteRoot"
 $publishedItems = $directories + $files
 if (-not $PSCmdlet.ShouldProcess(
     $destination,
-    "Publier $($publishedItems.Count) elements par SFTP"
+    "Publier $($publishedItems.Count) elements par SFTP et synchroniser img en miroir"
 )) {
     Write-Host 'Elements qui auraient ete publies :'
     $publishedItems | ForEach-Object {
@@ -142,6 +142,23 @@ try {
 
         if (-not $session.FileExists($remoteDirectory)) {
             $session.CreateDirectory($remoteDirectory)
+        }
+
+        if ($directory -eq 'img') {
+            Write-Host 'Synchronisation miroir du dossier img...'
+            $criteria = [WinSCP.SynchronizationCriteria]::Time -bor `
+                [WinSCP.SynchronizationCriteria]::Size
+            $result = $session.SynchronizeDirectories(
+                [WinSCP.SynchronizationMode]::Remote,
+                $localDirectory,
+                $remoteDirectory,
+                $true,
+                $true,
+                $criteria,
+                $transferOptions
+            )
+            $result.Check()
+            continue
         }
 
         Write-Host "Envoi du dossier $directory..."
