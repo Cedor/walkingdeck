@@ -216,6 +216,7 @@
   --twd-card-font-size-name: 2.5em;
   --twd-card-font-size-body: 1.1em;
   --twd-card-font-size-short: 1.35em;
+  --twd-card-font-size-tiny: 2em;
   --twd-card-font-size-dense: 0.959375em;
   --twd-card-line-height-body: 1.06;
   display: inline-block;
@@ -481,6 +482,10 @@
 /* Variantes a appliquer lorsque la quantite de texte est connue. */
 .twd-card-text-short {
   font-size: var(--twd-card-font-size-short);
+}
+
+.twd-card-text-tiny {
+  font-size: var(--twd-card-font-size-tiny);
 }
 
 .twd-card-text-dense {
