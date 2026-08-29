@@ -336,15 +336,15 @@
 }
 
 .twd-card-text-icon-bite {
-  background-image: url("img/card-icon-bite.gif");
+  background-image: url("img/icons/card-icon-bite.gif");
 }
 
 .twd-card-text-icon-disaster {
-  background-image: url("img/card-icon-disaster.gif");
+  background-image: url("img/icons/card-icon-disaster.gif");
 }
 
 .twd-card-text-icon-heal {
-  background-image: url("img/card-icon-heal.gif");
+  background-image: url("img/icons/card-icon-heal.gif");
 }
 
 .twd-card-text-icon-hunger,
@@ -363,27 +363,27 @@
 }
 
 .twd-card-text-icon-hunger {
-  background-image: url("img/card-icon-hunger.gif");
+  background-image: url("img/icons/card-icon-hunger.gif");
 }
 
 .twd-card-text-icon-break {
-  background-image: url("img/card-icon-break.gif");
+  background-image: url("img/icons/card-icon-break.gif");
 }
 
 .twd-card-text-icon-stress {
-  background-image: url("img/card-icon-stress.gif");
+  background-image: url("img/icons/card-icon-stress.gif");
 }
 
 .twd-card-text-icon-consumedHunger {
-  background-image: url("img/card-icon-consumed-hunger.gif");
+  background-image: url("img/icons/card-icon-consumed-hunger.gif");
 }
 
 .twd-card-text-icon-consumedBreak {
-  background-image: url("img/card-icon-consumed-break.gif");
+  background-image: url("img/icons/card-icon-consumed-break.gif");
 }
 
 .twd-card-text-icon-consumedStress {
-  background-image: url("img/card-icon-consumed-stress.gif");
+  background-image: url("img/icons/card-icon-consumed-stress.gif");
 }
 
 .twd-card-text-icon-breakHunger,
