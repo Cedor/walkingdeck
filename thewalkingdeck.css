@@ -214,9 +214,9 @@
    * 27.5 px      5.5 px        .859em  texte dense
    */
   --twd-card-font-size-name: 2.5em;
-  --twd-card-font-size-body: 1em;
-  --twd-card-font-size-short: 1.25em;
-  --twd-card-font-size-dense: 0.859375em;
+  --twd-card-font-size-body: 1.1em;
+  --twd-card-font-size-short: 1.35em;
+  --twd-card-font-size-dense: 0.959375em;
   --twd-card-line-height-body: 1.06;
   display: inline-block;
   position: relative;
@@ -415,7 +415,7 @@
   color: #151515;
   font-family: "TWD Amatic SC", "Arial Narrow", sans-serif;
   font-size: var(--twd-card-font-size-name);
-  font-weight: 700;
+  font-weight: 900;
   line-height: 1;
   text-align: center;
 }
