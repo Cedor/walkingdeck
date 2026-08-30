@@ -1319,6 +1319,13 @@ class Game extends \Bga\GameFramework\Table
         return $card;
     }
 
+    private function getCardNameI18n(array $card): array
+    {
+        return intval($card['translate_name'] ?? 1) === 1
+            ? ['card_name']
+            : [];
+    }
+
     private function revealTopDeckCard(string $location): void
     {
         $states = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
@@ -1515,31 +1522,10 @@ class Game extends \Bga\GameFramework\Table
                 'location' => $location,
                 'destination' => $location,
                 'source' => Location::HAND,
-                'i18n' => ['card_name'],
+                'i18n' => $this->getCardNameI18n($card),
             ]
         );
 
-        if ($location === Location::MEMORY) {
-            $this->notify->all(
-                'cardInMemory',
-                \clienttranslate('Card ${card_name} placed in memory after applying white consequences'),
-                [
-                    'card' => $card,
-                    'card_name' => $cardName,
-                    'i18n' => ['card_name'],
-                ]
-            );
-        } elseif ($location === Location::ESCAPED) {
-            $this->notify->all(
-                'cardInMemory',
-                \clienttranslate('Card ${card_name} escaped after applying black consequences'),
-                [
-                    'card' => $card,
-                    'card_name' => $cardName,
-                    'i18n' => ['card_name'],
-                ]
-            );
-        }
     }
 
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
@@ -1664,7 +1650,7 @@ class Game extends \Bga\GameFramework\Table
             'location' => $location,
             'destination' => $location,
             'source' => $source,
-            'i18n' => ['card_name'],
+            'i18n' => $this->getCardNameI18n($card),
         );
         $notificationArguments = array_merge(
             $notificationArguments,
@@ -2273,7 +2259,7 @@ class Game extends \Bga\GameFramework\Table
         return [
             'sourceCard' => $sourceCard,
             'card_name' => $sourceCard['card_name'],
-            'i18n' => ['card_name'],
+            'i18n' => $this->getCardNameI18n($sourceCard),
         ];
     }
 
@@ -4233,7 +4219,7 @@ class Game extends \Bga\GameFramework\Table
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
                 'loss_condition' => $lossCon,
-                'i18n' => ['card_name'],
+                'i18n' => $this->getCardNameI18n($card),
             ));
             if ($difficulty === self::BORIS_TYPE_ARG) {
                 $this->applyBorisDeckSetup();
@@ -4283,14 +4269,18 @@ class Game extends \Bga\GameFramework\Table
             $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
             $card = $this->deckManager->getCard($cardId);
-            $this->notify->all('cardMoved', \clienttranslate('Special draw triggered by card ${card_name}'), array_merge(array(
-                'card' => $card,
-                'card_name' => $card['card_name'],
-                'source' => $location,
-                'destination' => $destination,
-                'special' => true,
-                'i18n' => ['card_name'],
-            ), $this->getSourceDeckNotificationArguments($location)));
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('Special draw triggered by card ${card_name}'),
+                array_merge(array(
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'source' => $location,
+                    'destination' => $destination,
+                    'special' => true,
+                    'i18n' => $this->getCardNameI18n($card),
+                ), $this->getSourceDeckNotificationArguments($location))
+            );
         } else {
             $message = $location === Location::RURAL
                 ? \clienttranslate('Card drawn from the Rural deck')

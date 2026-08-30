@@ -4,11 +4,43 @@ declare(strict_types=1);
 
 namespace Bga\Games\TheWalkingDeck\Tests\Unit;
 
+use Bga\Games\TheWalkingDeck\CardNameTranslations;
 use Bga\Games\TheWalkingDeck\CardTextTranslations;
 use PHPUnit\Framework\TestCase;
 
 final class ConfigurationTest extends TestCase
 {
+    public function testCardNameTranslationMarkersMatchDatabaseConfiguration(): void
+    {
+        $dbmodel = file_get_contents(dirname(__DIR__, 3) . '/dbmodel.sql');
+
+        self::assertIsString($dbmodel);
+        preg_match_all(
+            "/^\(\d+,\s*'[^']+',\s*\d+,\s*'([^']+)',.*?,\s*([01])\),?\r?$/m",
+            $dbmodel,
+            $matches,
+            PREG_SET_ORDER
+        );
+        $databaseNames = array_column(array_filter(
+            $matches,
+            static fn(array $match): bool => $match[2] === '1'
+        ), 1);
+
+        self::assertCount(40, $matches);
+        self::assertSame($databaseNames, CardNameTranslations::getAll());
+    }
+
+    public function testAllCardNamesAreInitiallyTranslatable(): void
+    {
+        $dbmodel = file_get_contents(dirname(__DIR__, 3) . '/dbmodel.sql');
+
+        self::assertIsString($dbmodel);
+        self::assertMatchesRegularExpression(
+            '/`translate_name`\s+TINYINT\(1\)\s+NOT NULL\s+DEFAULT 1/',
+            $dbmodel
+        );
+    }
+
     public function testPeripeteiaDrawTextsUseNumberArguments(): void
     {
         $dbmodel = file_get_contents(dirname(__DIR__, 3) . '/dbmodel.sql');

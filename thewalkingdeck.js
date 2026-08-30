@@ -1392,50 +1392,13 @@ define([
         */
     getCardName: function (card) {
       const originalName = typeof card === "string" ? card : card?.card_name;
-      const translatedNames = {
-        "Aénor": _("Aénor"),
-        Boris: _("Boris"),
-        Adrien: _("Adrien"),
-        "Éléonore": _("Éléonore"),
-        Punk: _("Punk"),
-        "Wolf Trap": _("Wolf Trap"),
-        Clown: _("Clown"),
-        "Ellie and Joel": _("Ellie and Joel"),
-        Kieren: _("Kieren"),
-        Tallahassee: _("Tallahassee"),
-        Gretchen: _("Gretchen"),
-        Robert: _("Robert"),
-        Brigade: _("Brigade"),
-        Bonfire: _("Bonfire"),
-        Horse: _("Horse"),
-        RV: _("RV"),
-        Cellar: _("Cellar"),
-        "Teddy Bear": _("Teddy Bear"),
-        "Wild Zero": _("Wild Zero"),
-        Voodoo: _("Voodoo"),
-        Mutt: _("Mutt"),
-        Grenade: _("Grenade"),
-        Musicians: _("Musicians"),
-        "Site Manager": _("Site Manager"),
-        Glenn: _("Glenn"),
-        Murphy: _("Murphy"),
-        Horde: _("Horde"),
-        Butler: _("Butler"),
-        "Canned food": _("Canned food"),
-        Warehouse: _("Warehouse"),
-        "Medical alcohol": _("Medical alcohol"),
-        Map: _("Map"),
-        Domitille: _("Domitille"),
-        "The reaper": _("The reaper"),
-        Controller: _("Controller"),
-        Zoey: _("Zoey"),
-        Jill: _("Jill"),
-        Shaun: _("Shaun"),
-        LGS: _("LGS"),
-        Teacher: _("Teacher"),
-      };
+      if (!originalName) return _("Unknown card");
 
-      return translatedNames[originalName] || originalName || _("Unknown card");
+      const shouldTranslate = typeof card === "string"
+        || card?.translate_name === undefined
+        || Number(card.translate_name) === 1;
+
+      return shouldTranslate ? _(originalName) : originalName;
     },
 
     getLocation: function (location) {

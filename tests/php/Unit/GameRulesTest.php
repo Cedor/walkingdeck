@@ -43,6 +43,18 @@ final class GameRulesTest extends TestCase
         self::assertSame([1], $this->game->extraTimePlayerIds);
     }
 
+    public function testCardNameTranslationFollowsCardConfiguration(): void
+    {
+        self::assertSame(
+            ['card_name'],
+            $this->invoke('getCardNameI18n', [['translate_name' => 1]])
+        );
+        self::assertSame(
+            [],
+            $this->invoke('getCardNameI18n', [['translate_name' => 0]])
+        );
+    }
+
     public function testNormalDrawRequiresCardsAndRoomInHand(): void
     {
         $counts = [
@@ -4973,7 +4985,6 @@ final class GameRulesTest extends TestCase
                 'cardResolutionStarted',
                 'applyingConsequence',
                 'cardMoved',
-                'cardInMemory',
             ],
             array_column($this->game->notify->events, 'type')
         );
