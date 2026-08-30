@@ -9,6 +9,29 @@ use PHPUnit\Framework\TestCase;
 
 final class ConfigurationTest extends TestCase
 {
+    public function testPeripeteiaDrawTextsUseNumberArguments(): void
+    {
+        $dbmodel = file_get_contents(dirname(__DIR__, 3) . '/dbmodel.sql');
+
+        self::assertIsString($dbmodel);
+        self::assertDoesNotMatchRegularExpression(
+            '/"text"\s*:\s*"Draw (?:one|two|three|\d+) peripeteias?/',
+            $dbmodel
+        );
+        preg_match_all(
+            '/"text"\s*:\s*"Draw \$\{number\} peripeteia\(s\)[^\"]*"\s*,\s*'
+                . '"args"\s*:\s*\{\s*"number"\s*:\s*(\d+)\s*\}/',
+            $dbmodel,
+            $matches
+        );
+
+        self::assertSame(['3', '2', '2', '1', '1', '2'], $matches[1]);
+        self::assertStringContainsString(
+            '"text" : "Draw 2 disasters, remove one from the game',
+            $dbmodel
+        );
+    }
+
     public function testProtagonistDefeatTextsUseNumberArguments(): void
     {
         $dbmodel = file_get_contents(dirname(__DIR__, 3) . '/dbmodel.sql');

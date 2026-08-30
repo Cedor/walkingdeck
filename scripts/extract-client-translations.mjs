@@ -79,7 +79,55 @@ function readQuotedLiteral(source, start, language) {
   return null;
 }
 
-export function extractClientTranslateStrings(source, language = "php") {
+function readJavaScriptTemplate(source, start) {
+  const expressions = [];
+  let index = start + 1;
+
+  while (index < source.length) {
+    if (source[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (source[index] === "`") {
+      return { expressions, end: index + 1 };
+    }
+    if (!source.startsWith("${", index)) {
+      index++;
+      continue;
+    }
+
+    const expressionStart = index + 2;
+    let depth = 1;
+    index = expressionStart;
+    while (index < source.length && depth > 0) {
+      if (source.startsWith("//", index) || source.startsWith("/*", index)) {
+        index = skipTrivia(source, index);
+        continue;
+      }
+      if (["'", '"'].includes(source[index])) {
+        const literal = readQuotedLiteral(source, index, "js");
+        index = literal?.end ?? source.length;
+        continue;
+      }
+      if (source[index] === "`") {
+        const template = readJavaScriptTemplate(source, index);
+        index = template?.end ?? source.length;
+        continue;
+      }
+      if (source[index] === "{") depth++;
+      if (source[index] === "}" && --depth === 0) {
+        expressions.push(source.slice(expressionStart, index));
+        index++;
+        break;
+      }
+      index++;
+    }
+  }
+
+  return null;
+}
+
+export function extractTranslationStrings(source, language = "php") {
   const strings = [];
   let index = 0;
 
@@ -92,23 +140,42 @@ export function extractClientTranslateStrings(source, language = "php") {
       index = skipTrivia(source, index);
       continue;
     }
+    if (language === "js" && source[index] === "`") {
+      const template = readJavaScriptTemplate(source, index);
+      if (!template) {
+        index = source.length;
+        continue;
+      }
+      for (const expression of template.expressions) {
+        strings.push(...extractTranslationStrings(expression, "js"));
+      }
+      index = template.end;
+      continue;
+    }
     if (["'", '"', "`"].includes(source[index])) {
       const literal = readQuotedLiteral(source, index, language);
       index = literal?.end ?? source.length;
       continue;
     }
 
-    const hasGlobalPrefix = source[index] === "\\";
+    const hasGlobalPrefix = source[index] === "\\"
+      && source.startsWith("clienttranslate", index + 1);
     const nameStart = index + (hasGlobalPrefix ? 1 : 0);
-    if (!source.startsWith("clienttranslate", nameStart)) {
+    const functionName = source.startsWith("clienttranslate", nameStart)
+      ? "clienttranslate"
+      : (language === "js" && source[index] === "_" ? "_" : null);
+    if (!functionName) {
       index++;
       continue;
     }
 
     const previous = source[index - 1] || "";
-    const nameEnd = nameStart + "clienttranslate".length;
+    const nameEnd = nameStart + functionName.length;
     const next = source[nameEnd] || "";
-    if (/[A-Za-z0-9_$]/.test(previous) || /[A-Za-z0-9_$]/.test(next)) {
+    if (
+      /[A-Za-z0-9_$\.]/.test(previous)
+      || /[A-Za-z0-9_$]/.test(next)
+    ) {
       index++;
       continue;
     }
@@ -134,6 +201,10 @@ export function extractClientTranslateStrings(source, language = "php") {
   }
 
   return strings;
+}
+
+export function extractClientTranslateStrings(source, language = "php") {
+  return extractTranslationStrings(source, language);
 }
 
 async function findSourceFiles(directory) {
@@ -169,7 +240,7 @@ async function main() {
   for (const file of await findSourceFiles(projectRoot)) {
     const source = await readFile(file, "utf8");
     const language = path.extname(file).toLowerCase() === ".php" ? "php" : "js";
-    for (const translation of extractClientTranslateStrings(source, language)) {
+    for (const translation of extractTranslationStrings(source, language)) {
       translations.add(translation.replaceAll("\r", "\\r").replaceAll("\n", "\\n"));
     }
   }

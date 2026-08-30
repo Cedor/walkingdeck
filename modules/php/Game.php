@@ -357,7 +357,7 @@ class Game extends \Bga\GameFramework\Table
         );
         $this->notify->all(
             'borisDecksMerged',
-            \clienttranslate('Boris merges the urban deck into the rural deck'),
+            \clienttranslate('Boris merges both decks into one'),
             [
                 'ruralDeckNb' => $this->deckManager->countCardInLocation(
                     Location::RURAL
@@ -392,7 +392,7 @@ class Game extends \Bga\GameFramework\Table
         );
         $this->notify->all(
             'borisDecksRedistributed',
-            \clienttranslate('Boris redistributes the cards between the rural and urban decks'),
+            \clienttranslate('Boris redistributes the cards in two decks'),
             [
                 'ruralDeckNb' => $this->deckManager->countCardInLocation(
                     Location::RURAL
@@ -1508,7 +1508,7 @@ class Game extends \Bga\GameFramework\Table
         $cardName = $card['card_name'];
         $this->notify->all(
             'cardMoved',
-            \clienttranslate('Card ${card_name} played from hand to ${location}'),
+            \clienttranslate('Card ${card_name} moved from ${source} to ${location}'),
             [
                 'card' => $card,
                 'card_name' => $cardName,
@@ -2769,7 +2769,7 @@ class Game extends \Bga\GameFramework\Table
             }
             $this->notify->all(
                 'disasterDrawnFromBag',
-                \clienttranslate('Disaster drawn from bag for draft'),
+                \clienttranslate('Disaster(s) drawn from bag'),
                 [
                     'disaster' => $disaster,
                     'shuffle' => $drawIndex === 0,
@@ -2961,7 +2961,7 @@ class Game extends \Bga\GameFramework\Table
             $resolution['confirmedDraws']++;
             $this->notify->all(
                 'disasterDrawnFromBag',
-                \clienttranslate('Disaster drawn from bag'),
+                \clienttranslate('Disaster(s) drawn from bag'),
                 [
                     'disaster' => $disaster,
                     'shuffle' => $shuffle && $drawIndex === 0,
@@ -3266,7 +3266,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->notify->all(
             'disasterDrawnFromBag',
-            \clienttranslate('Disaster drawn for Wolf Trap'),
+            \clienttranslate('Disaster(s) drawn from bag'),
             [
                 'disaster' => $disaster,
                 'shuffle' => true,
@@ -4227,7 +4227,7 @@ class Game extends \Bga\GameFramework\Table
             //set loss condition
             $lossCon = $this->setLossCondition($card);
             $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
-            $this->notify->all('protagonistCardPlayed', \clienttranslate('Protagonist ${card_name} played, loss condition: ${loss_condition} event buried'), array(
+            $this->notify->all('protagonistCardPlayed', \clienttranslate('Protagonist ${card_name} played, loss condition: ${loss_condition} cards buried'), array(
                 'card' => $card,
                 'card_name' => $cardname,
                 'difficulty' => $difficulty,
