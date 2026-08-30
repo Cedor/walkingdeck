@@ -3776,7 +3776,7 @@ class Game extends \Bga\GameFramework\Table
             $this->deckManager->insertCardOnExtremePosition(
                 $cardId,
                 Location::MEMORY,
-                true
+                false
             );
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
@@ -3787,6 +3787,10 @@ class Game extends \Bga\GameFramework\Table
                     'card_name' => $movedCard['card_name'],
                     'destination' => Location::MEMORY,
                     'source' => Location::HAND,
+                    'memoryNb' => $this->deckManager->countCardInLocation(
+                        Location::MEMORY
+                    ),
+                    'memoryTopCard' => $this->getMemoryTopForDisplay(),
                 ]
             );
         }
