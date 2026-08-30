@@ -722,7 +722,36 @@ final class GameRulesTest extends TestCase
         );
         self::assertTrue($eventStack->isEmpty());
         self::assertSame(
-            [Transition::DISPATCH_EVENTS],
+            2,
+            $this->game->getGameStateValue('adrienRemovedResource1')
+        );
+        self::assertSame(
+            ['ressource_break'],
+            $this->invoke('getAdrienRemovedResources')
+        );
+        $removalNotification = end($this->game->notify->events);
+        self::assertSame(1, $removalNotification['arguments']['adrienSlot']);
+
+        $eventStack->pushEvent(EventType::ADRIEN_RESOURCE_CHOICE, [
+            'buriedCardId' => 41,
+        ]);
+        $this->game->actRemoveAdrienResource('ressource_stress');
+
+        self::assertSame(
+            3,
+            $this->game->getGameStateValue('adrienRemovedResource2')
+        );
+        self::assertSame(
+            ['ressource_break', 'ressource_stress'],
+            $this->invoke('getAdrienRemovedResources')
+        );
+        $secondRemovalNotification = end($this->game->notify->events);
+        self::assertSame(
+            2,
+            $secondRemovalNotification['arguments']['adrienSlot']
+        );
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS, Transition::DISPATCH_EVENTS],
             $gamestate->transitions
         );
     }

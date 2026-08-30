@@ -584,6 +584,62 @@
   --twd-card-name-width: 65.6693%;
 }
 
+/*
+ * Adrien : les deux emplacements suivent les cercles gris de l'illustration.
+ * Ils occupent respectivement le bord gauche de caseUp et le bord droit de
+ * caseDown ; les textes voisins se resserrent dans l'espace restant.
+ */
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-1,
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-1 {
+  left: 0;
+  top: 65.26%;
+  width: 23.5%;
+  height: 20.35%;
+}
+
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-2 {
+  left: 77%;
+  top: 76.58%;
+  width: 23%;
+  height: 19.58%;
+}
+
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-1 .twd-card-text-icon,
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-2 .twd-card-text-icon {
+  width: 72%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  aspect-ratio: 1;
+  scale: 1.75;
+}
+
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-1 .twd-card-text-icon {
+  translate: -20% 0;
+}
+
+.twd-card-layout-1-3 .twd-card-zone-adrien-resource-2 .twd-card-text-icon {
+  translate: 20% 0;
+}
+
+.twd-card-layout-1-3 .twd-card-body-block-caseUp {
+  width: 81.2%;
+  align-self: flex-end;
+}
+
+.twd-card-layout-1-3 .twd-card-body-block-caseDown {
+  width: 81.8%;
+  align-self: flex-start;
+}
+
 .twd-card-layout-1-4 {
   --twd-card-name-width: 60.6299%;
 }

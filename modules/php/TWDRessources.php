@@ -65,7 +65,10 @@ class TWDRessources
       throw new \InvalidArgumentException(\clienttranslate('Invalid ressource id or state'));
   }
 
-  public function removeRessource(string $ressource_id): void
+  public function removeRessource(
+    string $ressource_id,
+    array $notificationArguments = []
+  ): void
   {
     if (
       !in_array($ressource_id, self::IDS, true)
@@ -80,10 +83,10 @@ class TWDRessources
     $this->game->notify->all(
       'ressourceRemoved',
       \clienttranslate('Ressource ${resource_id} removed from the game'),
-      [
+      array_merge([
         'id' => $ressource_id,
         'resource_id' => $ressource_id,
-      ]
+      ], $notificationArguments)
     );
   }
 

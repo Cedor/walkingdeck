@@ -2068,12 +2068,38 @@ describe("notifications", () => {
 
   it("removes Adrien's chosen resource from its stock", async () => {
     const removeCard = spy(async () => undefined);
+    const updateCardInformations = spy();
+    const protagonist = { id: 3, type: "1", type_arg: "3" };
+    const context = {
+      ressourcesSlots: { removeCard },
+      protagonistSlot: { getCards: () => [protagonist] },
+      cardsManager: { updateCardInformations },
+      adrienRemovedResources: [],
+    };
 
     await game.notif_ressourceRemoved.call(
-      { ressourcesSlots: { removeCard } },
-      { id: "ressource_break" }
+      context,
+      { id: "ressource_break", adrienSlot: 1 }
     );
 
     assert.equal(removeCard.calls[0][0].id, "ressource_break");
+    assert.deepEqual(
+      Array.from(context.adrienRemovedResources),
+      ["ressource_break"]
+    );
+    assert.deepEqual(
+      Array.from(updateCardInformations.calls[0][0].adrien_removed_resources),
+      ["ressource_break"]
+    );
+
+    await game.notif_ressourceRemoved.call(
+      context,
+      { id: "ressource_stress", adrienSlot: 2 }
+    );
+
+    assert.deepEqual(
+      Array.from(updateCardInformations.calls[1][0].adrien_removed_resources),
+      ["ressource_break", "ressource_stress"]
+    );
   });
 });
