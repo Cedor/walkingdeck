@@ -13,6 +13,7 @@ final class TWDEventStack
         EventType::CONSEQUENCE,
         EventType::BITE_CHOICE,
         EventType::CARD_BURIAL_CONFIRMATION,
+        EventType::ADRIEN_RESOURCE_CHOICE,
         EventType::HEAL_CHOICE,
         EventType::BURY_CHARACTER_CHOICE,
         EventType::BURY_TOP_CARD_CHOICE,
@@ -118,6 +119,44 @@ final class TWDEventStack
         );
 
         return $event;
+    }
+
+    public function removeEvent(int $eventId): ?array
+    {
+        if ($eventId < 1) {
+            throw new SystemException('Invalid event id');
+        }
+
+        $event = $this->game->getObjectFromDB(
+            "SELECT `event_id`, `event_type`, `event_parameters`
+             FROM `twd_event_stack`
+             WHERE `event_id` = $eventId"
+        );
+        if (!$event) {
+            return null;
+        }
+
+        $type = strval($event['event_type']);
+        $this->assertSupportedType($type);
+        $parameters = json_decode(
+            strval($event['event_parameters'] ?? '[]'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        if (!is_array($parameters)) {
+            throw new SystemException("Invalid parameters for event $eventId");
+        }
+
+        $this->game->DbQuery(
+            "DELETE FROM `twd_event_stack` WHERE `event_id` = $eventId"
+        );
+
+        return [
+            'id' => $eventId,
+            'type' => $type,
+            'parameters' => $parameters,
+        ];
     }
 
     public function isEmpty(): bool

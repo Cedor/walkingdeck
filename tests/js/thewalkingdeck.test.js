@@ -1144,6 +1144,28 @@ describe("player actions", () => {
     );
   });
 
+  it("uses Adrien's dedicated action for an eligible resource", () => {
+    const context = {
+      adrienResourceChoiceActive: true,
+      adrienEligibleResourceIds: ["ressource_hunger", "ressource_break"],
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, { id: "ressource_stress" });
+    game.onRessourceClick.call(context, { id: "ressource_break" });
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actRemoveAdrienResource"
+    );
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].token_id,
+      "ressource_break"
+    );
+  });
+
   it("lets Boris consume an available resource to reveal both decks", () => {
     const context = {
       difficulty: 2,
@@ -2012,5 +2034,16 @@ describe("notifications", () => {
     );
 
     assert.equal(updateCardInformations.calls[0][0], card);
+  });
+
+  it("removes Adrien's chosen resource from its stock", async () => {
+    const removeCard = spy(async () => undefined);
+
+    await game.notif_ressourceRemoved.call(
+      { ressourcesSlots: { removeCard } },
+      { id: "ressource_break" }
+    );
+
+    assert.equal(removeCard.calls[0][0].id, "ressource_break");
   });
 });

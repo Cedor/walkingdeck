@@ -36,6 +36,7 @@ class Game extends \Bga\GameFramework\Table
     private const WIN_SCORE = 20;
     private const AENOR_TYPE_ARG = 1;
     private const BORIS_TYPE_ARG = 2;
+    private const ADRIEN_TYPE_ARG = 3;
     private const RESSOURCE_IDS = [
         'ressource_hunger',
         'ressource_break',
@@ -556,6 +557,17 @@ class Game extends \Bga\GameFramework\Table
                     $this->getPendingCardBurialConfirmationEvent();
                     $this->gamestate->nextState(
                         Transition::CARD_BURIAL_CONFIRMATION
+                    );
+                    return;
+
+                case EventType::ADRIEN_RESOURCE_CHOICE:
+                    $this->getPendingAdrienResourceChoiceEvent();
+                    if (count($this->ressources->getRessources()) <= 1) {
+                        $this->popEvent($event['id']);
+                        break;
+                    }
+                    $this->gamestate->nextState(
+                        Transition::ADRIEN_RESOURCE_CHOICE
                     );
                     return;
 
@@ -1239,7 +1251,16 @@ class Game extends \Bga\GameFramework\Table
 
     private function popEvent(int $expectedId): void
     {
-        $poppedEvent = $this->eventStack->popEvent();
+        $currentEvent = $this->eventStack->getCurrentEvent();
+        if (
+            $currentEvent !== null
+            && $currentEvent['id'] !== $expectedId
+            && $currentEvent['type'] === EventType::ADRIEN_RESOURCE_CHOICE
+        ) {
+            $poppedEvent = $this->eventStack->removeEvent($expectedId);
+        } else {
+            $poppedEvent = $this->eventStack->popEvent();
+        }
         if ($poppedEvent === null || $poppedEvent['id'] !== $expectedId) {
             throw new SystemException('Unexpected event popped from stack');
         }
@@ -1524,16 +1545,118 @@ class Game extends \Bga\GameFramework\Table
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
     {
         $source = $this->deckManager->getCard($card_id)['location'];
-        if ($location === Location::GRAVEYARD) {
-            $this->deckManager->insertCardOnExtremePosition(
-                $card_id,
-                $location,
-                true
-            );
-        } else {
-            $this->deckManager->moveCard($card_id, $location, $location_arg);
+
+        switch ($location) {
+            case Location::GRAVEYARD:
+                $this->deckManager->insertCardOnExtremePosition(
+                    $card_id,
+                    $location,
+                    true
+                );
+                break;
+            default:
+                $this->deckManager->moveCard(
+                    $card_id,
+                    $location,
+                    $location_arg
+                );
         }
-        $card = $this->deckManager->getCard($card_id);
+
+        $this->notifyCardMoved($card_id, $source, $location);
+
+        if (
+            $location === Location::GRAVEYARD
+            && $source !== Location::GRAVEYARD
+        ) {
+            $this->onCardSentToGraveyard(
+                $this->deckManager->getCard($card_id)
+            );
+        }
+    }
+
+    private function onCardSentToGraveyard(array $card): void
+    {
+        $protagonist = $this->getProtagonistInPlay();
+        if (
+            $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+        ) {
+            $this->triggerAdrienGraveyardAbility($card);
+        }
+    }
+
+    /**
+     * Entry point for Adrien's special rule after a card reaches the graveyard.
+     *
+     * Player input uses a dedicated Adrien event on the event stack. It is not
+     * merged into an already pending consequence choice: the Adrien event can
+     * temporarily sit on top of that choice and let it resume afterwards.
+     */
+    protected function triggerAdrienGraveyardAbility(array $buriedCard): void
+    {
+        if (count($this->ressources->getRessources()) <= 1) {
+            // Adrien's second rule branch will be implemented later.
+            return;
+        }
+
+        $this->eventStack->pushEvent(
+            EventType::ADRIEN_RESOURCE_CHOICE,
+            ['buriedCardId' => intval($buriedCard['id'])]
+        );
+    }
+
+    public function argAdrienResourceChoice(): array
+    {
+        $this->getPendingAdrienResourceChoiceEvent();
+        $resources = array_values($this->ressources->getRessources());
+
+        return [
+            'resources' => $resources,
+            'eligibleResourceIds' => array_column($resources, 'id'),
+        ];
+    }
+
+    public function actRemoveAdrienResource(string $token_id): void
+    {
+        $this->checkAction('actRemoveAdrienResource');
+        $event = $this->getPendingAdrienResourceChoiceEvent();
+        $resourcesById = [];
+        foreach ($this->ressources->getRessources() as $resource) {
+            $resourcesById[$resource['id']] = $resource;
+        }
+        if (!isset($resourcesById[$token_id]) || count($resourcesById) <= 1) {
+            throw new UserException(
+                \clienttranslate('You must choose an existing resource')
+            );
+        }
+
+        $this->ressources->removeRessource($token_id);
+        $this->popEvent($event['id']);
+        $this->giveExtraTimeToActivePlayer();
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingAdrienResourceChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::ADRIEN_RESOURCE_CHOICE
+        ) {
+            throw new SystemException(
+                \clienttranslate('There is no pending Adrien resource choice')
+            );
+        }
+
+        return $event;
+    }
+
+    private function notifyCardMoved(
+        int $cardId,
+        string $source,
+        string $location
+    ): void {
+        $card = $this->deckManager->getCard($cardId);
         $card_name = $card['card_name'];
         $notificationArguments = array(
             'card' => $card,

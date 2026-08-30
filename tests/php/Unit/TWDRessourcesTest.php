@@ -48,6 +48,31 @@ final class TWDRessourcesTest extends TestCase
         self::assertSame('ressourceRefilled', $this->game->notify->events[1]['type']);
     }
 
+    public function testResourceCanBePermanentlyRemoved(): void
+    {
+        $this->resources->removeRessource('ressource_break');
+
+        self::assertSame(2, $this->resources->getRessourceState('ressource_break'));
+        self::assertSame([
+            1 => ['id' => 'ressource_hunger', 'consumed' => 0],
+            3 => ['id' => 'ressource_stress', 'consumed' => 0],
+        ], $this->resources->getRessources());
+        self::assertSame(
+            'ressourceRemoved',
+            $this->game->notify->events[0]['type']
+        );
+    }
+
+    public function testRemovedResourceCannotBeConsumedOrRefilled(): void
+    {
+        $this->resources->removeRessource('ressource_break');
+        $this->resources->consumeRessources('ressource_break');
+        $this->resources->refillRessources('ressource_break');
+
+        self::assertSame(2, $this->resources->getRessourceState('ressource_break'));
+        self::assertCount(1, $this->game->notify->events);
+    }
+
     /**
      * @dataProvider invalidStateProvider
      */

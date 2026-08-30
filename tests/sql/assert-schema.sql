@@ -30,7 +30,7 @@ CALL assert_equals(
 );
 CALL assert_equals(
     'protagonists',
-    2,
+    3,
     (SELECT COUNT(*) FROM twd_protagonist_info)
 );
 CALL assert_equals(
