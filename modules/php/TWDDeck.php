@@ -19,7 +19,7 @@ class TWDDeck
     if ($type === 1) {
       // protagonist
       $cardInfo = $this->game->getObjectFromDB(
-        "SELECT `card_name`, `losscon`, `texts`
+        "SELECT `card_name`, `translate_name`, `losscon`, `texts`
           FROM `twd_card_info` JOIN `twd_protagonist_info` ON `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
           WHERE `twd_card_info`.`info_id` = `twd_protagonist_info`.`info_id`
           AND `twd_card_info`.`card_type` = $type
@@ -31,7 +31,7 @@ class TWDDeck
     } else { // type == 2 or 3
       // rural and urban
       $cardInfo = $this->game->getObjectFromDB(
-        "SELECT `card_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`, `texts`, `weakness_hunger`, `weakness_break`, `weakness_stress`, `wounds`
+        "SELECT `card_name`, `translate_name`, `is_zombie`, `is_character`, `consequence_black`, `consequence_white`, `consequence_grey`, `special_draw`, `texts`, `weakness_hunger`, `weakness_break`, `weakness_stress`, `wounds`
           FROM `twd_card_info` LEFT JOIN `twd_character_info` ON `twd_card_info`.`info_id` = `twd_character_info`.`info_id`
           WHERE `card_type` = $type
           AND `card_type_arg` = $type_arg"

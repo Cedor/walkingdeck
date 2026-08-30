@@ -642,6 +642,13 @@ describe("player actions", () => {
     assert.equal(game.getCardName(null), "Unknown card");
   });
 
+  it("keeps card names marked as non-translatable unchanged", () => {
+    assert.equal(
+      game.getCardName({ card_name: "Wolf Trap", translate_name: 0 }),
+      "Wolf Trap"
+    );
+  });
+
   it("does not offer a confirmation to resolve a non-character card", () => {
     const statusBar = {
       setTitle: spy(),

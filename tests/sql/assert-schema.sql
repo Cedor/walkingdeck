@@ -68,6 +68,28 @@ CALL assert_equals(
     )
 );
 CALL assert_equals(
+    'card name translation column',
+    1,
+    (
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'twd_card_info'
+          AND column_name = 'translate_name'
+          AND is_nullable = 'NO'
+          AND column_default = '1'
+    )
+);
+CALL assert_equals(
+    'card names initially translatable',
+    40,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE translate_name = 1
+    )
+);
+CALL assert_equals(
     'invalid card texts JSON values',
     0,
     (
