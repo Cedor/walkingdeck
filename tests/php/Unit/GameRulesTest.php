@@ -3720,6 +3720,12 @@ final class GameRulesTest extends TestCase
                 'card_name' => 'Second card',
                 'consequence_white' => ['action' => 'bite', 'bite' => 2],
             ],
+            20 => [
+                'id' => 20,
+                'location' => Location::MEMORY,
+                'location_arg' => 5,
+                'card_name' => 'Memory top',
+            ],
         ];
         $gamestate = new class {
             public array $transitions = [];
@@ -3741,9 +3747,16 @@ final class GameRulesTest extends TestCase
             $deckManager->moves
         );
         self::assertSame(
+            [[10, Location::MEMORY, false], [11, Location::MEMORY, false]],
+            $deckManager->extremeInsertions
+        );
+        self::assertSame(
             ['cardMoved', 'cardMoved'],
             array_column($this->game->notify->events, 'type')
         );
+        foreach ($this->game->notify->events as $event) {
+            self::assertSame(20, intval($event['arguments']['memoryTopCard']['id']));
+        }
         self::assertSame(
             [Transition::DISPATCH_EVENTS],
             $gamestate->transitions

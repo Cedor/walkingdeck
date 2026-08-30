@@ -1898,6 +1898,29 @@ describe("notifications", () => {
     ]);
   });
 
+  it("keeps the Memory top after Zoey adds hand cards underneath", async () => {
+    const memoryTopCard = { id: 20, type: "2", location: "memory" };
+    const context = {
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: spy(),
+    };
+
+    await game.notif_cardMoved.call(context, {
+      card: { id: 10, type: "3" },
+      source: "hand",
+      destination: "memory",
+      memoryNb: 6,
+      memoryTopCard,
+    });
+
+    assert.deepEqual(context.setDeckState.calls[0], [
+      "memory",
+      6,
+      memoryTopCard,
+    ]);
+  });
+
   it("removes the special draw highlight when the additional card is drawn", async () => {
     const highlightedCard = {
       classList: { add: spy(), remove: spy() },

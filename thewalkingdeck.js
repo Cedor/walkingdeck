@@ -2680,7 +2680,10 @@ define([
         const graveyardTop = args.graveyardTop || null;
         await this.setDeckState("graveyard", args.graveyardNb, graveyardTop);
       }
-      if (args.source === "memory" && args.memoryNb !== undefined) {
+      if (
+        (args.source === "memory" || args.destination === "memory")
+        && args.memoryNb !== undefined
+      ) {
         await this.setDeckState(
           "memory",
           args.memoryNb,
