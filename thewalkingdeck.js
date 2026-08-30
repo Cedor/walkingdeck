@@ -49,6 +49,7 @@ define([
       const wrapper = document.getElementById("table_scale_wrap");
       const table = document.getElementById("table_organiser");
       const availableContainer = wrapper?.parentElement;
+      const resolutionArea = document.getElementById("card_resolution_organiser");
       if (!wrapper || !table || !availableContainer) {
         return;
       }
@@ -60,7 +61,18 @@ define([
       this.tableResponsiveState = null;
 
       const updateTableScale = () => {
-        const availableWidth = availableContainer.clientWidth;
+        const landscape = window.matchMedia?.("(orientation: landscape)").matches;
+        const resolutionIsVisible = resolutionArea
+          && window.getComputedStyle(resolutionArea).display !== "none";
+        const containerStyles = window.getComputedStyle(availableContainer);
+        const columnGap = Number.parseFloat(containerStyles.columnGap) || 0;
+        const resolutionWidth = landscape && resolutionIsVisible
+          ? resolutionArea.getBoundingClientRect().width + columnGap
+          : 0;
+        const availableWidth = Math.max(
+          0,
+          availableContainer.clientWidth - resolutionWidth
+        );
         let columns = 1;
         for (const candidate of [4, 2, 1]) {
           wrapper.dataset.twdColumns = String(candidate);
@@ -91,6 +103,9 @@ define([
         this.tableResizeObserver = new ResizeObserver(updateTableScale);
         this.tableResizeObserver.observe(availableContainer);
         this.tableResizeObserver.observe(table);
+        if (resolutionArea) {
+          this.tableResizeObserver.observe(resolutionArea);
+        }
       } else {
         window.addEventListener("resize", updateTableScale);
       }
@@ -928,6 +943,7 @@ define([
           break;
         case "storyCheck":
           document.getElementById("card_resolution_organiser").style.display = "block";
+          this.tableResizeHandler?.();
           break;
         case "dummy":
           break;
@@ -948,6 +964,7 @@ define([
       document.getElementById("card_resolution_organiser").style.display = phaseTwo
         ? "block"
         : "none";
+      this.tableResizeHandler?.();
       if (this.ressourcesSlots) {
         this.updateAllBorisResourceClickability();
       }
