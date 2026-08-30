@@ -772,6 +772,19 @@ define([
           this.characters.onCardClick = (card) =>
             this.onBiteCharacterClick(card);
           break;
+        case "adrienResourceChoice": {
+          const adrienArgs = args.args || args;
+          this.adrienResourceChoiceActive = true;
+          this.adrienEligibleResourceIds = (
+            adrienArgs.eligibleResourceIds || []
+          );
+          this.adrienEligibleResourceIds.forEach((resourceId) => {
+            document
+              .getElementById(`twd-ressource-${resourceId}`)
+              ?.classList.add("twd-highlight");
+          });
+          break;
+        }
         case "healChoice":
           this.prepareHealChoice(args.args || args);
           this.healChoiceConnector = dojo.connect(
@@ -970,6 +983,15 @@ define([
           this.clearAenorAbilityUi();
           this.characters.onCardClick = null;
           break;
+        case "adrienResourceChoice":
+          (this.adrienEligibleResourceIds || []).forEach((resourceId) => {
+            document
+              .getElementById(`twd-ressource-${resourceId}`)
+              ?.classList.remove("twd-highlight");
+          });
+          this.adrienResourceChoiceActive = false;
+          this.adrienEligibleResourceIds = [];
+          break;
         case "healChoice":
           if (this.healChoiceConnector) {
             dojo.disconnect(this.healChoiceConnector);
@@ -1116,6 +1138,11 @@ define([
               id: "reset_bite_wounds",
               color: "secondary",
             });
+            break;
+          case "adrienResourceChoice":
+            this.statusBar.setTitle(
+              _("Choose a resource to remove from the game")
+            );
             break;
           case "cardBurialConfirmation": {
             const burialArgs = args.args || args;
@@ -2320,6 +2347,17 @@ define([
 
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
+      if (this.adrienResourceChoiceActive) {
+        if (
+          (this.adrienEligibleResourceIds || []).includes(token.id)
+          && (!this.isCurrentPlayerActive || this.isCurrentPlayerActive())
+        ) {
+          this.bgaPerformAction("actRemoveAdrienResource", {
+            token_id: token.id,
+          });
+        }
+        return;
+      }
       if (this.disasterResolutionPhase === "characteristic") {
         if (this.disasterResourceAvailable && token.id === this.disasterResourceId) {
           this.bgaPerformAction("actUseDisasterResource", { token_id: token.id });
@@ -2577,6 +2615,10 @@ define([
       let token = args;
       this.ressourcesManager.flipCard(token);
       this.updateBorisResourceClickability(token);
+    },
+    notif_ressourceRemoved: async function (args) {
+      console.log("notif_ressourceRemoved", args);
+      await this.ressourcesSlots.removeCard({ id: args.id });
     },
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");

@@ -535,6 +535,186 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testSendingCardToGraveyardTriggersAdrienAbilityHook(): void
+    {
+        $this->game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['triggerAdrienGraveyardAbility'])
+            ->getMock();
+        $this->game->notify = new class {
+            public array $events = [];
+
+            public function all(
+                string $type,
+                $message,
+                array $arguments = []
+            ): void {
+                $this->events[] = compact('type', 'message', 'arguments');
+            }
+        };
+
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            3 => [
+                'id' => 3,
+                'type_arg' => '3',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Adrien',
+            ],
+            40 => [
+                'id' => 40,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Buried card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $this->game->expects(self::once())
+            ->method('triggerAdrienGraveyardAbility')
+            ->with(self::callback(static function (array $card): bool {
+                return intval($card['id']) === 40
+                    && $card['location'] === Location::GRAVEYARD;
+            }));
+
+        $this->invoke('moveCard', [40, Location::GRAVEYARD]);
+
+        self::assertSame(Location::GRAVEYARD, $deckManager->cards[40]['location']);
+    }
+
+    public function testSendingCardToGraveyardDoesNotTriggerAdrienForAnotherProtagonist(): void
+    {
+        $this->game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['triggerAdrienGraveyardAbility'])
+            ->getMock();
+        $this->game->notify = new class {
+            public function all(
+                string $type,
+                $message,
+                array $arguments = []
+            ): void {
+            }
+        };
+
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            2 => [
+                'id' => 2,
+                'type_arg' => '2',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+                'card_name' => 'Boris',
+            ],
+            40 => [
+                'id' => 40,
+                'location' => Location::ESCAPED,
+                'location_arg' => 0,
+                'card_name' => 'Buried card',
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $this->game->expects(self::never())
+            ->method('triggerAdrienGraveyardAbility');
+
+        $this->invoke('moveCard', [40, Location::GRAVEYARD]);
+    }
+
+    public function testAdrienQueuesDedicatedResourceChoiceWhenSeveralExist(): void
+    {
+        $eventStack = $this->createEventStack();
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->invoke('triggerAdrienGraveyardAbility', [['id' => 40]]);
+
+        self::assertSame(
+            EventType::ADRIEN_RESOURCE_CHOICE,
+            $eventStack->getCurrentEvent()['type']
+        );
+        self::assertSame(
+            40,
+            $eventStack->getCurrentEvent()['parameters']['buriedCardId']
+        );
+    }
+
+    public function testAdrienChoiceRemainsSeparateFromInterruptedEvent(): void
+    {
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::CONSEQUENCE, [
+            'cardId' => 40,
+            'color' => 'black',
+        ]);
+        $interruptedEventId = $eventStack->getCurrentEvent()['id'];
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->invoke('triggerAdrienGraveyardAbility', [['id' => 40]]);
+        $this->invoke('popEvent', [$interruptedEventId]);
+
+        self::assertCount(1, $eventStack->events);
+        self::assertSame(
+            EventType::ADRIEN_RESOURCE_CHOICE,
+            $eventStack->getCurrentEvent()['type']
+        );
+    }
+
+    public function testAdrienDoesNotQueueFirstRuleChoiceWithOneResource(): void
+    {
+        $this->getProperty('ressources')->removeRessource('ressource_break');
+        $this->getProperty('ressources')->removeRessource('ressource_stress');
+        $eventStack = $this->createEventStack();
+        $this->setProperty('eventStack', $eventStack);
+
+        $this->invoke('triggerAdrienGraveyardAbility', [['id' => 40]]);
+
+        self::assertTrue($eventStack->isEmpty());
+    }
+
+    public function testAdrienRemovesChosenExistingResource(): void
+    {
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::ADRIEN_RESOURCE_CHOICE, [
+            'buriedCardId' => 40,
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->getProperty('ressources')->consumeRessources(
+            'ressource_break'
+        );
+
+        self::assertSame(
+            [
+                'ressource_hunger',
+                'ressource_break',
+                'ressource_stress',
+            ],
+            $this->game->argAdrienResourceChoice()['eligibleResourceIds']
+        );
+        $this->game->actRemoveAdrienResource('ressource_break');
+
+        self::assertSame(
+            ['ressource_hunger', 'ressource_stress'],
+            array_values(array_column(
+                $this->getProperty('ressources')->getRessources(),
+                'id'
+            ))
+        );
+        self::assertTrue($eventStack->isEmpty());
+        self::assertSame(
+            [Transition::DISPATCH_EVENTS],
+            $gamestate->transitions
+        );
+    }
+
     public function testUnearthDoesNothingWhenTheGraveyardIsEmpty(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -4938,6 +5118,17 @@ final class GameRulesTest extends TestCase
             public function popEvent(): ?array
             {
                 return array_pop($this->events);
+            }
+
+            public function removeEvent(int $eventId): ?array
+            {
+                foreach ($this->events as $index => $event) {
+                    if ($event['id'] === $eventId) {
+                        array_splice($this->events, $index, 1);
+                        return $event;
+                    }
+                }
+                return null;
             }
 
             public function updateEventParameters(int $eventId, array $parameters): void
