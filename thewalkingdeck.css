@@ -110,16 +110,17 @@
 }
 
 /*
- * Sur un ecran paysage, le plateau garde la place principale et la zone de
- * resolution devient une colonne laterale. En portrait, le flux HTML reste
- * inchange : plateau, resolution, puis main.
+ * Sur un ecran paysage, le plateau garde la place principale et la carte en
+ * cours devient une colonne laterale. Les personnages restent sur une ligne
+ * complete en dessous. En portrait, le flux HTML reste inchange.
  */
 @media (orientation: landscape) {
   #player_table {
     display: grid;
     grid-template-areas:
-      "table resolution"
-      "brainstorm brainstorm";
+      "table current"
+      "brainstorm brainstorm"
+      "characters characters";
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: 12px;
@@ -134,13 +135,21 @@
   }
 
   #card_resolution_organiser {
-    grid-area: resolution;
-    display: block !important;
+    display: contents !important;
+  }
+
+  #current_card_resolution_wrap {
+    grid-area: current;
     width: clamp(
       var(--twd-card-height, 179px),
       28vw,
       calc(2 * var(--twd-card-width, 127px) + 24px)
     );
+  }
+
+  #characters_wrap {
+    grid-area: characters;
+    width: auto;
   }
 }
 

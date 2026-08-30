@@ -50,6 +50,9 @@ define([
       const table = document.getElementById("table_organiser");
       const availableContainer = wrapper?.parentElement;
       const resolutionArea = document.getElementById("card_resolution_organiser");
+      const currentResolutionArea = document.getElementById(
+        "current_card_resolution_wrap"
+      );
       if (!wrapper || !table || !availableContainer) {
         return;
       }
@@ -67,7 +70,7 @@ define([
         const containerStyles = window.getComputedStyle(availableContainer);
         const columnGap = Number.parseFloat(containerStyles.columnGap) || 0;
         const resolutionWidth = landscape && resolutionIsVisible
-          ? resolutionArea.getBoundingClientRect().width + columnGap
+          ? (currentResolutionArea?.getBoundingClientRect().width || 0) + columnGap
           : 0;
         const availableWidth = Math.max(
           0,
@@ -105,6 +108,9 @@ define([
         this.tableResizeObserver.observe(table);
         if (resolutionArea) {
           this.tableResizeObserver.observe(resolutionArea);
+        }
+        if (currentResolutionArea) {
+          this.tableResizeObserver.observe(currentResolutionArea);
         }
       } else {
         window.addEventListener("resize", updateTableScale);
@@ -260,7 +266,7 @@ define([
         "2-16": { grey: "tiny" },
         "3-1": { grey: "tiny" },
         "3-2": { white: "short" },
-        "3-4": { black: "short" },
+        "3-4": { black: "short", grey: "dense" },
         "3-5": { special: "short", grey: "tiny" },
         "3-6": { grey: "tiny" },
         "3-7": { black: "short", grey: "dense" },
