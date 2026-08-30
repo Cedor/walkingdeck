@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { extractClientTranslateStrings } from "../../scripts/extract-client-translations.mjs";
+import {
+  extractClientTranslateStrings,
+  extractTranslationStrings,
+} from "../../scripts/extract-client-translations.mjs";
 
 describe("clienttranslate extraction", () => {
   it("extracts direct PHP string arguments and ignores comments and duplicates", () => {
@@ -30,5 +33,26 @@ describe("clienttranslate extraction", () => {
       extractClientTranslateStrings(String.raw`clienttranslate("Line\nnext")`, "js"),
       ["Line\nnext"]
     );
+  });
+
+  it("extracts JavaScript _() calls without matching tests or member methods", () => {
+    const source = String.raw`
+      // _("Commented out")
+      _("Second");
+      _(
+        'First'
+      );
+      _("Second");
+      clienttranslate("Client marker");
+      object._("Member method");
+      const example = '_("Inside a string")';
+    ` + '\nconst html = `<b>${_("My hand")}</b>`;' +
+      '\nconst rawTemplate = `<b>_("Inside template text")</b>`;';
+
+    assert.deepEqual(
+      [...new Set(extractTranslationStrings(source, "js"))].sort(),
+      ["Client marker", "First", "My hand", "Second"]
+    );
+    assert.deepEqual(extractTranslationStrings('_("PHP helper")', "php"), []);
   });
 });

@@ -166,8 +166,8 @@ $machinestates = [
         ->build(),
     GameStep::AVOID_ZOMBIE_CHOICE => GameStateBuilder::create()
         ->name('avoidZombieChoice')
-        ->description(clienttranslate('You must choose a zombie from your hand to escape'))
-        ->descriptionmyturn(clienttranslate('You must choose a zombie from your hand to escape'))
+        ->description(clienttranslate('You must choose a zombie from your hand'))
+        ->descriptionmyturn(clienttranslate('You must choose a zombie from your hand'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argAvoidZombieChoice')
         ->possibleactions([
@@ -359,8 +359,8 @@ $machinestates = [
         ->build(),
     GameStep::BURY_CHARACTER_CHOICE => GameStateBuilder::create()
         ->name(Transition::BURY_CHARACTER_CHOICE)
-        ->description(clienttranslate('${actplayer} must choose a character from their hand to bury'))
-        ->descriptionmyturn(clienttranslate('You must choose a character from your hand to bury'))
+        ->description(clienttranslate('${actplayer} must choose a character from their hand'))
+        ->descriptionmyturn(clienttranslate('You must choose a character from your hand'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBuryCharacterChoice')
         ->possibleactions([
