@@ -1342,7 +1342,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->notify->all(
             'deckTopRevealed',
-            \clienttranslate('${card_name} is revealed on top of its deck'),
+            \clienttranslate('${card_name} is revealed'),
             [
                 'card' => $this->withFaceDown($card, false),
                 'card_name' => $card['card_name'],
@@ -3475,7 +3475,7 @@ class Game extends \Bga\GameFramework\Table
         $this->escapeCardForConsequence(
             $this->deckManager->getCard($card_id),
             Location::HAND,
-            \clienttranslate('${card_name} avoided danger and escaped')
+            \clienttranslate('${card_name} was avoided')
         );
     }
 
@@ -3496,7 +3496,7 @@ class Game extends \Bga\GameFramework\Table
         $this->escapeCardForConsequence(
             $card,
             Location::MEMORY,
-            \clienttranslate('${card_name} escaped thanks to Tallahassee')
+            \clienttranslate('${card_name} was avoided')
         );
     }
 
@@ -3710,7 +3710,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is quickly memorised'),
+                \clienttranslate('${card_name} is memorised'),
                 array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
@@ -3765,7 +3765,7 @@ class Game extends \Bga\GameFramework\Table
         foreach ($selectedCardIds as $cardId) {
             if (!isset($handCardsById[$cardId])) {
                 throw new UserException(
-                    \clienttranslate('You can only quickly memorise cards from your hand')
+                    \clienttranslate('You can only memorise cards from your hand')
                 );
             }
             $cards[] = $handCardsById[$cardId];
@@ -3781,7 +3781,7 @@ class Game extends \Bga\GameFramework\Table
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is quickly memorised from the hand'),
+                \clienttranslate('${card_name} is memorised'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
@@ -3866,7 +3866,7 @@ class Game extends \Bga\GameFramework\Table
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} escapes directly from the hand'),
+                \clienttranslate('${card_name} was avoided'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
@@ -3903,7 +3903,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is revealed for brainstorm'),
+                \clienttranslate('${card_name} is revealed'),
                 array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
@@ -3933,7 +3933,7 @@ class Game extends \Bga\GameFramework\Table
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is recalled from Memory'),
+                \clienttranslate('${card_name} is recovered from Memory'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
@@ -4129,7 +4129,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is returned after brainstorm'),
+                \clienttranslate('Cards are return to the deck'),
                 [
                     'card' => $this->withFaceDown($card, false),
                     'card_name' => $card['card_name'],
