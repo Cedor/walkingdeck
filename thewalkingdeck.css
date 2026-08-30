@@ -417,7 +417,7 @@
   font-family: "TWD Amatic SC", "Arial Narrow", sans-serif;
   font-size: var(--twd-card-font-size-name);
   font-weight: 700;
-  -webkit-text-stroke: 0.25em currentColor;
+  -webkit-text-stroke: 0.025em currentColor;
   line-height: 1;
   text-align: center;
 }
