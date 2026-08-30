@@ -109,6 +109,41 @@
   max-width: 100%;
 }
 
+/*
+ * Sur un ecran paysage, le plateau garde la place principale et la zone de
+ * resolution devient une colonne laterale. En portrait, le flux HTML reste
+ * inchange : plateau, resolution, puis main.
+ */
+@media (orientation: landscape) {
+  #player_table {
+    display: grid;
+    grid-template-areas:
+      "table resolution"
+      "brainstorm brainstorm";
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+  }
+
+  #table_scale_wrap {
+    grid-area: table;
+  }
+
+  #brainstorm_wrap {
+    grid-area: brainstorm;
+  }
+
+  #card_resolution_organiser {
+    grid-area: resolution;
+    display: block !important;
+    width: clamp(
+      var(--twd-card-height, 179px),
+      28vw,
+      calc(2 * var(--twd-card-width, 127px) + 24px)
+    );
+  }
+}
+
 #table_organiser {
   position: relative;
   width: max-content;
