@@ -95,6 +95,8 @@ class Game extends \Bga\GameFramework\Table
             'revealedRuralCardId3' => 22,
             'revealedUrbanCardId2' => 23,
             'revealedUrbanCardId3' => 24,
+            'adrienRemovedResource1' => 25,
+            'adrienRemovedResource2' => 26,
             'gameMode' => GameMode::GLOBAL_ID,
         ]);
 
@@ -1616,7 +1618,15 @@ class Game extends \Bga\GameFramework\Table
             );
         }
 
-        $this->ressources->removeRessource($token_id);
+        $adrienSlot = 4 - count($resourcesById);
+        $resourceCode = array_search($token_id, self::RESSOURCE_IDS, true);
+        $this->setGameStateValue(
+            'adrienRemovedResource' . $adrienSlot,
+            $resourceCode + 1
+        );
+        $this->ressources->removeRessource($token_id, [
+            'adrienSlot' => $adrienSlot,
+        ]);
         $this->popEvent($event['id']);
         $this->giveExtraTimeToActivePlayer();
         $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
@@ -1635,6 +1645,21 @@ class Game extends \Bga\GameFramework\Table
         }
 
         return $event;
+    }
+
+    private function getAdrienRemovedResources(): array
+    {
+        $removedResources = [];
+        foreach ([1, 2] as $slot) {
+            $resourceCode = intval($this->getGameStateValue(
+                'adrienRemovedResource' . $slot
+            ));
+            if ($resourceCode > 0 && isset(self::RESSOURCE_IDS[$resourceCode - 1])) {
+                $removedResources[] = self::RESSOURCE_IDS[$resourceCode - 1];
+            }
+        }
+
+        return $removedResources;
     }
 
     private function notifyCardMoved(
@@ -4669,6 +4694,7 @@ class Game extends \Bga\GameFramework\Table
 
         // ressources
         $result['ressources'] = $this->ressources->getRessources();
+        $result['adrienRemovedResources'] = $this->getAdrienRemovedResources();
 
         // Disasters
         $result['disastersReserve'] = $this->disasterManager->getCardsInLocation('reserve');
@@ -4743,6 +4769,8 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('revealedUrbanCardId3', 0);
         $this->setGameStateInitialValue('aenorAbilityUsed', 0);
         $this->setGameStateInitialValue('aenorProtectedCharacterId', 0);
+        $this->setGameStateInitialValue('adrienRemovedResource1', 0);
+        $this->setGameStateInitialValue('adrienRemovedResource2', 0);
         $this->setGameStateInitialValue('gameMode', GameMode::DEFAULT);
         // Init game statistics.
         //

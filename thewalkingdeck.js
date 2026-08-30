@@ -42,6 +42,7 @@ define([
       this.gamePhase = 1;
       this.isTestMode = false;
       this.lossCondition = 5; //default value
+      this.adrienRemovedResources = [];
       this.resolvingCardIds = new Set();
     },
 
@@ -391,9 +392,28 @@ define([
           return zone;
         };
 
+        const addAdrienResourceZone = (resourceId, slot) => {
+          if (!/^ressource_(hunger|break|stress)$/.test(resourceId)) {
+            return;
+          }
+          const zone = addZone(`adrien-resource-${slot}`);
+          const iconName = resourceId.replace("ressource_", "");
+          const icon = document.createElement("span");
+          icon.className = `twd-card-text-icon twd-card-text-icon-${iconName}`;
+          icon.dataset.icon = iconName;
+          icon.setAttribute("role", "img");
+          icon.setAttribute("aria-label", iconName);
+          zone.appendChild(icon);
+        };
+
         addZone("name", this.getCardName(card));
         if (cardType === "1") {
           const body = addZone("body");
+          if (cardTypeArg === 3 && Array.isArray(card.adrien_removed_resources)) {
+            card.adrien_removed_resources.slice(0, 2).forEach(
+              (resourceId, index) => addAdrienResourceZone(resourceId, index + 1)
+            );
+          }
           const preferredBlockOrder = [
             "start", "defeat", "rule", "caseUp", "caseDown", "case1", "case2", "case3",
           ];
@@ -684,6 +704,9 @@ define([
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
       this.isTestMode = Boolean(this.gamedatas.isTestMode);
+      this.adrienRemovedResources = Array.isArray(
+        this.gamedatas.adrienRemovedResources
+      ) ? [...this.gamedatas.adrienRemovedResources] : [];
       this.setGamePhaseDisplay(this.gamedatas.gamePhase);
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
@@ -695,6 +718,9 @@ define([
         protagonist.aenor_ability_used = Boolean(
           Number(this.gamedatas.aenorAbilityUsed)
         );
+        protagonist.adrien_removed_resources = [
+          ...this.adrienRemovedResources,
+        ];
         this.protagonistSlot.addCard(protagonist);
       } else {
         console.log("Protagonist slot is empty");
@@ -2605,6 +2631,20 @@ define([
     notif_ressourceRemoved: async function (args) {
       console.log("notif_ressourceRemoved", args);
       await this.ressourcesSlots.removeCard({ id: args.id });
+      const adrienSlot = Number(args.adrienSlot);
+      if (adrienSlot === 1 || adrienSlot === 2) {
+        this.adrienRemovedResources = Array.isArray(this.adrienRemovedResources)
+          ? [...this.adrienRemovedResources]
+          : [];
+        this.adrienRemovedResources[adrienSlot - 1] = args.id;
+        const protagonist = this.protagonistSlot.getCards?.()[0];
+        if (protagonist && Number(protagonist.type_arg) === 3) {
+          this.cardsManager.updateCardInformations({
+            ...protagonist,
+            adrien_removed_resources: [...this.adrienRemovedResources],
+          });
+        }
+      }
     },
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
