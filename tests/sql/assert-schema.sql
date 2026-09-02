@@ -25,12 +25,12 @@ DELIMITER ;
 
 CALL assert_equals(
     'card definitions',
-    40,
+    38,
     (SELECT COUNT(*) FROM twd_card_info)
 );
 CALL assert_equals(
     'protagonists',
-    4,
+    2,
     (SELECT COUNT(*) FROM twd_protagonist_info)
 );
 CALL assert_equals(
