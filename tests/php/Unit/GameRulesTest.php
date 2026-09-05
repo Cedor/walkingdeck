@@ -161,6 +161,24 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('canStartNormalRefill'));
     }
 
+    public function testAdrienSecondPermanentEffectRequiresSecondSacrifice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards[3] = [
+            'id' => 3,
+            'type_arg' => '3',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+        ];
+        $this->setProperty('deckManager', $deckManager);
+
+        $this->game->setGameStateValue('adrienRemovedResource1', 2);
+        self::assertFalse($this->invoke('hasAdrienSecondPermanentEffect'));
+
+        $this->game->setGameStateValue('adrienRemovedResource2', 3);
+        self::assertTrue($this->invoke('hasAdrienSecondPermanentEffect'));
+    }
+
     public function testProtagonistSelectionStillStartsPhaseOne(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
@@ -2169,6 +2187,94 @@ final class GameRulesTest extends TestCase
         self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
     }
 
+    public function testAdrienChoosesEachDisasterBeforeGroupedResolution(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            3 => [
+                'id' => 3,
+                'type_arg' => '3',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+            ],
+            8 => [
+                'id' => 8,
+                'location' => Location::CURRENT_CARD_RESOLUTION,
+                'location_arg' => 0,
+                'card_name' => 'Site Manager',
+            ],
+        ];
+        $disasterManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        foreach ([1, 2, 3, 4] as $disasterId) {
+            $disasterManager->cards[$disasterId] = [
+                'id' => $disasterId,
+                'type' => $disasterId,
+                'location' => 'deck',
+                'location_arg' => 0,
+                'disaster_hunger' => 0,
+                'disaster_break' => 0,
+                'disaster_stress' => 0,
+            ];
+        }
+        $eventStack = $this->createEventStack();
+        $eventStack->pushEvent(EventType::DISASTER_CHOICE, [
+            'sourceCardId' => 8,
+            'consequence' => [
+                'action' => 'disaster',
+                'number' => 2,
+            ],
+        ]);
+        $gamestate = new class {
+            public array $transitions = [];
+
+            public function nextState(string $transition): void
+            {
+                $this->transitions[] = $transition;
+            }
+        };
+        $this->setProperty('deckManager', $deckManager);
+        $this->setProperty('disasterManager', $disasterManager);
+        $this->setProperty('eventStack', $eventStack);
+        $this->game->gamestate = $gamestate;
+        $this->game->setGameStateValue('adrienRemovedResource2', 1);
+
+        $this->game->actDrawDisaster();
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('adrienChoice', $args['phase']);
+        self::assertSame(0, $args['confirmedDraws']);
+        self::assertSame([1, 2], $args['eligibleDisasterIds']);
+        self::assertCount(2, $args['drawnDisasters']);
+
+        $this->game->actChooseAdrienDisaster(1);
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('draw', $args['phase']);
+        self::assertSame(1, $args['confirmedDraws']);
+        self::assertSame('hand', $disasterManager->cards[1]['location']);
+        self::assertSame('deck', $disasterManager->cards[2]['location']);
+
+        $this->game->actDrawDisaster();
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('adrienChoice', $args['phase']);
+        self::assertSame([2, 3], $args['eligibleDisasterIds']);
+        self::assertCount(3, $args['drawnDisasters']);
+
+        $this->game->actChooseAdrienDisaster(2);
+
+        $args = $this->game->argDisasterChoice();
+        self::assertSame('complete', $args['phase']);
+        self::assertSame(2, $args['confirmedDraws']);
+        self::assertSame(
+            [1, 2],
+            array_map(
+                'intval',
+                array_column($args['drawnDisasters'], 'id')
+            )
+        );
+        self::assertSame('deck', $disasterManager->cards[3]['location']);
+    }
+
     public function testWolfTrapBuriesItselfForBreakAndAnotherCharacteristic(): void
     {
         [$deckManager, $disasterManager, $eventStack, $gamestate] =
@@ -2221,6 +2327,38 @@ final class GameRulesTest extends TestCase
         $this->game->actResolveWolfTrap();
 
         self::assertSame(Location::ESCAPED, $deckManager->cards[6]['location']);
+    }
+
+    public function testAdrienSecondEffectDoesNotApplyToWolfTrap(): void
+    {
+        [$deckManager, $disasterManager] = $this->prepareWolfTrapDisaster([
+            'disaster_hunger' => 1,
+            'disaster_break' => 0,
+            'disaster_stress' => 0,
+        ]);
+        $deckManager->cards[3] = [
+            'id' => 3,
+            'type_arg' => '3',
+            'location' => Location::PROTAGONIST,
+            'location_arg' => 0,
+        ];
+        $disasterManager->cards[2] = [
+            'id' => 2,
+            'type' => 2,
+            'location' => 'deck',
+            'location_arg' => 0,
+            'disaster_hunger' => 0,
+            'disaster_break' => 1,
+            'disaster_stress' => 1,
+        ];
+        $this->game->setGameStateValue('adrienRemovedResource2', 1);
+
+        $this->game->actDrawWolfTrapDisaster();
+
+        $args = $this->game->argWolfTrapChoice();
+        self::assertSame('resolve', $args['phase']);
+        self::assertCount(1, $args['drawnDisasters']);
+        self::assertSame('deck', $disasterManager->cards[2]['location']);
     }
 
     public function testWolfTrapBuriesItselfForBreakAndStress(): void

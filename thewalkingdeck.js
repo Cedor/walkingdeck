@@ -843,6 +843,14 @@ define([
           break;
         case "disasterChoice":
           this.prepareDisasterChoice(args.args || args);
+          if (this.disasterResolutionPhase === "adrienChoice") {
+            this.adrienDisasterChoiceConnector = dojo.connect(
+              this.disastersDrawnSlot,
+              "onCardClick",
+              this,
+              "onAdrienDisasterClick"
+            );
+          }
           this.prepareAenorAbility(args.args || args, stateName);
           break;
         case "wolfTrapChoice":
@@ -1064,6 +1072,17 @@ define([
           break;
         case "disasterChoice":
           this.clearAenorAbilityUi();
+          (this.adrienEligibleDisasterIds || []).forEach((id) => {
+            const disasterElement = document.getElementById(`token-${id}`);
+            disasterElement?.classList.remove("twd-adrien-disaster-candidate");
+            disasterElement?.classList.remove("twd-adrien-disaster-selected");
+          });
+          if (this.adrienDisasterChoiceConnector) {
+            dojo.disconnect(this.adrienDisasterChoiceConnector);
+            this.adrienDisasterChoiceConnector = null;
+          }
+          this.adrienEligibleDisasterIds = [];
+          this.adrienSelectedDisasterId = null;
           this.disasterResolutionPhase = null;
           this.disasterResourceAvailable = false;
           this.disasterResourceId = null;
@@ -1231,12 +1250,26 @@ define([
           case "disasterChoice": {
             const disasterArgs = args.args || args;
             if (disasterArgs.phase === "draw") {
-              this.statusBar.setTitle(
-                _("Draw ${total} disasters"),
+              if (disasterArgs.adrienSecondPermanentEffect) {
+                this.statusBar.setTitle(_("Draw two disasters and choose one"));
+              } else {
+                this.statusBar.setTitle(
+                  _("Draw ${total} disasters"),
+                  {
+                    total: disasterArgs.requiredDraws,
+                  }
+                );
+              }
+            } else if (disasterArgs.phase === "adrienChoice") {
+              this.statusBar.setTitle(_("Choose a disaster to keep"));
+              this.statusBar.addActionButton(
+                _("Keep selected disaster"),
+                () => this.confirmAdrienDisaster(),
                 {
-                  total: disasterArgs.requiredDraws,
+                  id: "confirm_adrien_disaster",
+                  color: "primary",
                 }
-              );
+              ).style.visibility = "hidden";
             } else if (disasterArgs.phase === "characteristic") {
               const characteristic = disasterArgs.characteristic;
               const affectedNames = (disasterArgs.affectedCharacters || [])
@@ -2017,6 +2050,15 @@ define([
       this.disasterCharacteristic = args.characteristic || null;
       this.disasterResourceAvailable = Boolean(args.resourceAvailable);
       this.disasterResourceId = args.resourceId || null;
+      this.adrienEligibleDisasterIds = (args.eligibleDisasterIds || []).map(Number);
+      this.adrienSelectedDisasterId = null;
+      if (args.phase === "adrienChoice") {
+        this.adrienEligibleDisasterIds.forEach((id) => {
+          document
+            .getElementById(`token-${id}`)
+            ?.classList.add("twd-adrien-disaster-candidate");
+        });
+      }
       const bag = document.getElementById("disasters_bag");
       if (args.phase === "draw") {
         bag?.classList.add("twd-highlight");
@@ -2028,6 +2070,34 @@ define([
         document
           .getElementById(`twd-ressource-${this.disasterResourceId}`)
           ?.classList.add("twd-highlight");
+      }
+    },
+
+    onAdrienDisasterClick: function (disaster) {
+      const disasterId = Number(disaster?.id);
+      if (!(this.adrienEligibleDisasterIds || []).includes(disasterId)) return;
+
+      (this.adrienEligibleDisasterIds || []).forEach((id) => {
+        document
+          .getElementById(`token-${id}`)
+          ?.classList.remove("twd-adrien-disaster-selected");
+      });
+      this.adrienSelectedDisasterId = disasterId;
+      document
+        .getElementById(`token-${disasterId}`)
+        ?.classList.add("twd-adrien-disaster-selected");
+      const button = document.getElementById("confirm_adrien_disaster");
+      if (button) button.style.visibility = "visible";
+    },
+
+    confirmAdrienDisaster: function () {
+      if (
+        (this.adrienEligibleDisasterIds || [])
+          .includes(this.adrienSelectedDisasterId)
+      ) {
+        this.bgaPerformAction("actChooseAdrienDisaster", {
+          disaster_id: this.adrienSelectedDisasterId,
+        });
       }
     },
 

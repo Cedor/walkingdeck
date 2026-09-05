@@ -461,6 +461,15 @@ class Game extends \Bga\GameFramework\Table
             && intval($this->getGameStateValue('adrienRemovedResource1')) > 0;
     }
 
+    private function hasAdrienSecondPermanentEffect(): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+            && intval($this->getGameStateValue('adrienRemovedResource2')) > 0;
+    }
+
     private function canStartNormalRefill(): bool
     {
         if (
@@ -2873,7 +2882,9 @@ class Game extends \Bga\GameFramework\Table
             $this->disasterManager->getCardsInLocation('hand', $event['id'])
         );
 
-        if ($resolution['confirmedDraws'] < $requiredDraws) {
+        if ($resolution['adrienCandidateDisasterIds'] !== []) {
+            $phase = 'adrienChoice';
+        } elseif ($resolution['confirmedDraws'] < $requiredDraws) {
             $phase = 'draw';
         } elseif ($resolution['characteristicIndex'] < count(self::DISASTER_CHARACTERISTICS)) {
             $phase = 'characteristic';
@@ -2916,7 +2927,9 @@ class Game extends \Bga\GameFramework\Table
             'phase' => $phase,
             'requiredDraws' => $requiredDraws,
             'confirmedDraws' => $resolution['confirmedDraws'],
+            'adrienSecondPermanentEffect' => $this->hasAdrienSecondPermanentEffect(),
             'drawnDisasters' => $drawnDisasters,
+            'eligibleDisasterIds' => $resolution['adrienCandidateDisasterIds'],
             'characteristic' => $characteristic,
             'characteristicPresent' => $present,
             'characteristicIgnored' => $characteristicIgnored,
@@ -2973,7 +2986,10 @@ class Game extends \Bga\GameFramework\Table
         $event = $this->getPendingDisasterChoiceEvent();
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
-        if ($resolution['confirmedDraws'] >= $requiredDraws) {
+        if (
+            $resolution['confirmedDraws'] >= $requiredDraws
+            || $resolution['adrienCandidateDisasterIds'] !== []
+        ) {
             throw new UserException(
                 \clienttranslate('The required disasters have already been drawn')
             );
@@ -2984,6 +3000,39 @@ class Game extends \Bga\GameFramework\Table
             $this->disasterManager->moveAllCardsInLocation('hand', 'deck');
             $this->disasterManager->shuffle('deck');
             $shuffle = true;
+        }
+
+        if ($this->hasAdrienSecondPermanentEffect()) {
+            $numberToDraw = min(
+                2,
+                $this->disasterManager->countCardInLocation('deck')
+            );
+            if ($numberToDraw === 0) {
+                throw new SystemException('The disaster deck is empty');
+            }
+
+            for ($drawIndex = 0; $drawIndex < $numberToDraw; $drawIndex++) {
+                $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+                if ($disaster === null) {
+                    throw new SystemException('The disaster deck is empty');
+                }
+                $resolution['adrienCandidateDisasterIds'][] = intval(
+                    $disaster['id']
+                );
+                $this->notify->all(
+                    'disasterDrawnFromBag',
+                    \clienttranslate('Disaster(s) drawn from bag'),
+                    [
+                        'disaster' => $disaster,
+                        'shuffle' => $shuffle && $drawIndex === 0,
+                    ]
+                );
+            }
+
+            $this->updateDisasterResolution($event, $resolution);
+            $this->giveExtraTimeToActivePlayer();
+            $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+            return;
         }
 
         $drawsRemaining = $requiredDraws - $resolution['confirmedDraws'];
@@ -3003,6 +3052,63 @@ class Game extends \Bga\GameFramework\Table
                 ]
             );
         }
+        $resolution = $this->skipInactiveDisasterCharacteristics(
+            $event,
+            $resolution
+        );
+        $this->updateDisasterResolution($event, $resolution);
+        $this->giveExtraTimeToActivePlayer();
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+    }
+
+    public function actChooseAdrienDisaster(int $disaster_id): void
+    {
+        $this->checkAction('actChooseAdrienDisaster');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $candidateIds = $resolution['adrienCandidateDisasterIds'];
+        if (!in_array($disaster_id, $candidateIds, true)) {
+            throw new UserException(
+                \clienttranslate('You must choose one of the disasters drawn for Adrien')
+            );
+        }
+
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        $drawnDisastersById = [];
+        foreach ($drawnDisasters as $disaster) {
+            $drawnDisastersById[intval($disaster['id'])] = $disaster;
+        }
+        foreach ($candidateIds as $candidateId) {
+            if (!isset($drawnDisastersById[$candidateId])) {
+                throw new SystemException('An Adrien disaster candidate is missing');
+            }
+        }
+
+        $returnedDisasters = [];
+        foreach ($candidateIds as $candidateId) {
+            if ($candidateId === $disaster_id) {
+                continue;
+            }
+            $this->disasterManager->moveCard($candidateId, 'deck');
+            $returnedDisasters[] = $drawnDisastersById[$candidateId];
+        }
+        $this->disasterManager->shuffle('deck');
+        if ($returnedDisasters !== []) {
+            $this->notify->all(
+                'disastersResolved',
+                \clienttranslate('Unchosen disaster returned to the bag'),
+                [
+                    'removedDisasters' => [],
+                    'returnedDisasters' => $returnedDisasters,
+                ]
+            );
+        }
+
+        $resolution['adrienCandidateDisasterIds'] = [];
+        $resolution['confirmedDraws']++;
         $resolution = $this->skipInactiveDisasterCharacteristics(
             $event,
             $resolution
@@ -3150,7 +3256,22 @@ class Game extends \Bga\GameFramework\Table
                     ? $resolution['ignoredCharacteristics']
                     : []
             )),
+            'adrienCandidateDisasterIds' => $this->normalizeDisasterIds(
+                $resolution['adrienCandidateDisasterIds'] ?? []
+            ),
         ];
+    }
+
+    private function normalizeDisasterIds($disasterIds): array
+    {
+        if (!is_array($disasterIds)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('intval', $disasterIds),
+            static fn(int $disasterId): bool => $disasterId > 0
+        )));
     }
 
     private function updateDisasterResolution(array $event, array $resolution): void
