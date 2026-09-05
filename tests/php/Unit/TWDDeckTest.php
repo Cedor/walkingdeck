@@ -24,6 +24,7 @@ final class TWDDeckTest extends TestCase
         ];
         $game->cardInfo[2][3] = [
             'card_name' => 'Clown',
+            'translate_name' => 1,
             'is_zombie' => 1,
             'is_character' => 0,
             'consequence_black' => null,
@@ -40,6 +41,7 @@ final class TWDDeckTest extends TestCase
         $card = (new TWDDeck($game))->getCard(7);
 
         self::assertSame('Clown', $card['card_name']);
+        self::assertSame(1, $card['translate_name']);
         self::assertSame(['action' => 'bury', 'bury' => 'this'], $card['consequence_grey']);
         self::assertSame(2, $card['consequence_white']['number']);
         self::assertSame('Draw ${disaster}', $card['texts']['white']['text']);

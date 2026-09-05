@@ -25,12 +25,12 @@ DELIMITER ;
 
 CALL assert_equals(
     'card definitions',
-    38,
+    39,
     (SELECT COUNT(*) FROM twd_card_info)
 );
 CALL assert_equals(
     'protagonists',
-    2,
+    3,
     (SELECT COUNT(*) FROM twd_protagonist_info)
 );
 CALL assert_equals(
@@ -65,6 +65,28 @@ CALL assert_equals(
           AND column_name = 'texts'
           AND is_nullable = 'YES'
           AND (column_default IS NULL OR column_default = 'NULL')
+    )
+);
+CALL assert_equals(
+    'card name translation column',
+    1,
+    (
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'twd_card_info'
+          AND column_name = 'translate_name'
+          AND is_nullable = 'NO'
+          AND column_default = '1'
+    )
+);
+CALL assert_equals(
+    'card names initially translatable',
+    24,
+    (
+        SELECT COUNT(*)
+        FROM twd_card_info
+        WHERE translate_name = 1
     )
 );
 CALL assert_equals(

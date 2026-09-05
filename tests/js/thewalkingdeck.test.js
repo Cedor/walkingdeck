@@ -48,6 +48,32 @@ before(() => {
 });
 
 describe("card helpers", () => {
+  it("unlocks refill with two cards after Adrien's first sacrifice", () => {
+    const context = {
+      gamePhase: 1,
+      hand: { getCardCount: () => 2 },
+      adrienRemovedResources: [],
+    };
+
+    assert.equal(game.canRefillHand.call(context), false);
+
+    context.adrienRemovedResources = ["ressource_break"];
+    assert.equal(game.canRefillHand.call(context), true);
+
+    context.gamePhase = 2;
+    assert.equal(game.canRefillHand.call(context), false);
+  });
+
+  it("keeps the normal one-card refill rule", () => {
+    const context = {
+      gamePhase: 1,
+      hand: { getCardCount: () => 1 },
+      adrienRemovedResources: [],
+    };
+
+    assert.equal(game.canRefillHand.call(context), true);
+  });
+
   it("enables clicks on the protagonist slot for protagonist abilities", () => {
     const source = readFileSync(
       new URL("../../thewalkingdeck.js", import.meta.url),
@@ -642,6 +668,13 @@ describe("player actions", () => {
     assert.equal(game.getCardName(null), "Unknown card");
   });
 
+  it("keeps card names marked as non-translatable unchanged", () => {
+    assert.equal(
+      game.getCardName({ card_name: "Wolf Trap", translate_name: 0 }),
+      "Wolf Trap"
+    );
+  });
+
   it("does not offer a confirmation to resolve a non-character card", () => {
     const statusBar = {
       setTitle: spy(),
@@ -1054,29 +1087,111 @@ describe("player actions", () => {
     const firstToken = { classList: { add: spy(), remove: spy() } };
     const secondToken = { classList: { add: spy(), remove: spy() } };
     const button = { style: {} };
-    documentElementOverrides["token-1"] = firstToken;
-    documentElementOverrides["token-2"] = secondToken;
     documentElementOverrides.confirm_draft_disaster = button;
     const context = {
       draftDisasterEligibleIds: [1, 2],
       draftDisasterSelectedId: null,
       bgaPerformAction: spy(),
+      disastersDrawnSlot: {},
+      disastersManager: {
+        getCardElement: spy((token) => token.id === 1 ? firstToken : secondToken),
+      },
+      getDisasterElement: game.getDisasterElement,
+      getActivePlayerId: spy(),
     };
 
     try {
+      game.onEnteringState.call(context, "draftDisasterChoice", {
+        args: {
+          phase: "choose",
+          eligibleDisasterIds: [1, 2],
+        },
+      });
+      assert.deepEqual(firstToken.classList.add.calls[0], [
+        "twd-highlight",
+        "twd-disaster-choice-candidate",
+      ]);
+      assert.deepEqual(secondToken.classList.add.calls[0], [
+        "twd-highlight",
+        "twd-disaster-choice-candidate",
+      ]);
+
       game.onDraftDisasterClick.call(context, { id: 2 });
       assert.equal(context.draftDisasterSelectedId, 2);
-      assert.equal(secondToken.classList.add.calls.length, 1);
+      assert.deepEqual(secondToken.classList.add.calls[1], [
+        "twd-disaster-choice-selected",
+      ]);
       assert.equal(button.style.visibility, "visible");
+
+      game.onDraftDisasterClick.call(context, { id: 1 });
+      assert.equal(context.draftDisasterSelectedId, 1);
+      assert.deepEqual(firstToken.classList.add.calls[1], [
+        "twd-disaster-choice-selected",
+      ]);
+      assert.deepEqual(secondToken.classList.remove.calls.at(-1), [
+        "twd-disaster-choice-selected",
+      ]);
 
       game.confirmDraftDisaster.call(context);
       assert.equal(context.bgaPerformAction.calls.length, 1);
       assert.equal(context.bgaPerformAction.calls[0][0], "actResolveDraftDisaster");
-      assert.equal(context.bgaPerformAction.calls[0][1].disaster_id, 2);
+      assert.equal(context.bgaPerformAction.calls[0][1].disaster_id, 1);
     } finally {
-      delete documentElementOverrides["token-1"];
-      delete documentElementOverrides["token-2"];
       delete documentElementOverrides.confirm_draft_disaster;
+    }
+  });
+
+  it("selects and keeps one of Adrien's disaster candidates", () => {
+    const firstToken = { classList: { add: spy(), remove: spy() } };
+    const secondToken = { classList: { add: spy(), remove: spy() } };
+    const button = { style: { visibility: "hidden" } };
+    documentElementOverrides.confirm_adrien_disaster = button;
+    const context = {
+      adrienEligibleDisasterIds: [1, 2],
+      adrienSelectedDisasterId: null,
+      bgaPerformAction: spy(),
+      clearDisasterResourceHighlight: spy(),
+      disastersManager: {
+        getCardElement: spy((token) => token.id === 1 ? firstToken : secondToken),
+      },
+      getDisasterElement: game.getDisasterElement,
+    };
+
+    try {
+      game.prepareDisasterChoice.call(context, {
+        phase: "adrienChoice",
+        eligibleDisasterIds: [1, 2],
+      });
+      assert.deepEqual(firstToken.classList.add.calls[0], [
+        "twd-highlight",
+        "twd-disaster-choice-candidate",
+      ]);
+      assert.deepEqual(secondToken.classList.add.calls[0], [
+        "twd-highlight",
+        "twd-disaster-choice-candidate",
+      ]);
+
+      game.onAdrienDisasterClick.call(context, { id: 2 });
+      assert.equal(context.adrienSelectedDisasterId, 2);
+      assert.deepEqual(secondToken.classList.add.calls[1], [
+        "twd-disaster-choice-selected",
+      ]);
+      assert.equal(button.style.visibility, "visible");
+
+      game.onAdrienDisasterClick.call(context, { id: 1 });
+      assert.equal(context.adrienSelectedDisasterId, 1);
+      assert.deepEqual(firstToken.classList.add.calls[1], [
+        "twd-disaster-choice-selected",
+      ]);
+      assert.deepEqual(secondToken.classList.remove.calls.at(-1), [
+        "twd-disaster-choice-selected",
+      ]);
+
+      game.confirmAdrienDisaster.call(context);
+      assert.equal(context.bgaPerformAction.calls[0][0], "actChooseAdrienDisaster");
+      assert.equal(context.bgaPerformAction.calls[0][1].disaster_id, 1);
+    } finally {
+      delete documentElementOverrides.confirm_adrien_disaster;
     }
   });
 
@@ -1141,6 +1256,28 @@ describe("player actions", () => {
     assert.equal(
       context.bgaPerformAction.calls[0][1].token_id,
       "ressource_hunger"
+    );
+  });
+
+  it("uses Adrien's dedicated action for an eligible resource", () => {
+    const context = {
+      adrienResourceChoiceActive: true,
+      adrienEligibleResourceIds: ["ressource_hunger", "ressource_break"],
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+
+    game.onRessourceClick.call(context, { id: "ressource_stress" });
+    game.onRessourceClick.call(context, { id: "ressource_break" });
+
+    assert.equal(context.bgaPerformAction.calls.length, 1);
+    assert.equal(
+      context.bgaPerformAction.calls[0][0],
+      "actRemoveAdrienResource"
+    );
+    assert.equal(
+      context.bgaPerformAction.calls[0][1].token_id,
+      "ressource_break"
     );
   });
 
@@ -1876,6 +2013,29 @@ describe("notifications", () => {
     ]);
   });
 
+  it("keeps the Memory top after Zoey adds hand cards underneath", async () => {
+    const memoryTopCard = { id: 20, type: "2", location: "memory" };
+    const context = {
+      moveCardToLocation: spy(async () => undefined),
+      setDeckState: spy(async () => undefined),
+      clearSpecialDrawHighlight: spy(),
+    };
+
+    await game.notif_cardMoved.call(context, {
+      card: { id: 10, type: "3" },
+      source: "hand",
+      destination: "memory",
+      memoryNb: 6,
+      memoryTopCard,
+    });
+
+    assert.deepEqual(context.setDeckState.calls[0], [
+      "memory",
+      6,
+      memoryTopCard,
+    ]);
+  });
+
   it("removes the special draw highlight when the additional card is drawn", async () => {
     const highlightedCard = {
       classList: { add: spy(), remove: spy() },
@@ -2012,5 +2172,42 @@ describe("notifications", () => {
     );
 
     assert.equal(updateCardInformations.calls[0][0], card);
+  });
+
+  it("removes Adrien's chosen resource from its stock", async () => {
+    const removeCard = spy(async () => undefined);
+    const updateCardInformations = spy();
+    const protagonist = { id: 3, type: "1", type_arg: "3" };
+    const context = {
+      ressourcesSlots: { removeCard },
+      protagonistSlot: { getCards: () => [protagonist] },
+      cardsManager: { updateCardInformations },
+      adrienRemovedResources: [],
+    };
+
+    await game.notif_ressourceRemoved.call(
+      context,
+      { id: "ressource_break", adrienSlot: 1 }
+    );
+
+    assert.equal(removeCard.calls[0][0].id, "ressource_break");
+    assert.deepEqual(
+      Array.from(context.adrienRemovedResources),
+      ["ressource_break"]
+    );
+    assert.deepEqual(
+      Array.from(updateCardInformations.calls[0][0].adrien_removed_resources),
+      ["ressource_break"]
+    );
+
+    await game.notif_ressourceRemoved.call(
+      context,
+      { id: "ressource_stress", adrienSlot: 2 }
+    );
+
+    assert.deepEqual(
+      Array.from(updateCardInformations.calls[1][0].adrien_removed_resources),
+      ["ressource_break", "ressource_stress"]
+    );
   });
 });

@@ -36,6 +36,7 @@ class Game extends \Bga\GameFramework\Table
     private const WIN_SCORE = 20;
     private const AENOR_TYPE_ARG = 1;
     private const BORIS_TYPE_ARG = 2;
+    private const ADRIEN_TYPE_ARG = 3;
     private const RESSOURCE_IDS = [
         'ressource_hunger',
         'ressource_break',
@@ -94,6 +95,8 @@ class Game extends \Bga\GameFramework\Table
             'revealedRuralCardId3' => 22,
             'revealedUrbanCardId2' => 23,
             'revealedUrbanCardId3' => 24,
+            'adrienRemovedResource1' => 25,
+            'adrienRemovedResource2' => 26,
             'gameMode' => GameMode::GLOBAL_ID,
         ]);
 
@@ -356,7 +359,7 @@ class Game extends \Bga\GameFramework\Table
         );
         $this->notify->all(
             'borisDecksMerged',
-            \clienttranslate('Boris merges the urban deck into the rural deck'),
+            \clienttranslate('Boris merges both decks into one'),
             [
                 'ruralDeckNb' => $this->deckManager->countCardInLocation(
                     Location::RURAL
@@ -391,7 +394,7 @@ class Game extends \Bga\GameFramework\Table
         );
         $this->notify->all(
             'borisDecksRedistributed',
-            \clienttranslate('Boris redistributes the cards between the rural and urban decks'),
+            \clienttranslate('Boris redistributes the cards in two decks'),
             [
                 'ruralDeckNb' => $this->deckManager->countCardInLocation(
                     Location::RURAL
@@ -447,6 +450,39 @@ class Game extends \Bga\GameFramework\Table
     {
         return $this->availableDraws() > 0
             && $this->deckManager->countCardInLocation(Location::HAND) < Rules::HAND_SIZE;
+    }
+
+    private function hasAdrienFirstPermanentEffect(): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+            && intval($this->getGameStateValue('adrienRemovedResource1')) > 0;
+    }
+
+    private function hasAdrienSecondPermanentEffect(): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+            && intval($this->getGameStateValue('adrienRemovedResource2')) > 0;
+    }
+
+    private function canStartNormalRefill(): bool
+    {
+        if (
+            intval($this->getGameStateValue('gamePhase')) !== 1
+            || $this->availableDraws() === 0
+        ) {
+            return false;
+        }
+
+        $handSize = $this->deckManager->countCardInLocation(Location::HAND);
+        $maximumKeptCards = $this->hasAdrienFirstPermanentEffect() ? 2 : 1;
+
+        return $handSize >= 1 && $handSize <= $maximumKeptCards;
     }
 
     /**
@@ -556,6 +592,17 @@ class Game extends \Bga\GameFramework\Table
                     $this->getPendingCardBurialConfirmationEvent();
                     $this->gamestate->nextState(
                         Transition::CARD_BURIAL_CONFIRMATION
+                    );
+                    return;
+
+                case EventType::ADRIEN_RESOURCE_CHOICE:
+                    $this->getPendingAdrienResourceChoiceEvent();
+                    if (count($this->ressources->getRessources()) <= 1) {
+                        $this->popEvent($event['id']);
+                        break;
+                    }
+                    $this->gamestate->nextState(
+                        Transition::ADRIEN_RESOURCE_CHOICE
                     );
                     return;
 
@@ -1239,7 +1286,16 @@ class Game extends \Bga\GameFramework\Table
 
     private function popEvent(int $expectedId): void
     {
-        $poppedEvent = $this->eventStack->popEvent();
+        $currentEvent = $this->eventStack->getCurrentEvent();
+        if (
+            $currentEvent !== null
+            && $currentEvent['id'] !== $expectedId
+            && $currentEvent['type'] === EventType::ADRIEN_RESOURCE_CHOICE
+        ) {
+            $poppedEvent = $this->eventStack->removeEvent($expectedId);
+        } else {
+            $poppedEvent = $this->eventStack->popEvent();
+        }
         if ($poppedEvent === null || $poppedEvent['id'] !== $expectedId) {
             throw new SystemException('Unexpected event popped from stack');
         }
@@ -1298,6 +1354,13 @@ class Game extends \Bga\GameFramework\Table
         return $card;
     }
 
+    private function getCardNameI18n(array $card): array
+    {
+        return intval($card['translate_name'] ?? 1) === 1
+            ? ['card_name']
+            : [];
+    }
+
     private function revealTopDeckCard(string $location): void
     {
         $states = self::REVEALED_DECK_CARD_STATES[$location] ?? null;
@@ -1321,7 +1384,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->notify->all(
             'deckTopRevealed',
-            \clienttranslate('${card_name} is revealed on top of its deck'),
+            \clienttranslate('${card_name} is revealed'),
             [
                 'card' => $this->withFaceDown($card, false),
                 'card_name' => $card['card_name'],
@@ -1487,53 +1550,157 @@ class Game extends \Bga\GameFramework\Table
         $cardName = $card['card_name'];
         $this->notify->all(
             'cardMoved',
-            \clienttranslate('Card ${card_name} played from hand to ${location}'),
+            \clienttranslate('Card ${card_name} moved from ${source} to ${location}'),
             [
                 'card' => $card,
                 'card_name' => $cardName,
                 'location' => $location,
                 'destination' => $location,
                 'source' => Location::HAND,
-                'i18n' => ['card_name'],
+                'i18n' => $this->getCardNameI18n($card),
             ]
         );
 
-        if ($location === Location::MEMORY) {
-            $this->notify->all(
-                'cardInMemory',
-                \clienttranslate('Card ${card_name} placed in memory after applying white consequences'),
-                [
-                    'card' => $card,
-                    'card_name' => $cardName,
-                    'i18n' => ['card_name'],
-                ]
-            );
-        } elseif ($location === Location::ESCAPED) {
-            $this->notify->all(
-                'cardInMemory',
-                \clienttranslate('Card ${card_name} escaped after applying black consequences'),
-                [
-                    'card' => $card,
-                    'card_name' => $cardName,
-                    'i18n' => ['card_name'],
-                ]
-            );
-        }
     }
 
     private function moveCard(int $card_id, string $location, int $location_arg = 0): void
     {
         $source = $this->deckManager->getCard($card_id)['location'];
-        if ($location === Location::GRAVEYARD) {
-            $this->deckManager->insertCardOnExtremePosition(
-                $card_id,
-                $location,
-                true
-            );
-        } else {
-            $this->deckManager->moveCard($card_id, $location, $location_arg);
+
+        switch ($location) {
+            case Location::GRAVEYARD:
+                $this->deckManager->insertCardOnExtremePosition(
+                    $card_id,
+                    $location,
+                    true
+                );
+                break;
+            default:
+                $this->deckManager->moveCard(
+                    $card_id,
+                    $location,
+                    $location_arg
+                );
         }
-        $card = $this->deckManager->getCard($card_id);
+
+        $this->notifyCardMoved($card_id, $source, $location);
+
+        if (
+            $location === Location::GRAVEYARD
+            && $source !== Location::GRAVEYARD
+        ) {
+            $this->onCardSentToGraveyard(
+                $this->deckManager->getCard($card_id)
+            );
+        }
+    }
+
+    private function onCardSentToGraveyard(array $card): void
+    {
+        $protagonist = $this->getProtagonistInPlay();
+        if (
+            $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+        ) {
+            $this->triggerAdrienGraveyardAbility($card);
+        }
+    }
+
+    /**
+     * Entry point for Adrien's special rule after a card reaches the graveyard.
+     *
+     * Player input uses a dedicated Adrien event on the event stack. It is not
+     * merged into an already pending consequence choice: the Adrien event can
+     * temporarily sit on top of that choice and let it resume afterwards.
+     */
+    protected function triggerAdrienGraveyardAbility(array $buriedCard): void
+    {
+        if (count($this->ressources->getRessources()) <= 1) {
+            // Adrien's second rule branch will be implemented later.
+            return;
+        }
+
+        $this->eventStack->pushEvent(
+            EventType::ADRIEN_RESOURCE_CHOICE,
+            ['buriedCardId' => intval($buriedCard['id'])]
+        );
+    }
+
+    public function argAdrienResourceChoice(): array
+    {
+        $this->getPendingAdrienResourceChoiceEvent();
+        $resources = array_values($this->ressources->getRessources());
+
+        return [
+            'resources' => $resources,
+            'eligibleResourceIds' => array_column($resources, 'id'),
+        ];
+    }
+
+    public function actRemoveAdrienResource(string $token_id): void
+    {
+        $this->checkAction('actRemoveAdrienResource');
+        $event = $this->getPendingAdrienResourceChoiceEvent();
+        $resourcesById = [];
+        foreach ($this->ressources->getRessources() as $resource) {
+            $resourcesById[$resource['id']] = $resource;
+        }
+        if (!isset($resourcesById[$token_id]) || count($resourcesById) <= 1) {
+            throw new UserException(
+                \clienttranslate('You must choose an existing resource')
+            );
+        }
+
+        $adrienSlot = 4 - count($resourcesById);
+        $resourceCode = array_search($token_id, self::RESSOURCE_IDS, true);
+        $this->setGameStateValue(
+            'adrienRemovedResource' . $adrienSlot,
+            $resourceCode + 1
+        );
+        $this->ressources->removeRessource($token_id, [
+            'adrienSlot' => $adrienSlot,
+        ]);
+        $this->popEvent($event['id']);
+        $this->giveExtraTimeToActivePlayer();
+        $this->gamestate->nextState(Transition::DISPATCH_EVENTS);
+    }
+
+    private function getPendingAdrienResourceChoiceEvent(): array
+    {
+        $event = $this->eventStack->getCurrentEvent();
+        if (
+            $event === null
+            || $event['type'] !== EventType::ADRIEN_RESOURCE_CHOICE
+        ) {
+            throw new SystemException(
+                \clienttranslate('There is no pending Adrien resource choice')
+            );
+        }
+
+        return $event;
+    }
+
+    private function getAdrienRemovedResources(): array
+    {
+        $removedResources = [];
+        foreach ([1, 2] as $slot) {
+            $resourceCode = intval($this->getGameStateValue(
+                'adrienRemovedResource' . $slot
+            ));
+            if ($resourceCode > 0 && isset(self::RESSOURCE_IDS[$resourceCode - 1])) {
+                $removedResources[] = self::RESSOURCE_IDS[$resourceCode - 1];
+            }
+        }
+
+        return $removedResources;
+    }
+
+    private function notifyCardMoved(
+        int $cardId,
+        string $source,
+        string $location
+    ): void {
+        $card = $this->deckManager->getCard($cardId);
         $card_name = $card['card_name'];
         $notificationArguments = array(
             'card' => $card,
@@ -1541,7 +1708,7 @@ class Game extends \Bga\GameFramework\Table
             'location' => $location,
             'destination' => $location,
             'source' => $source,
-            'i18n' => ['card_name'],
+            'i18n' => $this->getCardNameI18n($card),
         );
         $notificationArguments = array_merge(
             $notificationArguments,
@@ -2150,7 +2317,7 @@ class Game extends \Bga\GameFramework\Table
         return [
             'sourceCard' => $sourceCard,
             'card_name' => $sourceCard['card_name'],
-            'i18n' => ['card_name'],
+            'i18n' => $this->getCardNameI18n($sourceCard),
         ];
     }
 
@@ -2646,7 +2813,7 @@ class Game extends \Bga\GameFramework\Table
             }
             $this->notify->all(
                 'disasterDrawnFromBag',
-                \clienttranslate('Disaster drawn from bag for draft'),
+                \clienttranslate('Disaster(s) drawn from bag'),
                 [
                     'disaster' => $disaster,
                     'shuffle' => $drawIndex === 0,
@@ -2715,7 +2882,9 @@ class Game extends \Bga\GameFramework\Table
             $this->disasterManager->getCardsInLocation('hand', $event['id'])
         );
 
-        if ($resolution['confirmedDraws'] < $requiredDraws) {
+        if ($resolution['adrienCandidateDisasterIds'] !== []) {
+            $phase = 'adrienChoice';
+        } elseif ($resolution['confirmedDraws'] < $requiredDraws) {
             $phase = 'draw';
         } elseif ($resolution['characteristicIndex'] < count(self::DISASTER_CHARACTERISTICS)) {
             $phase = 'characteristic';
@@ -2758,7 +2927,9 @@ class Game extends \Bga\GameFramework\Table
             'phase' => $phase,
             'requiredDraws' => $requiredDraws,
             'confirmedDraws' => $resolution['confirmedDraws'],
+            'adrienSecondPermanentEffect' => $this->hasAdrienSecondPermanentEffect(),
             'drawnDisasters' => $drawnDisasters,
+            'eligibleDisasterIds' => $resolution['adrienCandidateDisasterIds'],
             'characteristic' => $characteristic,
             'characteristicPresent' => $present,
             'characteristicIgnored' => $characteristicIgnored,
@@ -2815,7 +2986,10 @@ class Game extends \Bga\GameFramework\Table
         $event = $this->getPendingDisasterChoiceEvent();
         $resolution = $this->getDisasterResolution($event);
         $requiredDraws = intval($event['parameters']['consequence']['number']);
-        if ($resolution['confirmedDraws'] >= $requiredDraws) {
+        if (
+            $resolution['confirmedDraws'] >= $requiredDraws
+            || $resolution['adrienCandidateDisasterIds'] !== []
+        ) {
             throw new UserException(
                 \clienttranslate('The required disasters have already been drawn')
             );
@@ -2828,6 +3002,39 @@ class Game extends \Bga\GameFramework\Table
             $shuffle = true;
         }
 
+        if ($this->hasAdrienSecondPermanentEffect()) {
+            $numberToDraw = min(
+                2,
+                $this->disasterManager->countCardInLocation('deck')
+            );
+            if ($numberToDraw === 0) {
+                throw new SystemException('The disaster deck is empty');
+            }
+
+            for ($drawIndex = 0; $drawIndex < $numberToDraw; $drawIndex++) {
+                $disaster = $this->disasterManager->pickCard('deck', $event['id']);
+                if ($disaster === null) {
+                    throw new SystemException('The disaster deck is empty');
+                }
+                $resolution['adrienCandidateDisasterIds'][] = intval(
+                    $disaster['id']
+                );
+                $this->notify->all(
+                    'disasterDrawnFromBag',
+                    \clienttranslate('Disaster(s) drawn from bag'),
+                    [
+                        'disaster' => $disaster,
+                        'shuffle' => $shuffle && $drawIndex === 0,
+                    ]
+                );
+            }
+
+            $this->updateDisasterResolution($event, $resolution);
+            $this->giveExtraTimeToActivePlayer();
+            $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+            return;
+        }
+
         $drawsRemaining = $requiredDraws - $resolution['confirmedDraws'];
         for ($drawIndex = 0; $drawIndex < $drawsRemaining; $drawIndex++) {
             $disaster = $this->disasterManager->pickCard('deck', $event['id']);
@@ -2838,13 +3045,70 @@ class Game extends \Bga\GameFramework\Table
             $resolution['confirmedDraws']++;
             $this->notify->all(
                 'disasterDrawnFromBag',
-                \clienttranslate('Disaster drawn from bag'),
+                \clienttranslate('Disaster(s) drawn from bag'),
                 [
                     'disaster' => $disaster,
                     'shuffle' => $shuffle && $drawIndex === 0,
                 ]
             );
         }
+        $resolution = $this->skipInactiveDisasterCharacteristics(
+            $event,
+            $resolution
+        );
+        $this->updateDisasterResolution($event, $resolution);
+        $this->giveExtraTimeToActivePlayer();
+        $this->gamestate->nextState(Transition::DISASTER_CHOICE);
+    }
+
+    public function actChooseAdrienDisaster(int $disaster_id): void
+    {
+        $this->checkAction('actChooseAdrienDisaster');
+        $event = $this->getPendingDisasterChoiceEvent();
+        $resolution = $this->getDisasterResolution($event);
+        $candidateIds = $resolution['adrienCandidateDisasterIds'];
+        if (!in_array($disaster_id, $candidateIds, true)) {
+            throw new UserException(
+                \clienttranslate('You must choose one of the disasters drawn for Adrien')
+            );
+        }
+
+        $drawnDisasters = $this->disasterManager->getCardsInLocation(
+            'hand',
+            $event['id']
+        );
+        $drawnDisastersById = [];
+        foreach ($drawnDisasters as $disaster) {
+            $drawnDisastersById[intval($disaster['id'])] = $disaster;
+        }
+        foreach ($candidateIds as $candidateId) {
+            if (!isset($drawnDisastersById[$candidateId])) {
+                throw new SystemException('An Adrien disaster candidate is missing');
+            }
+        }
+
+        $returnedDisasters = [];
+        foreach ($candidateIds as $candidateId) {
+            if ($candidateId === $disaster_id) {
+                continue;
+            }
+            $this->disasterManager->moveCard($candidateId, 'deck');
+            $returnedDisasters[] = $drawnDisastersById[$candidateId];
+        }
+        $this->disasterManager->shuffle('deck');
+        if ($returnedDisasters !== []) {
+            $this->notify->all(
+                'disastersResolved',
+                \clienttranslate('Unchosen disaster returned to the bag'),
+                [
+                    'removedDisasters' => [],
+                    'returnedDisasters' => $returnedDisasters,
+                ]
+            );
+        }
+
+        $resolution['adrienCandidateDisasterIds'] = [];
+        $resolution['confirmedDraws']++;
         $resolution = $this->skipInactiveDisasterCharacteristics(
             $event,
             $resolution
@@ -2992,7 +3256,22 @@ class Game extends \Bga\GameFramework\Table
                     ? $resolution['ignoredCharacteristics']
                     : []
             )),
+            'adrienCandidateDisasterIds' => $this->normalizeDisasterIds(
+                $resolution['adrienCandidateDisasterIds'] ?? []
+            ),
         ];
+    }
+
+    private function normalizeDisasterIds($disasterIds): array
+    {
+        if (!is_array($disasterIds)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('intval', $disasterIds),
+            static fn(int $disasterId): bool => $disasterId > 0
+        )));
     }
 
     private function updateDisasterResolution(array $event, array $resolution): void
@@ -3143,7 +3422,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->notify->all(
             'disasterDrawnFromBag',
-            \clienttranslate('Disaster drawn for Wolf Trap'),
+            \clienttranslate('Disaster(s) drawn from bag'),
             [
                 'disaster' => $disaster,
                 'shuffle' => true,
@@ -3352,7 +3631,7 @@ class Game extends \Bga\GameFramework\Table
         $this->escapeCardForConsequence(
             $this->deckManager->getCard($card_id),
             Location::HAND,
-            \clienttranslate('${card_name} avoided danger and escaped')
+            \clienttranslate('${card_name} was avoided')
         );
     }
 
@@ -3373,7 +3652,7 @@ class Game extends \Bga\GameFramework\Table
         $this->escapeCardForConsequence(
             $card,
             Location::MEMORY,
-            \clienttranslate('${card_name} escaped thanks to Tallahassee')
+            \clienttranslate('${card_name} was avoided')
         );
     }
 
@@ -3587,7 +3866,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is quickly memorised'),
+                \clienttranslate('${card_name} is memorised'),
                 array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
@@ -3642,7 +3921,7 @@ class Game extends \Bga\GameFramework\Table
         foreach ($selectedCardIds as $cardId) {
             if (!isset($handCardsById[$cardId])) {
                 throw new UserException(
-                    \clienttranslate('You can only quickly memorise cards from your hand')
+                    \clienttranslate('You can only memorise cards from your hand')
                 );
             }
             $cards[] = $handCardsById[$cardId];
@@ -3653,17 +3932,21 @@ class Game extends \Bga\GameFramework\Table
             $this->deckManager->insertCardOnExtremePosition(
                 $cardId,
                 Location::MEMORY,
-                true
+                false
             );
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is quickly memorised from the hand'),
+                \clienttranslate('${card_name} is memorised'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
                     'destination' => Location::MEMORY,
                     'source' => Location::HAND,
+                    'memoryNb' => $this->deckManager->countCardInLocation(
+                        Location::MEMORY
+                    ),
+                    'memoryTopCard' => $this->getMemoryTopForDisplay(),
                 ]
             );
         }
@@ -3739,7 +4022,7 @@ class Game extends \Bga\GameFramework\Table
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} escapes directly from the hand'),
+                \clienttranslate('${card_name} was avoided'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
@@ -3776,7 +4059,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is revealed for brainstorm'),
+                \clienttranslate('${card_name} is revealed'),
                 array_merge([
                     'card' => $card,
                     'card_name' => $card['card_name'],
@@ -3806,7 +4089,7 @@ class Game extends \Bga\GameFramework\Table
             $movedCard = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is recalled from Memory'),
+                \clienttranslate('${card_name} is recovered from Memory'),
                 [
                     'card' => $movedCard,
                     'card_name' => $movedCard['card_name'],
@@ -4002,7 +4285,7 @@ class Game extends \Bga\GameFramework\Table
             $card = $this->deckManager->getCard($cardId);
             $this->notify->all(
                 'cardMoved',
-                \clienttranslate('${card_name} is returned after brainstorm'),
+                \clienttranslate('Cards are return to the deck'),
                 [
                     'card' => $this->withFaceDown($card, false),
                     'card_name' => $card['card_name'],
@@ -4063,7 +4346,8 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Player action: start the normal refill when exactly one card remains.
+     * Player action: start the normal refill when one card remains, or when up
+     * to two remain after Adrien's first permanent effect has been unlocked.
      * An empty hand starts the same refill automatically in stEventDispatcher().
      *
      * @throws BgaUserException
@@ -4072,11 +4356,11 @@ class Game extends \Bga\GameFramework\Table
     {
         $this->checkAction('actRefillHand');
 
-        if ($this->deckManager->countCardInLocation(Location::HAND) !== 1) {
-            throw new UserException(\clienttranslate("You can only refill with exactly one card in hand."));
-        }
         if ($this->availableDraws() === 0) {
             throw new UserException(\clienttranslate("You can't refill because there are no cards left to draw."));
+        }
+        if (!$this->canStartNormalRefill()) {
+            throw new UserException(\clienttranslate("You can't refill your hand now."));
         }
 
         $this->eventStack->pushEvent(EventType::DRAW_CARD);
@@ -4100,13 +4384,13 @@ class Game extends \Bga\GameFramework\Table
             //set loss condition
             $lossCon = $this->setLossCondition($card);
             $this->deckManager->moveAllCardsInLocation(Location::HAND, Location::DISCARD);
-            $this->notify->all('protagonistCardPlayed', \clienttranslate('Protagonist ${card_name} played, loss condition: ${loss_condition} event buried'), array(
+            $this->notify->all('protagonistCardPlayed', \clienttranslate('Protagonist ${card_name} played, loss condition: ${loss_condition} cards buried'), array(
                 'card' => $card,
                 'card_name' => $cardname,
                 'difficulty' => $difficulty,
                 'lossCondition' => $lossCon,
                 'loss_condition' => $lossCon,
-                'i18n' => ['card_name'],
+                'i18n' => $this->getCardNameI18n($card),
             ));
             if ($difficulty === self::BORIS_TYPE_ARG) {
                 $this->applyBorisDeckSetup();
@@ -4156,14 +4440,18 @@ class Game extends \Bga\GameFramework\Table
             $destination = Location::MEMORY;
             $this->deckManager->insertCardOnExtremePosition($cardId, $destination, true);
             $card = $this->deckManager->getCard($cardId);
-            $this->notify->all('cardMoved', \clienttranslate('Special draw triggered by card ${card_name}'), array_merge(array(
-                'card' => $card,
-                'card_name' => $card['card_name'],
-                'source' => $location,
-                'destination' => $destination,
-                'special' => true,
-                'i18n' => ['card_name'],
-            ), $this->getSourceDeckNotificationArguments($location)));
+            $this->notify->all(
+                'cardMoved',
+                \clienttranslate('Special draw triggered by card ${card_name}'),
+                array_merge(array(
+                    'card' => $card,
+                    'card_name' => $card['card_name'],
+                    'source' => $location,
+                    'destination' => $destination,
+                    'special' => true,
+                    'i18n' => $this->getCardNameI18n($card),
+                ), $this->getSourceDeckNotificationArguments($location))
+            );
         } else {
             $message = $location === Location::RURAL
                 ? \clienttranslate('Card drawn from the Rural deck')
@@ -4552,6 +4840,7 @@ class Game extends \Bga\GameFramework\Table
 
         // ressources
         $result['ressources'] = $this->ressources->getRessources();
+        $result['adrienRemovedResources'] = $this->getAdrienRemovedResources();
 
         // Disasters
         $result['disastersReserve'] = $this->disasterManager->getCardsInLocation('reserve');
@@ -4626,6 +4915,8 @@ class Game extends \Bga\GameFramework\Table
         $this->setGameStateInitialValue('revealedUrbanCardId3', 0);
         $this->setGameStateInitialValue('aenorAbilityUsed', 0);
         $this->setGameStateInitialValue('aenorProtectedCharacterId', 0);
+        $this->setGameStateInitialValue('adrienRemovedResource1', 0);
+        $this->setGameStateInitialValue('adrienRemovedResource2', 0);
         $this->setGameStateInitialValue('gameMode', GameMode::DEFAULT);
         // Init game statistics.
         //

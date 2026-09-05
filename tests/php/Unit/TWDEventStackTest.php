@@ -106,6 +106,27 @@ final class TWDEventStackTest extends TestCase
         self::assertSame([], $event['parameters']);
     }
 
+    public function testSpecificEventCanBeRemovedBelowAnInterruptingChoice(): void
+    {
+        $game = $this->getMockBuilder(Game::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['getObjectFromDB', 'DbQuery'])
+            ->getMock();
+        $game->method('getObjectFromDB')->willReturn([
+            'event_id' => '7',
+            'event_type' => EventType::CONSEQUENCE,
+            'event_parameters' => '{"cardId":40,"color":"black"}',
+        ]);
+        $game->expects(self::once())
+            ->method('DbQuery')
+            ->with(self::stringContains('WHERE `event_id` = 7'));
+
+        $event = (new TWDEventStack($game))->removeEvent(7);
+
+        self::assertSame(7, $event['id']);
+        self::assertSame(EventType::CONSEQUENCE, $event['type']);
+    }
+
     public function testEmptyStackReturnsNullAndReportsEmpty(): void
     {
         $game = $this->getMockBuilder(Game::class)

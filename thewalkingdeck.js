@@ -42,6 +42,7 @@ define([
       this.gamePhase = 1;
       this.isTestMode = false;
       this.lossCondition = 5; //default value
+      this.adrienRemovedResources = [];
       this.resolvingCardIds = new Set();
     },
 
@@ -49,6 +50,10 @@ define([
       const wrapper = document.getElementById("table_scale_wrap");
       const table = document.getElementById("table_organiser");
       const availableContainer = wrapper?.parentElement;
+      const resolutionArea = document.getElementById("card_resolution_organiser");
+      const currentResolutionArea = document.getElementById(
+        "current_card_resolution_wrap"
+      );
       if (!wrapper || !table || !availableContainer) {
         return;
       }
@@ -60,7 +65,18 @@ define([
       this.tableResponsiveState = null;
 
       const updateTableScale = () => {
-        const availableWidth = availableContainer.clientWidth;
+        const landscape = window.matchMedia?.("(orientation: landscape)").matches;
+        const resolutionIsVisible = resolutionArea
+          && window.getComputedStyle(resolutionArea).display !== "none";
+        const containerStyles = window.getComputedStyle(availableContainer);
+        const columnGap = Number.parseFloat(containerStyles.columnGap) || 0;
+        const resolutionWidth = landscape && resolutionIsVisible
+          ? (currentResolutionArea?.getBoundingClientRect().width || 0) + columnGap
+          : 0;
+        const availableWidth = Math.max(
+          0,
+          availableContainer.clientWidth - resolutionWidth
+        );
         let columns = 1;
         for (const candidate of [4, 2, 1]) {
           wrapper.dataset.twdColumns = String(candidate);
@@ -91,6 +107,12 @@ define([
         this.tableResizeObserver = new ResizeObserver(updateTableScale);
         this.tableResizeObserver.observe(availableContainer);
         this.tableResizeObserver.observe(table);
+        if (resolutionArea) {
+          this.tableResizeObserver.observe(resolutionArea);
+        }
+        if (currentResolutionArea) {
+          this.tableResizeObserver.observe(currentResolutionArea);
+        }
       } else {
         window.addEventListener("resize", updateTableScale);
       }
@@ -245,7 +267,7 @@ define([
         "2-16": { grey: "tiny" },
         "3-1": { grey: "tiny" },
         "3-2": { white: "short" },
-        "3-4": { black: "short" },
+        "3-4": { black: "short", grey: "dense" },
         "3-5": { special: "short", grey: "tiny" },
         "3-6": { grey: "tiny" },
         "3-7": { black: "short", grey: "dense" },
@@ -370,9 +392,28 @@ define([
           return zone;
         };
 
+        const addAdrienResourceZone = (resourceId, slot) => {
+          if (!/^ressource_(hunger|break|stress)$/.test(resourceId)) {
+            return;
+          }
+          const zone = addZone(`adrien-resource-${slot}`);
+          const iconName = resourceId.replace("ressource_", "");
+          const icon = document.createElement("span");
+          icon.className = `twd-card-text-icon twd-card-text-icon-${iconName}`;
+          icon.dataset.icon = iconName;
+          icon.setAttribute("role", "img");
+          icon.setAttribute("aria-label", iconName);
+          zone.appendChild(icon);
+        };
+
         addZone("name", this.getCardName(card));
         if (cardType === "1") {
           const body = addZone("body");
+          if (cardTypeArg === 3 && Array.isArray(card.adrien_removed_resources)) {
+            card.adrien_removed_resources.slice(0, 2).forEach(
+              (resourceId, index) => addAdrienResourceZone(resourceId, index + 1)
+            );
+          }
           const preferredBlockOrder = [
             "start", "defeat", "rule", "caseUp", "caseDown", "case1", "case2", "case3",
           ];
@@ -663,6 +704,9 @@ define([
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
       this.isTestMode = Boolean(this.gamedatas.isTestMode);
+      this.adrienRemovedResources = Array.isArray(
+        this.gamedatas.adrienRemovedResources
+      ) ? [...this.gamedatas.adrienRemovedResources] : [];
       this.setGamePhaseDisplay(this.gamedatas.gamePhase);
       // Hand gamedatas
       for (var i in this.gamedatas.hand) this.hand.addCard(this.gamedatas.hand[i]);
@@ -674,6 +718,9 @@ define([
         protagonist.aenor_ability_used = Boolean(
           Number(this.gamedatas.aenorAbilityUsed)
         );
+        protagonist.adrien_removed_resources = [
+          ...this.adrienRemovedResources,
+        ];
         this.protagonistSlot.addCard(protagonist);
       } else {
         console.log("Protagonist slot is empty");
@@ -772,6 +819,19 @@ define([
           this.characters.onCardClick = (card) =>
             this.onBiteCharacterClick(card);
           break;
+        case "adrienResourceChoice": {
+          const adrienArgs = args.args || args;
+          this.adrienResourceChoiceActive = true;
+          this.adrienEligibleResourceIds = (
+            adrienArgs.eligibleResourceIds || []
+          );
+          this.adrienEligibleResourceIds.forEach((resourceId) => {
+            document
+              .getElementById(`twd-ressource-${resourceId}`)
+              ?.classList.add("twd-highlight");
+          });
+          break;
+        }
         case "healChoice":
           this.prepareHealChoice(args.args || args);
           this.healChoiceConnector = dojo.connect(
@@ -783,6 +843,14 @@ define([
           break;
         case "disasterChoice":
           this.prepareDisasterChoice(args.args || args);
+          if (this.disasterResolutionPhase === "adrienChoice") {
+            this.adrienDisasterChoiceConnector = dojo.connect(
+              this.disastersDrawnSlot,
+              "onCardClick",
+              this,
+              "onAdrienDisasterClick"
+            );
+          }
           this.prepareAenorAbility(args.args || args, stateName);
           break;
         case "wolfTrapChoice":
@@ -868,6 +936,10 @@ define([
           if (this.draftDisasterPhase === "draw") {
             document.getElementById("disasters_bag")?.classList.add("twd-highlight");
           } else if (this.draftDisasterPhase === "choose") {
+            this.draftDisasterEligibleIds.forEach((id) => {
+              this.getDisasterElement(id)
+                ?.classList.add("twd-highlight", "twd-disaster-choice-candidate");
+            });
             this.draftDisasterChoiceConnector = dojo.connect(
               this.disastersDrawnSlot,
               "onCardClick",
@@ -907,7 +979,7 @@ define([
           break;
         }
         case "playCards":
-          if (this.hand.getCardCount() === 1) {
+          if (this.canRefillHand()) {
             document.getElementById("refill_hand_button").style.visibility = "visible";
           } else {
             document.getElementById("refill_hand_button").style.visibility = "hidden";
@@ -915,10 +987,20 @@ define([
           break;
         case "storyCheck":
           document.getElementById("card_resolution_organiser").style.display = "block";
+          this.tableResizeHandler?.();
           break;
         case "dummy":
           break;
       }
+    },
+
+    canRefillHand: function () {
+      const handSize = this.hand.getCardCount();
+      const adrienFirstEffectActive = Array.isArray(this.adrienRemovedResources)
+        && this.adrienRemovedResources.length >= 1;
+
+      return Number(this.gamePhase) === 1
+        && (handSize === 1 || (adrienFirstEffectActive && handSize === 2));
     },
 
     setHandVisible: function (visible) {
@@ -935,6 +1017,7 @@ define([
       document.getElementById("card_resolution_organiser").style.display = phaseTwo
         ? "block"
         : "none";
+      this.tableResizeHandler?.();
       if (this.ressourcesSlots) {
         this.updateAllBorisResourceClickability();
       }
@@ -970,6 +1053,15 @@ define([
           this.clearAenorAbilityUi();
           this.characters.onCardClick = null;
           break;
+        case "adrienResourceChoice":
+          (this.adrienEligibleResourceIds || []).forEach((resourceId) => {
+            document
+              .getElementById(`twd-ressource-${resourceId}`)
+              ?.classList.remove("twd-highlight");
+          });
+          this.adrienResourceChoiceActive = false;
+          this.adrienEligibleResourceIds = [];
+          break;
         case "healChoice":
           if (this.healChoiceConnector) {
             dojo.disconnect(this.healChoiceConnector);
@@ -984,6 +1076,18 @@ define([
           break;
         case "disasterChoice":
           this.clearAenorAbilityUi();
+          (this.adrienEligibleDisasterIds || []).forEach((id) => {
+            const disasterElement = this.getDisasterElement(id);
+            disasterElement?.classList.remove("twd-highlight");
+            disasterElement?.classList.remove("twd-disaster-choice-candidate");
+            disasterElement?.classList.remove("twd-disaster-choice-selected");
+          });
+          if (this.adrienDisasterChoiceConnector) {
+            dojo.disconnect(this.adrienDisasterChoiceConnector);
+            this.adrienDisasterChoiceConnector = null;
+          }
+          this.adrienEligibleDisasterIds = [];
+          this.adrienSelectedDisasterId = null;
           this.disasterResolutionPhase = null;
           this.disasterResourceAvailable = false;
           this.disasterResourceId = null;
@@ -1028,7 +1132,10 @@ define([
         case "draftDisasterChoice":
           this.draftDisasterPhase = null;
           (this.draftDisasterEligibleIds || []).forEach((id) => {
-            document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+            const disasterElement = this.getDisasterElement(id);
+            disasterElement?.classList.remove("twd-highlight");
+            disasterElement?.classList.remove("twd-disaster-choice-candidate");
+            disasterElement?.classList.remove("twd-disaster-choice-selected");
           });
           this.draftDisasterEligibleIds = [];
           this.draftDisasterSelectedId = null;
@@ -1117,6 +1224,11 @@ define([
               color: "secondary",
             });
             break;
+          case "adrienResourceChoice":
+            this.statusBar.setTitle(
+              _("Choose a resource to remove from the game")
+            );
+            break;
           case "cardBurialConfirmation": {
             const burialArgs = args.args || args;
             this.statusBar.setTitle(
@@ -1146,12 +1258,26 @@ define([
           case "disasterChoice": {
             const disasterArgs = args.args || args;
             if (disasterArgs.phase === "draw") {
-              this.statusBar.setTitle(
-                _("Draw ${total} disasters"),
+              if (disasterArgs.adrienSecondPermanentEffect) {
+                this.statusBar.setTitle(_("Draw two disasters and choose one"));
+              } else {
+                this.statusBar.setTitle(
+                  _("Draw ${total} disasters"),
+                  {
+                    total: disasterArgs.requiredDraws,
+                  }
+                );
+              }
+            } else if (disasterArgs.phase === "adrienChoice") {
+              this.statusBar.setTitle(_("Choose a disaster to keep"));
+              this.statusBar.addActionButton(
+                _("Keep selected disaster"),
+                () => this.confirmAdrienDisaster(),
                 {
-                  total: disasterArgs.requiredDraws,
+                  id: "confirm_adrien_disaster",
+                  color: "primary",
                 }
-              );
+              ).style.visibility = "hidden";
             } else if (disasterArgs.phase === "characteristic") {
               const characteristic = disasterArgs.characteristic;
               const affectedNames = (disasterArgs.affectedCharacters || [])
@@ -1342,50 +1468,13 @@ define([
         */
     getCardName: function (card) {
       const originalName = typeof card === "string" ? card : card?.card_name;
-      const translatedNames = {
-        "Aénor": _("Aénor"),
-        Boris: _("Boris"),
-        Adrien: _("Adrien"),
-        "Éléonore": _("Éléonore"),
-        Punk: _("Punk"),
-        "Wolf Trap": _("Wolf Trap"),
-        Clown: _("Clown"),
-        "Ellie and Joel": _("Ellie and Joel"),
-        Kieren: _("Kieren"),
-        Tallahassee: _("Tallahassee"),
-        Gretchen: _("Gretchen"),
-        Robert: _("Robert"),
-        Brigade: _("Brigade"),
-        Bonfire: _("Bonfire"),
-        Horse: _("Horse"),
-        RV: _("RV"),
-        Cellar: _("Cellar"),
-        "Teddy Bear": _("Teddy Bear"),
-        "Wild Zero": _("Wild Zero"),
-        Voodoo: _("Voodoo"),
-        Mutt: _("Mutt"),
-        Grenade: _("Grenade"),
-        Musicians: _("Musicians"),
-        "Site Manager": _("Site Manager"),
-        Glenn: _("Glenn"),
-        Murphy: _("Murphy"),
-        Horde: _("Horde"),
-        Butler: _("Butler"),
-        "Canned food": _("Canned food"),
-        Warehouse: _("Warehouse"),
-        "Medical alcohol": _("Medical alcohol"),
-        Map: _("Map"),
-        Domitille: _("Domitille"),
-        "The reaper": _("The reaper"),
-        Controller: _("Controller"),
-        Zoey: _("Zoey"),
-        Jill: _("Jill"),
-        Shaun: _("Shaun"),
-        LGS: _("LGS"),
-        Teacher: _("Teacher"),
-      };
+      if (!originalName) return _("Unknown card");
 
-      return translatedNames[originalName] || originalName || _("Unknown card");
+      const shouldTranslate = typeof card === "string"
+        || card?.translate_name === undefined
+        || Number(card.translate_name) === 1;
+
+      return shouldTranslate ? _(originalName) : originalName;
     },
 
     getLocation: function (location) {
@@ -1969,6 +2058,14 @@ define([
       this.disasterCharacteristic = args.characteristic || null;
       this.disasterResourceAvailable = Boolean(args.resourceAvailable);
       this.disasterResourceId = args.resourceId || null;
+      this.adrienEligibleDisasterIds = (args.eligibleDisasterIds || []).map(Number);
+      this.adrienSelectedDisasterId = null;
+      if (args.phase === "adrienChoice") {
+        this.adrienEligibleDisasterIds.forEach((id) => {
+          this.getDisasterElement(id)
+            ?.classList.add("twd-highlight", "twd-disaster-choice-candidate");
+        });
+      }
       const bag = document.getElementById("disasters_bag");
       if (args.phase === "draw") {
         bag?.classList.add("twd-highlight");
@@ -1980,6 +2077,36 @@ define([
         document
           .getElementById(`twd-ressource-${this.disasterResourceId}`)
           ?.classList.add("twd-highlight");
+      }
+    },
+
+    getDisasterElement: function (disasterId) {
+      return this.disastersManager?.getCardElement({ id: Number(disasterId) });
+    },
+
+    onAdrienDisasterClick: function (disaster) {
+      const disasterId = Number(disaster?.id);
+      if (!(this.adrienEligibleDisasterIds || []).includes(disasterId)) return;
+
+      (this.adrienEligibleDisasterIds || []).forEach((id) => {
+        this.getDisasterElement(id)
+          ?.classList.remove("twd-disaster-choice-selected");
+      });
+      this.adrienSelectedDisasterId = disasterId;
+      this.getDisasterElement(disasterId)
+        ?.classList.add("twd-disaster-choice-selected");
+      const button = document.getElementById("confirm_adrien_disaster");
+      if (button) button.style.visibility = "visible";
+    },
+
+    confirmAdrienDisaster: function () {
+      if (
+        (this.adrienEligibleDisasterIds || [])
+          .includes(this.adrienSelectedDisasterId)
+      ) {
+        this.bgaPerformAction("actChooseAdrienDisaster", {
+          disaster_id: this.adrienSelectedDisasterId,
+        });
       }
     },
 
@@ -2320,6 +2447,17 @@ define([
 
     onRessourceClick: function (token) {
       console.log("onRessourceClick", token);
+      if (this.adrienResourceChoiceActive) {
+        if (
+          (this.adrienEligibleResourceIds || []).includes(token.id)
+          && (!this.isCurrentPlayerActive || this.isCurrentPlayerActive())
+        ) {
+          this.bgaPerformAction("actRemoveAdrienResource", {
+            token_id: token.id,
+          });
+        }
+        return;
+      }
       if (this.disasterResolutionPhase === "characteristic") {
         if (this.disasterResourceAvailable && token.id === this.disasterResourceId) {
           this.bgaPerformAction("actUseDisasterResource", { token_id: token.id });
@@ -2371,10 +2509,12 @@ define([
       if (!(this.draftDisasterEligibleIds || []).includes(disasterId)) return;
 
       (this.draftDisasterEligibleIds || []).forEach((id) => {
-        document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+        this.getDisasterElement(id)
+          ?.classList.remove("twd-disaster-choice-selected");
       });
       this.draftDisasterSelectedId = disasterId;
-      document.getElementById(`token-${disasterId}`)?.classList.add("twd-highlight");
+      this.getDisasterElement(disasterId)
+        ?.classList.add("twd-disaster-choice-selected");
       const button = document.getElementById("confirm_draft_disaster");
       if (button) button.style.visibility = "visible";
     },
@@ -2578,6 +2718,24 @@ define([
       this.ressourcesManager.flipCard(token);
       this.updateBorisResourceClickability(token);
     },
+    notif_ressourceRemoved: async function (args) {
+      console.log("notif_ressourceRemoved", args);
+      await this.ressourcesSlots.removeCard({ id: args.id });
+      const adrienSlot = Number(args.adrienSlot);
+      if (adrienSlot === 1 || adrienSlot === 2) {
+        this.adrienRemovedResources = Array.isArray(this.adrienRemovedResources)
+          ? [...this.adrienRemovedResources]
+          : [];
+        this.adrienRemovedResources[adrienSlot - 1] = args.id;
+        const protagonist = this.protagonistSlot.getCards?.()[0];
+        if (protagonist && Number(protagonist.type_arg) === 3) {
+          this.cardsManager.updateCardInformations({
+            ...protagonist,
+            adrien_removed_resources: [...this.adrienRemovedResources],
+          });
+        }
+      }
+    },
     notif_cardMoved: async function (args) {
       console.log("notif_cardMoved");
       console.log(args);
@@ -2621,7 +2779,10 @@ define([
         const graveyardTop = args.graveyardTop || null;
         await this.setDeckState("graveyard", args.graveyardNb, graveyardTop);
       }
-      if (args.source === "memory" && args.memoryNb !== undefined) {
+      if (
+        (args.source === "memory" || args.destination === "memory")
+        && args.memoryNb !== undefined
+      ) {
         await this.setDeckState(
           "memory",
           args.memoryNb,

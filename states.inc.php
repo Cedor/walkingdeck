@@ -85,6 +85,7 @@ $machinestates = [
             Transition::UNREMEMBER_CHOICE => GameStep::UNREMEMBER_CHOICE,
             Transition::BITE_CHOICE => GameStep::BITE_CHOICE,
             Transition::CARD_BURIAL_CONFIRMATION => GameStep::CARD_BURIAL_CONFIRMATION,
+            Transition::ADRIEN_RESOURCE_CHOICE => GameStep::ADRIEN_RESOURCE_CHOICE,
             Transition::HEAL_CHOICE => GameStep::HEAL_CHOICE,
             Transition::DISASTER_CHOICE => GameStep::DISASTER_CHOICE,
             Transition::WOLF_TRAP_CHOICE => GameStep::WOLF_TRAP_CHOICE,
@@ -102,8 +103,8 @@ $machinestates = [
         ->build(),
     GameStep::DRAW_CARDS => GameStateBuilder::create()
         ->name('drawCards')
-        ->description(clienttranslate("You must draw cards"))
-        ->descriptionmyturn(clienttranslate("You must draw cards"))
+        ->description(clienttranslate("You must draw card(s)"))
+        ->descriptionmyturn(clienttranslate("You must draw card(s)"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
@@ -118,8 +119,8 @@ $machinestates = [
         ->build(),
     GameStep::ADDITIONAL_DRAW => GameStateBuilder::create()
         ->name('specialDraw')
-        ->description(clienttranslate("You must draw a card"))
-        ->descriptionmyturn(clienttranslate("You must draw a card"))
+        ->description(clienttranslate("You must draw card(s)"))
+        ->descriptionmyturn(clienttranslate("You must draw card(s)"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actDrawFromDeck',
@@ -134,8 +135,8 @@ $machinestates = [
         ->build(),
     GameStep::PLAY_CARDS => GameStateBuilder::create()
         ->name(Transition::PLAY_CARDS)
-        ->description(clienttranslate("You must play cards"))
-        ->descriptionmyturn(clienttranslate("You must play cards"))
+        ->description(clienttranslate("You must play card(s)"))
+        ->descriptionmyturn(clienttranslate("You must play card(s)"))
         ->type(StateType::ACTIVE_PLAYER)
         ->possibleactions([
             'actPlayCard',
@@ -165,8 +166,8 @@ $machinestates = [
         ->build(),
     GameStep::AVOID_ZOMBIE_CHOICE => GameStateBuilder::create()
         ->name('avoidZombieChoice')
-        ->description(clienttranslate('You must choose a zombie from your hand to escape'))
-        ->descriptionmyturn(clienttranslate('You must choose a zombie from your hand to escape'))
+        ->description(clienttranslate('You must choose a zombie from your hand'))
+        ->descriptionmyturn(clienttranslate('You must choose a zombie from your hand'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argAvoidZombieChoice')
         ->possibleactions([
@@ -178,8 +179,8 @@ $machinestates = [
         ->build(),
     GameStep::BRAINSTORM_DECK_CHOICE => GameStateBuilder::create()
         ->name('brainstormDeckChoice')
-        ->description(clienttranslate('You must choose a deck for brainstorm'))
-        ->descriptionmyturn(clienttranslate('You must choose a deck for brainstorm'))
+        ->description(clienttranslate('You must choose a deck'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBrainstormDeckChoice')
         ->possibleactions([
@@ -191,8 +192,8 @@ $machinestates = [
         ->build(),
     GameStep::BRAINSTORM_REORDER => GameStateBuilder::create()
         ->name('brainstormReorder')
-        ->description(clienttranslate('You must reorder the brainstorm cards'))
-        ->descriptionmyturn(clienttranslate('You must reorder the brainstorm cards'))
+        ->description(clienttranslate('You must reorder the cards'))
+        ->descriptionmyturn(clienttranslate('You must reorder the cards'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBrainstormReorder')
         ->possibleactions([
@@ -230,6 +231,19 @@ $machinestates = [
             Transition::GAME_END => GameStep::GAME_END,
         ])
         ->build(),
+    GameStep::ADRIEN_RESOURCE_CHOICE => GameStateBuilder::create()
+        ->name(Transition::ADRIEN_RESOURCE_CHOICE)
+        ->description(clienttranslate('The active player must remove a resource'))
+        ->descriptionmyturn(clienttranslate('You must choose a resource to remove from the game'))
+        ->type(StateType::ACTIVE_PLAYER)
+        ->args('argAdrienResourceChoice')
+        ->possibleactions([
+            'actRemoveAdrienResource',
+        ])
+        ->transitions([
+            Transition::DISPATCH_EVENTS => GameStep::EVENT_DISPATCHER,
+        ])
+        ->build(),
     GameStep::HEAL_CHOICE => GameStateBuilder::create()
         ->name(Transition::HEAL_CHOICE)
         ->description(clienttranslate('The active player may choose up to ${number} character(s) to heal'))
@@ -251,6 +265,7 @@ $machinestates = [
         ->args('argDisasterChoice')
         ->possibleactions([
             'actDrawDisaster',
+            'actChooseAdrienDisaster',
             'actUseDisasterResource',
             'actConfirmDisasterCharacteristic',
             'actResolveDisaster',
@@ -264,8 +279,8 @@ $machinestates = [
         ->build(),
     GameStep::UNREMEMBER_CHOICE => GameStateBuilder::create()
         ->name(Transition::UNREMEMBER_CHOICE)
-        ->description(clienttranslate('${actplayer} may recover up to two Memory cards'))
-        ->descriptionmyturn(clienttranslate('You may recover up to two of these Memory cards'))
+        ->description(clienttranslate('${actplayer} may recover up to two cards from Memory'))
+        ->descriptionmyturn(clienttranslate('You may recover up to two of cards from Memory'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argUnrememberChoice')
         ->possibleactions([
@@ -277,8 +292,8 @@ $machinestates = [
         ->build(),
     GameStep::WOLF_TRAP_CHOICE => GameStateBuilder::create()
         ->name(Transition::WOLF_TRAP_CHOICE)
-        ->description(clienttranslate('${actplayer} must draw for Wolf Trap'))
-        ->descriptionmyturn(clienttranslate('You must draw for Wolf Trap'))
+        ->description(clienttranslate('${actplayer} must draw a disasterfor Wolf Trap'))
+        ->descriptionmyturn(clienttranslate('You must draw a disaster for Wolf Trap'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argWolfTrapChoice')
         ->possibleactions([
@@ -306,8 +321,8 @@ $machinestates = [
         ->build(),
     GameStep::FAST_MEMORISE_DECK_CHOICE => GameStateBuilder::create()
         ->name(Transition::FAST_MEMORISE_DECK_CHOICE)
-        ->description(clienttranslate('${actplayer} must choose a deck to memorise'))
-        ->descriptionmyturn(clienttranslate('You must choose a deck to memorise'))
+        ->description(clienttranslate('${actplayer} must choose a deck'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argFastMemoriseDeckChoice')
         ->possibleactions([
@@ -345,8 +360,8 @@ $machinestates = [
         ->build(),
     GameStep::BURY_CHARACTER_CHOICE => GameStateBuilder::create()
         ->name(Transition::BURY_CHARACTER_CHOICE)
-        ->description(clienttranslate('${actplayer} must choose a character from their hand to bury'))
-        ->descriptionmyturn(clienttranslate('You must choose a character from your hand to bury'))
+        ->description(clienttranslate('${actplayer} must choose a character from their hand'))
+        ->descriptionmyturn(clienttranslate('You must choose a character from your hand'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBuryCharacterChoice')
         ->possibleactions([
@@ -359,8 +374,8 @@ $machinestates = [
         ->build(),
     GameStep::BURY_TOP_CARD_CHOICE => GameStateBuilder::create()
         ->name(Transition::BURY_TOP_CARD_CHOICE)
-        ->description(clienttranslate('${actplayer} must choose a deck whose top card will be buried'))
-        ->descriptionmyturn(clienttranslate('You must choose a deck whose top card will be buried'))
+        ->description(clienttranslate('${actplayer} must choose a deck'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argBuryTopCardChoice')
         ->possibleactions([
@@ -388,8 +403,8 @@ $machinestates = [
         ->build(),
     GameStep::AVOID_DECK_CHOICE => GameStateBuilder::create()
         ->name(Transition::AVOID_DECK_CHOICE)
-        ->description(clienttranslate('${actplayer} must choose a deck to avoid'))
-        ->descriptionmyturn(clienttranslate('You must choose a deck whose top two cards will escape'))
+        ->description(clienttranslate('${actplayer} must choose a deck'))
+        ->descriptionmyturn(clienttranslate('You must choose a deck'))
         ->type(StateType::ACTIVE_PLAYER)
         ->args('argAvoidDeckChoice')
         ->possibleactions([
