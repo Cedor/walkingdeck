@@ -25,7 +25,7 @@ DELIMITER ;
 
 CALL assert_equals(
     'card definitions',
-    38,
+    39,
     (SELECT COUNT(*) FROM twd_card_info)
 );
 CALL assert_equals(
@@ -82,7 +82,7 @@ CALL assert_equals(
 );
 CALL assert_equals(
     'card names initially translatable',
-    40,
+    24,
     (
         SELECT COUNT(*)
         FROM twd_card_info
