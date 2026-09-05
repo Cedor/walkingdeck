@@ -92,6 +92,75 @@ final class GameRulesTest extends TestCase
         self::assertFalse($this->invoke('canContinueNormalDraw'));
     }
 
+    public function testNormalRefillStartsWithOneCardButNotTwo(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+            ],
+            11 => [
+                'id' => 11,
+                'location' => Location::RURAL,
+                'location_arg' => 1,
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        self::assertTrue($this->invoke('canStartNormalRefill'));
+
+        $deckManager->cards[12] = [
+            'id' => 12,
+            'location' => Location::HAND,
+            'location_arg' => 0,
+        ];
+
+        self::assertFalse($this->invoke('canStartNormalRefill'));
+    }
+
+    public function testAdrienCanRefillWithTwoCardsAfterFirstSacrifice(): void
+    {
+        $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deckManager->cards = [
+            3 => [
+                'id' => 3,
+                'type_arg' => '3',
+                'location' => Location::PROTAGONIST,
+                'location_arg' => 0,
+            ],
+            10 => [
+                'id' => 10,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+            ],
+            12 => [
+                'id' => 12,
+                'location' => Location::HAND,
+                'location_arg' => 0,
+            ],
+            20 => [
+                'id' => 20,
+                'location' => Location::URBAN,
+                'location_arg' => 1,
+            ],
+        ];
+        $this->setProperty('deckManager', $deckManager);
+        $this->game->setGameStateValue('gamePhase', 1);
+
+        self::assertFalse($this->invoke('canStartNormalRefill'));
+
+        $this->game->setGameStateValue('adrienRemovedResource1', 2);
+
+        self::assertTrue($this->invoke('canStartNormalRefill'));
+
+        $this->game->setGameStateValue('gamePhase', 2);
+
+        self::assertFalse($this->invoke('canStartNormalRefill'));
+    }
+
     public function testProtagonistSelectionStillStartsPhaseOne(): void
     {
         $deckManager = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();

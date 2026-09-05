@@ -452,6 +452,30 @@ class Game extends \Bga\GameFramework\Table
             && $this->deckManager->countCardInLocation(Location::HAND) < Rules::HAND_SIZE;
     }
 
+    private function hasAdrienFirstPermanentEffect(): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ADRIEN_TYPE_ARG
+            && intval($this->getGameStateValue('adrienRemovedResource1')) > 0;
+    }
+
+    private function canStartNormalRefill(): bool
+    {
+        if (
+            intval($this->getGameStateValue('gamePhase')) !== 1
+            || $this->availableDraws() === 0
+        ) {
+            return false;
+        }
+
+        $handSize = $this->deckManager->countCardInLocation(Location::HAND);
+        $maximumKeptCards = $this->hasAdrienFirstPermanentEffect() ? 2 : 1;
+
+        return $handSize >= 1 && $handSize <= $maximumKeptCards;
+    }
+
     /**
      * Restore reflection time when the same player must make another decision.
      */
@@ -4201,7 +4225,8 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Player action: start the normal refill when exactly one card remains.
+     * Player action: start the normal refill when one card remains, or when up
+     * to two remain after Adrien's first permanent effect has been unlocked.
      * An empty hand starts the same refill automatically in stEventDispatcher().
      *
      * @throws BgaUserException
@@ -4210,11 +4235,11 @@ class Game extends \Bga\GameFramework\Table
     {
         $this->checkAction('actRefillHand');
 
-        if ($this->deckManager->countCardInLocation(Location::HAND) !== 1) {
-            throw new UserException(\clienttranslate("You can only refill with exactly one card in hand."));
-        }
         if ($this->availableDraws() === 0) {
             throw new UserException(\clienttranslate("You can't refill because there are no cards left to draw."));
+        }
+        if (!$this->canStartNormalRefill()) {
+            throw new UserException(\clienttranslate("You can't refill your hand now."));
         }
 
         $this->eventStack->pushEvent(EventType::DRAW_CARD);

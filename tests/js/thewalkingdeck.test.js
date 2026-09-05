@@ -48,6 +48,32 @@ before(() => {
 });
 
 describe("card helpers", () => {
+  it("unlocks refill with two cards after Adrien's first sacrifice", () => {
+    const context = {
+      gamePhase: 1,
+      hand: { getCardCount: () => 2 },
+      adrienRemovedResources: [],
+    };
+
+    assert.equal(game.canRefillHand.call(context), false);
+
+    context.adrienRemovedResources = ["ressource_break"];
+    assert.equal(game.canRefillHand.call(context), true);
+
+    context.gamePhase = 2;
+    assert.equal(game.canRefillHand.call(context), false);
+  });
+
+  it("keeps the normal one-card refill rule", () => {
+    const context = {
+      gamePhase: 1,
+      hand: { getCardCount: () => 1 },
+      adrienRemovedResources: [],
+    };
+
+    assert.equal(game.canRefillHand.call(context), true);
+  });
+
   it("enables clicks on the protagonist slot for protagonist abilities", () => {
     const source = readFileSync(
       new URL("../../thewalkingdeck.js", import.meta.url),

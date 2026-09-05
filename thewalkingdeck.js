@@ -967,7 +967,7 @@ define([
           break;
         }
         case "playCards":
-          if (this.hand.getCardCount() === 1) {
+          if (this.canRefillHand()) {
             document.getElementById("refill_hand_button").style.visibility = "visible";
           } else {
             document.getElementById("refill_hand_button").style.visibility = "hidden";
@@ -980,6 +980,15 @@ define([
         case "dummy":
           break;
       }
+    },
+
+    canRefillHand: function () {
+      const handSize = this.hand.getCardCount();
+      const adrienFirstEffectActive = Array.isArray(this.adrienRemovedResources)
+        && this.adrienRemovedResources.length >= 1;
+
+      return Number(this.gamePhase) === 1
+        && (handSize === 1 || (adrienFirstEffectActive && handSize === 2));
     },
 
     setHandVisible: function (visible) {

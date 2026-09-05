@@ -16,6 +16,7 @@ final class CardTextTranslations
     public static function getAll(): array
     {
         return [
+            \clienttranslate('${bag} becomes: draw two disasters and pick one'),
             \clienttranslate('${disaster} and add ${weakness1} and ${weakness2}'),
             \clienttranslate('${disaster} and ignore ${hunger}'),
             \clienttranslate('${disaster} and ignore ${stress}'),
@@ -55,6 +56,8 @@ final class CardTextTranslations
             \clienttranslate('Shuffle all peripeteias and separate them in 2 decks'),
             \clienttranslate('something something something'),
             \clienttranslate('When the third damaged is applied to Robert, remove him from the game'),
+            \clienttranslate('When you bury a peripeteia : sacrifice a ressource, and gain the following permanent effect :'),
+            \clienttranslate('you can keep two peripeteia in hand'),
         ];
     }
 }
