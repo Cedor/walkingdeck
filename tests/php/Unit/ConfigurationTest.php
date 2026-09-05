@@ -26,7 +26,7 @@ final class ConfigurationTest extends TestCase
             static fn(array $match): bool => $match[2] === '1'
         ), 1);
 
-        self::assertCount(40, $matches);
+        self::assertCount(39, $matches);
         self::assertSame($databaseNames, CardNameTranslations::getAll());
     }
 

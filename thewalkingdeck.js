@@ -936,6 +936,10 @@ define([
           if (this.draftDisasterPhase === "draw") {
             document.getElementById("disasters_bag")?.classList.add("twd-highlight");
           } else if (this.draftDisasterPhase === "choose") {
+            this.draftDisasterEligibleIds.forEach((id) => {
+              this.getDisasterElement(id)
+                ?.classList.add("twd-highlight", "twd-disaster-choice-candidate");
+            });
             this.draftDisasterChoiceConnector = dojo.connect(
               this.disastersDrawnSlot,
               "onCardClick",
@@ -1073,9 +1077,10 @@ define([
         case "disasterChoice":
           this.clearAenorAbilityUi();
           (this.adrienEligibleDisasterIds || []).forEach((id) => {
-            const disasterElement = document.getElementById(`token-${id}`);
-            disasterElement?.classList.remove("twd-adrien-disaster-candidate");
-            disasterElement?.classList.remove("twd-adrien-disaster-selected");
+            const disasterElement = this.getDisasterElement(id);
+            disasterElement?.classList.remove("twd-highlight");
+            disasterElement?.classList.remove("twd-disaster-choice-candidate");
+            disasterElement?.classList.remove("twd-disaster-choice-selected");
           });
           if (this.adrienDisasterChoiceConnector) {
             dojo.disconnect(this.adrienDisasterChoiceConnector);
@@ -1127,7 +1132,10 @@ define([
         case "draftDisasterChoice":
           this.draftDisasterPhase = null;
           (this.draftDisasterEligibleIds || []).forEach((id) => {
-            document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+            const disasterElement = this.getDisasterElement(id);
+            disasterElement?.classList.remove("twd-highlight");
+            disasterElement?.classList.remove("twd-disaster-choice-candidate");
+            disasterElement?.classList.remove("twd-disaster-choice-selected");
           });
           this.draftDisasterEligibleIds = [];
           this.draftDisasterSelectedId = null;
@@ -2054,9 +2062,8 @@ define([
       this.adrienSelectedDisasterId = null;
       if (args.phase === "adrienChoice") {
         this.adrienEligibleDisasterIds.forEach((id) => {
-          document
-            .getElementById(`token-${id}`)
-            ?.classList.add("twd-adrien-disaster-candidate");
+          this.getDisasterElement(id)
+            ?.classList.add("twd-highlight", "twd-disaster-choice-candidate");
         });
       }
       const bag = document.getElementById("disasters_bag");
@@ -2073,19 +2080,21 @@ define([
       }
     },
 
+    getDisasterElement: function (disasterId) {
+      return this.disastersManager?.getCardElement({ id: Number(disasterId) });
+    },
+
     onAdrienDisasterClick: function (disaster) {
       const disasterId = Number(disaster?.id);
       if (!(this.adrienEligibleDisasterIds || []).includes(disasterId)) return;
 
       (this.adrienEligibleDisasterIds || []).forEach((id) => {
-        document
-          .getElementById(`token-${id}`)
-          ?.classList.remove("twd-adrien-disaster-selected");
+        this.getDisasterElement(id)
+          ?.classList.remove("twd-disaster-choice-selected");
       });
       this.adrienSelectedDisasterId = disasterId;
-      document
-        .getElementById(`token-${disasterId}`)
-        ?.classList.add("twd-adrien-disaster-selected");
+      this.getDisasterElement(disasterId)
+        ?.classList.add("twd-disaster-choice-selected");
       const button = document.getElementById("confirm_adrien_disaster");
       if (button) button.style.visibility = "visible";
     },
@@ -2500,10 +2509,12 @@ define([
       if (!(this.draftDisasterEligibleIds || []).includes(disasterId)) return;
 
       (this.draftDisasterEligibleIds || []).forEach((id) => {
-        document.getElementById(`token-${id}`)?.classList.remove("twd-highlight");
+        this.getDisasterElement(id)
+          ?.classList.remove("twd-disaster-choice-selected");
       });
       this.draftDisasterSelectedId = disasterId;
-      document.getElementById(`token-${disasterId}`)?.classList.add("twd-highlight");
+      this.getDisasterElement(disasterId)
+        ?.classList.add("twd-disaster-choice-selected");
       const button = document.getElementById("confirm_draft_disaster");
       if (button) button.style.visibility = "visible";
     },
