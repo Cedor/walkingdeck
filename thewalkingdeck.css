@@ -86,16 +86,16 @@
     }
 */
 .twd-highlight {
-    box-shadow: 0 0 8px 8px orange;
+    box-shadow: 0 0 8px 8px var(--twd-highlight-color, orange);
 }
 
-.twd-adrien-disaster-candidate {
-    box-shadow: 0 0 8px 8px #ffd54f;
+.twd-disaster-choice-candidate {
+    --twd-highlight-color: #ffd54f;
     cursor: pointer;
 }
 
-.twd-adrien-disaster-candidate.twd-adrien-disaster-selected {
-    box-shadow: 0 0 8px 8px #41c96b;
+.twd-disaster-choice-candidate.twd-disaster-choice-selected {
+    --twd-highlight-color: #41c96b;
 }
 
 .twd-card.twd-aenor-protected {

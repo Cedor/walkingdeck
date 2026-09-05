@@ -25,7 +25,7 @@ DELIMITER ;
 
 CALL assert_equals(
     'card definitions',
-    38,
+    39,
     (SELECT COUNT(*) FROM twd_card_info)
 );
 CALL assert_equals(
@@ -82,7 +82,7 @@ CALL assert_equals(
 );
 CALL assert_equals(
     'card names initially translatable',
-    40,
+    24,
     (
         SELECT COUNT(*)
         FROM twd_card_info
@@ -272,10 +272,11 @@ CALL assert_equals(
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.type')) = 'icon'
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.white.args.consumeHunger.name')) = 'consumedHunger'
           AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey')) = 2
-          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text')) = '${heal} up to 2 characters'
-          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey.args')) = 1
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.text')) = '${heal} up to ${number} characters'
+          AND JSON_LENGTH(JSON_EXTRACT(texts, '$.grey.args')) = 2
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.type')) = 'icon'
           AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.heal.name')) = 'heal'
+          AND JSON_UNQUOTE(JSON_EXTRACT(texts, '$.grey.args.number')) = '2'
     )
 );
 CALL assert_equals(
