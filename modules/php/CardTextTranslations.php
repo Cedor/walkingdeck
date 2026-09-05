@@ -16,7 +16,7 @@ final class CardTextTranslations
     public static function getAll(): array
     {
         return [
-            \clienttranslate('${bag} becomes: draw two disasters and pick one'),
+            \clienttranslate('${disaster} becomes: draw two disasters and pick one'),
             \clienttranslate('${disaster} and add ${weakness1} and ${weakness2}'),
             \clienttranslate('${disaster} and ignore ${hunger}'),
             \clienttranslate('${disaster} and ignore ${stress}'),

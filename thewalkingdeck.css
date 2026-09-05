@@ -89,6 +89,15 @@
     box-shadow: 0 0 8px 8px orange;
 }
 
+.twd-adrien-disaster-candidate {
+    box-shadow: 0 0 8px 8px #ffd54f;
+    cursor: pointer;
+}
+
+.twd-adrien-disaster-candidate.twd-adrien-disaster-selected {
+    box-shadow: 0 0 8px 8px #41c96b;
+}
+
 .twd-card.twd-aenor-protected {
     box-shadow: 0 0 8px 8px #4da6ff;
 }

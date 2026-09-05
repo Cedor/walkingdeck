@@ -1113,6 +1113,58 @@ describe("player actions", () => {
     }
   });
 
+  it("selects and keeps one of Adrien's disaster candidates", () => {
+    const firstToken = { classList: { add: spy(), remove: spy() } };
+    const secondToken = { classList: { add: spy(), remove: spy() } };
+    const button = { style: { visibility: "hidden" } };
+    documentElementOverrides["token-1"] = firstToken;
+    documentElementOverrides["token-2"] = secondToken;
+    documentElementOverrides.confirm_adrien_disaster = button;
+    const context = {
+      adrienEligibleDisasterIds: [1, 2],
+      adrienSelectedDisasterId: null,
+      bgaPerformAction: spy(),
+      clearDisasterResourceHighlight: spy(),
+    };
+
+    try {
+      game.prepareDisasterChoice.call(context, {
+        phase: "adrienChoice",
+        eligibleDisasterIds: [1, 2],
+      });
+      assert.deepEqual(firstToken.classList.add.calls[0], [
+        "twd-adrien-disaster-candidate",
+      ]);
+      assert.deepEqual(secondToken.classList.add.calls[0], [
+        "twd-adrien-disaster-candidate",
+      ]);
+
+      game.onAdrienDisasterClick.call(context, { id: 2 });
+      assert.equal(context.adrienSelectedDisasterId, 2);
+      assert.deepEqual(secondToken.classList.add.calls[1], [
+        "twd-adrien-disaster-selected",
+      ]);
+      assert.equal(button.style.visibility, "visible");
+
+      game.onAdrienDisasterClick.call(context, { id: 1 });
+      assert.equal(context.adrienSelectedDisasterId, 1);
+      assert.deepEqual(firstToken.classList.add.calls[1], [
+        "twd-adrien-disaster-selected",
+      ]);
+      assert.deepEqual(secondToken.classList.remove.calls.at(-1), [
+        "twd-adrien-disaster-selected",
+      ]);
+
+      game.confirmAdrienDisaster.call(context);
+      assert.equal(context.bgaPerformAction.calls[0][0], "actChooseAdrienDisaster");
+      assert.equal(context.bgaPerformAction.calls[0][1].disaster_id, 1);
+    } finally {
+      delete documentElementOverrides["token-1"];
+      delete documentElementOverrides["token-2"];
+      delete documentElementOverrides.confirm_adrien_disaster;
+    }
+  });
+
   it("uses a separate action to draw for Wolf Trap during phase one", () => {
     const context = {
       gamePhase: 1,
