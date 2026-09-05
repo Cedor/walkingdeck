@@ -79,12 +79,14 @@ jobs:
   database-tests:
     name: MariaDB schema and fixtures
     runs-on: ubuntu-latest
+    env:
+      MYSQL_PWD: ${{ secrets.MARIADB_ROOT_PASSWORD }}
     services:
       mariadb:
         image: mariadb:10.11
         env:
           MARIADB_DATABASE: walkingdeck_test
-          MARIADB_ROOT_PASSWORD: test
+          MARIADB_ROOT_PASSWORD: ${{ secrets.MARIADB_ROOT_PASSWORD }}
         ports:
           - 3306:3306
         options: >-
@@ -95,6 +97,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Load schema and reference data
-        run: mysql --host 127.0.0.1 --user root --password=test walkingdeck_test < dbmodel.sql
+        run: mysql --host 127.0.0.1 --user root walkingdeck_test < dbmodel.sql
       - name: Assert schema invariants
-        run: mysql --host 127.0.0.1 --user root --password=test walkingdeck_test < tests/sql/assert-schema.sql
+        run: mysql --host 127.0.0.1 --user root walkingdeck_test < tests/sql/assert-schema.sql

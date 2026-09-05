@@ -80,6 +80,10 @@ dispatch. It contains independent jobs for:
 Configure the repository's default branch protection so all five jobs are
 required before merging.
 
+The database job requires a repository Actions secret named
+`MARIADB_ROOT_PASSWORD`. It is shared with the ephemeral MariaDB service and
+the `mysql` client through their supported environment variables.
+
 ## Test expansion protocol
 
 Every bug fix should start with a failing regression test. New game rules
