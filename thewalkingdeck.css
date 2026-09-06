@@ -653,6 +653,44 @@
   --twd-card-name-width: 60.6299%;
 }
 
+.twd-card-layout-1-4 .twd-card-body-block-defeat {
+  /* Half of one of the five original rows; the other rows share the rest. */
+  flex: 0 0 10%;
+}
+
+.twd-card-layout-1-4 .twd-card-body-block-case1,
+.twd-card-layout-1-4 .twd-card-body-block-case2,
+.twd-card-layout-1-4 .twd-card-body-block-case3 {
+  padding: 0 3px 0 0;
+  gap: 1px;
+  line-height: calc(var(--twd-card-line-height-body) *2 / 3);
+}
+
+.twd-eleonore-resource-slot {
+  flex: 0 0 auto;
+  width: auto;
+  height: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.twd-eleonore-resource-slot + .twd-card-zone-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.twd-eleonore-resource-slot .twd-card-text-icon {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  aspect-ratio: 1;
+}
+
 /* Zone de nom : symbole a gauche conserve. */
 .twd-card-layout-2-1,
 .twd-card-layout-2-3,

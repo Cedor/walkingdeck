@@ -440,6 +440,19 @@ define([
                 block.classList.add(sizeClass);
               }
               block.dataset.cardBodyBlock = blockName;
+              if (cardTypeArg === 4 && ["case1", "case2", "case3"].includes(blockName)) {
+                const resourceSlot = document.createElement("div");
+                resourceSlot.className = "twd-eleonore-resource-slot";
+                resourceSlot.dataset.resourceSlot = blockName;
+                const iconName = { case1: "consumedStress", case2: "consumedBreak", case3: "consumedHunger" }[blockName];
+                const icon = document.createElement("span");
+                icon.className = `twd-card-text-icon twd-card-text-icon-${iconName}`;
+                icon.dataset.icon = iconName;
+                icon.setAttribute("role", "img");
+                icon.setAttribute("aria-label", iconName);
+                resourceSlot.appendChild(icon);
+                block.appendChild(resourceSlot);
+              }
               appendZoneText(block, definition);
               body.appendChild(block);
             });

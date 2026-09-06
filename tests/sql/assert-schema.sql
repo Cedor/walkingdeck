@@ -25,13 +25,30 @@ DELIMITER ;
 
 CALL assert_equals(
     'card definitions',
-    39,
+    40,
     (SELECT COUNT(*) FROM twd_card_info)
 );
 CALL assert_equals(
     'protagonists',
-    3,
+    4,
     (SELECT COUNT(*) FROM twd_protagonist_info)
+);
+CALL assert_equals(
+    'Eleonore protagonist definition and loss condition',
+    1,
+    (
+        SELECT COUNT(*)
+        FROM twd_protagonist_info protagonist
+        JOIN twd_card_info card ON card.info_id = protagonist.info_id
+        WHERE protagonist.info_id = 4
+          AND protagonist.losscon = 3
+          AND card.card_type = '1'
+          AND card.card_type_arg = 4
+          AND card.card_name = 'Éléonore'
+          AND card.translate_name = 0
+          AND JSON_UNQUOTE(JSON_EXTRACT(card.texts, '$.defeat.args.number')) = '3'
+          AND JSON_CONTAINS_PATH(card.texts, 'all', '$.rule.text', '$.case1.text', '$.case2.text', '$.case3.text') = 1
+    )
 );
 CALL assert_equals(
     'characters',
