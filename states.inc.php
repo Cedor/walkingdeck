@@ -462,6 +462,15 @@ $machinestates = [
 
 foreach ($machinestates as $stateId => &$state) {
     if (
+        $state->possibleActions !== null
+        && !in_array($stateId, [
+            GameStep::PROTAGONIST_SELECTION,
+            GameStep::ADRIEN_RESOURCE_CHOICE,
+        ], true)
+    ) {
+        $state->possibleActions[] = 'actUseEleonoreResource';
+    }
+    if (
         !in_array($stateId, [
             GameStep::PROTAGONIST_SELECTION,
             GameStep::DISASTER_CHOICE,

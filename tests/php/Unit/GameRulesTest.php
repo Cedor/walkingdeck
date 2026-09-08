@@ -36,6 +36,28 @@ final class GameRulesTest extends TestCase
         );
     }
 
+    public function testEleonoreConsumesResourceWithoutChangingTheCurrentState(): void
+    {
+        $deck = new \Bga\Games\TheWalkingDeck\Tests\Support\FakeCardDeck();
+        $deck->cards[4] = [
+            'id' => 4, 'type' => '1', 'type_arg' => '4',
+            'location' => Location::PROTAGONIST, 'location_arg' => 0,
+        ];
+        $this->setProperty('deckManager', $deck);
+        $this->game->gamestate = new class {
+            public function state_id(): int
+            {
+                return \Bga\Games\TheWalkingDeck\Constants\GameStep::STORY_PLAYER_CHOICE;
+            }
+        };
+        $this->game->actUseEleonoreResource('ressource_hunger');
+        self::assertSame(1, $this->game->getGameStateValue('ressource_hunger'));
+        self::assertSame(['ressourceConsumed'], array_column($this->game->notify->events, 'type'));
+
+        $this->expectException(UserException::class);
+        $this->game->actUseEleonoreResource('ressource_hunger');
+    }
+
     public function testExtraTimeIsGivenToActivePlayer(): void
     {
         $this->invoke('giveExtraTimeToActivePlayer');

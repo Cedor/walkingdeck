@@ -37,6 +37,7 @@ class Game extends \Bga\GameFramework\Table
     private const AENOR_TYPE_ARG = 1;
     private const BORIS_TYPE_ARG = 2;
     private const ADRIEN_TYPE_ARG = 3;
+    private const ELEONORE_TYPE_ARG = 4;
     private const RESSOURCE_IDS = [
         'ressource_hunger',
         'ressource_break',
@@ -107,20 +108,6 @@ class Game extends \Bga\GameFramework\Table
         $this->disasterManager = new TWDDisaster($this);
         $this->eventStack = new TWDEventStack($this);
 
-        /* example of notification decorator.
-        // automatically complete notification args when needed
-        $this->notify->addDecorator(function(string $message, array $args) {
-            if (isset($args['player_id']) && !isset($args['player_name']) && str_contains($message, '${player_name}')) {
-                $args['player_name'] = $this->getPlayerNameById($args['player_id']);
-            }
-        
-            if (isset($args['card_id']) && !isset($args['card_name']) && str_contains($message, '${card_name}')) {
-                $args['card_name'] = self::$CARD_TYPE[$args['card_id']]['card_name'];
-                $args['i18n'][] = ['card_name'];
-            }
-            
-            return $args;
-        });*/
     }
 
     public function getCardManager(): \Bga\GameFramework\Components\Deck
@@ -169,6 +156,42 @@ class Game extends \Bga\GameFramework\Table
             Location::PROTAGONIST
         ));
         return $protagonists[0] ?? null;
+    }
+
+    private function isEleonoreSelected(): bool
+    {
+        $protagonist = $this->getProtagonistInPlay();
+
+        return $protagonist !== null
+            && intval($protagonist['type_arg']) === self::ELEONORE_TYPE_ARG;
+    }
+
+    public function actUseEleonoreResource(string $token_id): void
+    {
+        $this->checkAction('actUseEleonoreResource');
+        if (!$this->isEleonoreSelected()) {
+            throw new UserException(clienttranslate('Only Éléonore can use this ability'));
+        }
+        if (
+            $this->gamestate->state_id() === GameStep::DISASTER_CHOICE
+            && $this->argDisasterChoice()['phase'] === 'characteristic'
+        ) {
+            throw new UserException(clienttranslate('Resolve the current resource choice first'));
+        }
+        if (
+            !in_array($token_id, self::RESSOURCE_IDS, true)
+            || $this->ressources->getRessourceState($token_id) !== 0
+        ) {
+            throw new UserException(clienttranslate('You must choose an available resource'));
+        }
+
+        $this->ressources->consumeRessources($token_id);
+        $this->applyEleonoreAbility();
+    }
+
+    private function applyEleonoreAbility(): void
+    {
+        // TODO: implement Éléonore's effect once its rules are defined.
     }
 
     private function getAenorAbilityEligibleCharacters(): array
@@ -4814,6 +4837,7 @@ class Game extends \Bga\GameFramework\Table
 
         // Cards played on the table
         $result['protagonistSlot'] = $this->deckManager->getCardsInLocation(Location::PROTAGONIST);
+        $result['eleonoreSelected'] = $this->isEleonoreSelected();
         $result['memoryTop'] = $this->getMemoryTopForDisplay();
         $result['memoryNb'] = $this->deckManager->countCardInLocation(Location::MEMORY);
         $result['currentCardResolution'] = $this->getCurrentCardResolution();

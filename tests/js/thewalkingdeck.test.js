@@ -1361,6 +1361,29 @@ describe("player actions", () => {
     assert.equal(context.bgaPerformAction.calls.length, 0);
   });
 
+  it("uses Eleonore resources in either phase and preserves disaster choice priority", () => {
+    const context = {
+      eleonoreSelected: true,
+      difficulty: 4,
+      isCurrentPlayerActive: () => true,
+      bgaPerformAction: spy(),
+    };
+    const token = { id: "ressource_hunger", consumed: 0 };
+    for (const phase of [1, 2]) {
+      context.gamePhase = phase;
+      game.onRessourceClick.call(context, token);
+    }
+    game.onRessourceClick.call(context, { ...token, consumed: 1 });
+    context.disasterResolutionPhase = "characteristic";
+    context.disasterResourceAvailable = true;
+    context.disasterResourceId = token.id;
+    game.onRessourceClick.call(context, token);
+    game.onRessourceClick.call(context, { id: "ressource_break", consumed: 0 });
+    assert.deepEqual(context.bgaPerformAction.calls.map(([action]) => action), [
+      "actUseEleonoreResource", "actUseEleonoreResource", "actUseDisasterResource",
+    ]);
+  });
+
   it("highlights the available resource for the current disaster characteristic", () => {
     const resourceElement = {
       classList: { add: spy(), remove: spy() },
@@ -1841,7 +1864,7 @@ describe("notifications", () => {
     const context = {
       protagonistSlot: { addCard: spy(async () => undefined) },
       hand: { removeAll: spy(async () => undefined) },
-      updateAllBorisResourceClickability: spy(),
+      updateAllResourceClickability: spy(),
       lossCondition: 5,
     };
     const card = { id: 2, type: "1" };
@@ -1857,7 +1880,7 @@ describe("notifications", () => {
     assert.equal(context.hand.removeAll.calls.length, 1);
     assert.equal(context.difficulty, 2);
     assert.equal(context.lossCondition, 3);
-    assert.equal(context.updateAllBorisResourceClickability.calls.length, 1);
+    assert.equal(context.updateAllResourceClickability.calls.length, 1);
   });
 
   it("animates Boris merging, shuffling and redistributing the decks", async () => {

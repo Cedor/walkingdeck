@@ -620,7 +620,7 @@ define([
         getId: (token) => token.id,
         setupDiv: (token, div) => {
           div.classList.add("twd-ressource");
-          this.updateBorisResourceClickability(token, div);
+          this.updateResourceClickability(token, div);
         },
         setupFrontDiv: (token, div) => {
           div.classList.add("twd-ressource-front");
@@ -716,6 +716,7 @@ define([
       // Set up game interface, according to "gamedatas"
       console.log("gamedatas", this.gamedatas);
       this.difficulty = this.gamedatas.difficultyLevel;
+      this.eleonoreSelected = Boolean(this.gamedatas.eleonoreSelected);
       this.isTestMode = Boolean(this.gamedatas.isTestMode);
       this.adrienRemovedResources = Array.isArray(
         this.gamedatas.adrienRemovedResources
@@ -1032,7 +1033,7 @@ define([
         : "none";
       this.tableResizeHandler?.();
       if (this.ressourcesSlots) {
-        this.updateAllBorisResourceClickability();
+        this.updateAllResourceClickability();
       }
     },
 
@@ -2485,6 +2486,31 @@ define([
         this.bgaPerformAction("actUseBorisResource", { token_id: token.id });
         return;
       }
+      if (
+        this.eleonoreSelected
+        && Number(token.consumed) === 0
+        && this.isCurrentPlayerActive()
+      ) {
+        this.bgaPerformAction("actUseEleonoreResource", { token_id: token.id });
+      }
+    },
+
+    updateResourceClickability: function (token, element = null) {
+      if (this.eleonoreSelected) {
+        this.updateEleonoreResourceClickability(token, element);
+      } else if (Number(this.difficulty) === 2) {
+        this.updateBorisResourceClickability(token, element);
+      }
+    },
+
+    updateEleonoreResourceClickability: function (token, element = null) {
+      const resourceElement = element
+        || document.getElementById(`twd-ressource-${token.id}`);
+      if (!resourceElement) return;
+      resourceElement.classList.toggle(
+        "twd-eleonore-resource-available",
+        Boolean(this.eleonoreSelected) && Number(token.consumed) === 0
+      );
     },
 
     updateBorisResourceClickability: function (token, element = null) {
@@ -2499,9 +2525,9 @@ define([
       );
     },
 
-    updateAllBorisResourceClickability: function () {
+    updateAllResourceClickability: function () {
       for (const token of this.ressourcesSlots.getCards()) {
-        this.updateBorisResourceClickability(token);
+        this.updateResourceClickability(token);
       }
     },
 
@@ -2556,8 +2582,9 @@ define([
         await this.protagonistSlot.addCard(card, { fromStock: this.hand });
         await this.hand.removeAll();
         this.difficulty = Number(args.difficulty);
+        this.eleonoreSelected = Number(card.type_arg) === 4;
         this.lossCondition = args.lossCondition;
-        this.updateAllBorisResourceClickability();
+        this.updateAllResourceClickability();
       }
     },
     notif_borisDecksMerged: async function (args) {
@@ -2670,7 +2697,7 @@ define([
       console.log(args);
       let token = args.token;
       this.ressourcesSlots.flipCard(token);
-      this.updateBorisResourceClickability(token);
+      this.updateResourceClickability(token);
     },
     notif_disasterDrawnFromBag: async function (args) {
       console.log("notif_disasterDrawnFromBag");
@@ -2722,14 +2749,14 @@ define([
       console.log(args);
       let token = args;
       this.ressourcesManager.flipCard(token);
-      this.updateBorisResourceClickability(token);
+      this.updateResourceClickability(token);
     },
     notif_ressourceRefilled: function (args) {
       console.log("notif_ressourceRefilled");
       console.log(args);
       let token = args;
       this.ressourcesManager.flipCard(token);
-      this.updateBorisResourceClickability(token);
+      this.updateResourceClickability(token);
     },
     notif_ressourceRemoved: async function (args) {
       console.log("notif_ressourceRemoved", args);

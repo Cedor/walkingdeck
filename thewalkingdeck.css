@@ -994,7 +994,8 @@
   height: 90px;
 }
 
-.twd-boris-resource-available {
+.twd-boris-resource-available,
+.twd-eleonore-resource-available {
   cursor: pointer;
   filter: drop-shadow(0 0 5px #f0c04a);
 }
